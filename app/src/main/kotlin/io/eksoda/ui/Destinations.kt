@@ -40,6 +40,10 @@ data object SettingsDestination
 @Serializable
 data object BudgetsDestination
 
+/** Household sync, opened from Settings. */
+@Serializable
+data object SyncDestination
+
 /**
  * One category of Insights over a period ([categoryId] null: the uncategorized products); [from]
  * and [to] are ISO dates, both included.

@@ -9,6 +9,7 @@ import io.eksoda.core.data.repository.BackupRepository
 import io.eksoda.core.data.repository.HouseholdRepository
 import io.eksoda.core.data.repository.RestorePlan
 import io.eksoda.core.data.repository.SettingsRepository
+import io.eksoda.core.data.repository.SyncRepository
 import io.eksoda.core.data.repository.backupError
 import io.eksoda.core.model.BackupSummary
 import io.eksoda.core.model.Household
@@ -23,14 +24,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 
 data class SettingsUiState(
     val household: Household? = null,
     val notifyImports: Boolean = false,
+    val sync: SyncSummary = SyncSummary(),
     val backup: BackupDialog = BackupDialog.None,
 )
+
+/** What the "Household sync" row shows; the switch itself is on the Sync screen. */
+data class SyncSummary(val enabled: Boolean = false, val lastSuccess: Instant? = null)
 
 /** The export and import steps that show a dialog. */
 sealed interface BackupDialog {
@@ -95,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     private val households: HouseholdRepository,
     private val settings: SettingsRepository,
     private val backups: BackupRepository,
+    sync: SyncRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val backup = MutableStateFlow<BackupDialog>(BackupDialog.None)
@@ -106,10 +113,21 @@ class SettingsViewModel @Inject constructor(
     private var importSource: Uri? = null
     private var plan: RestorePlan? = null
 
-    val uiState: StateFlow<SettingsUiState> =
-        combine(households.household, settings.notifyImports, backup) { household, notify, dialog ->
-            SettingsUiState(household = household, notifyImports = notify, backup = dialog)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), SettingsUiState())
+    private val syncSummary = combine(sync.enabled, sync.lastSuccess, ::SyncSummary)
+
+    val uiState: StateFlow<SettingsUiState> = combine(
+        households.household,
+        settings.notifyImports,
+        syncSummary,
+        backup,
+    ) { household, notify, syncRow, dialog ->
+        SettingsUiState(
+            household = household,
+            notifyImports = notify,
+            sync = syncRow,
+            backup = dialog,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), SettingsUiState())
 
     fun onEvent(event: SettingsEvent) {
         when (event) {

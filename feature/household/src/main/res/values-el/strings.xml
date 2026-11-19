@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sync_title">Συγχρονισμός νοικοκυριού</string>
+    <string name="sync_back">Πίσω</string>
+    <string name="sync_switch">Συγχρονισμός με τα κινητά του νοικοκυριού</string>
+    <string name="sync_switch_hint">Τα κινητά του νοικοκυριού μοιράζονται αποδείξεις, προϊόντα και ρυθμίσεις απευθείας μεταξύ τους, όταν βρίσκονται στο ίδιο Wi-Fi. Τίποτα δεν περνά από το διαδίκτυο. Οι σύνδεσμοι των αποδείξεων μένουν στο κινητό που τις σάρωσε.</string>
+    <string name="sync_phones">Συνδεδεμένα κινητά</string>
+    <string name="sync_phones_empty">Δεν έχει συνδεθεί ακόμη κανένα κινητό.</string>
+    <string name="sync_peer_last">Τελευταίος συγχρονισμός: %1$s</string>
+    <string name="sync_peer_never">Δεν έχει συγχρονιστεί ακόμη</string>
+    <string name="sync_history">Ιστορικό</string>
+    <string name="sync_history_empty">Δεν έχει γίνει ακόμη κανένας συγχρονισμός.</string>
+    <string name="sync_no_phone">Δεν βρέθηκε κινητό</string>
+    <string name="sync_result_done">Ολοκληρώθηκε</string>
+    <string name="sync_result_failed">Απέτυχε</string>
+    <string name="sync_result_running">Σε εξέλιξη…</string>
+    <string name="sync_no_changes">Καμία αλλαγή</string>
+    <string name="sync_counts">Νέα: %1$d · Αλλαγές: %2$d · Διαγραφές: %3$d</string>
+    <string name="sync_started_auto">Αυτόματα</string>
+    <string name="sync_started_user">Από εσάς</string>
+    <string name="sync_started_duration">%1$s · %2$d δευτ.</string>
+    <string name="sync_error_peer_unreachable">Το άλλο κινητό δεν βρέθηκε στο δίκτυο.</string>
+    <string name="sync_error_not_paired">Το άλλο κινητό δεν είναι συνδεδεμένο με αυτό το νοικοκυριό.</string>
+    <string name="sync_error_schema_mismatch">Τα δύο κινητά έχουν διαφορετική έκδοση του Eksoda. Ενημερώστε την εφαρμογή και στα δύο.</string>
+    <string name="sync_error_permission_denied">Δεν δόθηκε άδεια πρόσβασης στο τοπικό δίκτυο.</string>
+    <string name="sync_error_interrupted">Ο συγχρονισμός διακόπηκε.</string>
+    <string name="sync_error_merge_failed">Τα δεδομένα που ήρθαν δεν αποθηκεύτηκαν. Τίποτα δεν άλλαξε.</string>
+    <string name="sync_error_unknown">Ο συγχρονισμός απέτυχε.</string>
+</resources>

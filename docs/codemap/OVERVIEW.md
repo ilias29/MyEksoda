@@ -16,7 +16,9 @@ Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false
 `dataExtractionRules`); the user's own encrypted export is the only backup.
 
 Not built yet: backup reminder, restore from onboarding, app lock, hide content
-(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile).
+(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile),
+household sync between phones on the same Wi-Fi beyond its screen and switch (design and
+phases: `docs/design/household-sync.md`).
 
 ## Modules and dependency rules
 
@@ -40,7 +42,7 @@ core:ui                Shared composables (EmptyState, MoneyText, HeroMoney) and
                        categoryNameRes)
 feature:*              Screens. See only core:data interfaces, core:model, core:ui,
                        core:designsystem (wired by the eksoda.android.feature plugin).
-                       feature:household is empty.
+                       feature:household: the Sync screen (`sync/`, opened from Settings).
 build-logic            Convention plugins: eksoda.android.{application,library,compose,
                        feature,room}, eksoda.jvm.library, eksoda.hilt; Quality.kt (Spotless,
                        detekt, Kover); NoTelemetryCheck.kt
@@ -114,12 +116,16 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   merchant_product_mapping, receipt, receipt_item, import_job, tombstone. One DB file = one household (no
   `household_id`). UUID `TEXT` ids, `created_at`/`updated_at` epoch ms UTC, plus
   `issued_local_date` (`YYYY-MM-DD` in the household zone). Deletes write a `tombstone` row.
-- `EksodaDatabase` version **5**, `exportSchema = true`; schema JSON in
+  Local to the phone (`SyncEntities.kt`): sync_peer (paired phones) and sync_event (the sync
+  history); never backed up and never synced.
+- `EksodaDatabase` version **6**, `exportSchema = true`; schema JSON in
   `core/database/schemas/`. Version 4 shipped in 0.1.1, so **every schema change needs a
-  migration** that keeps the data: an `AutoMigration` when Room can derive it (4 → 5 is one),
-  else a manual `Migration`, plus a case in `core/database` `MigrationTest`
+  migration** that keeps the data: an `AutoMigration` when Room can derive it (4 → 5 and
+  5 → 6 are), else a manual `Migration`, plus a case in `core/database` `MigrationTest`
   (`MigrationTestHelper` on Robolectric, schemas as test assets). There is no destructive
-  fallback: a missing migration fails to open. A new table also goes in `BackupArchive.TABLES`.
+  fallback: a missing migration fails to open. A new table also goes in `BackupArchive.TABLES`
+  (household data) or `BackupArchive.LOCAL_TABLES` (about this phone: not exported, left as it
+  is by a restore).
 - **Decimals:** columns are fixed-point `Long` with a suffix: `_minor` (2), `_e2` (2),
   `_e4` (4), `_e6` (6). Convert only with `core/data/util/Fixed.kt`
   (`Fixed.toLong(v, Fixed.E4)`, `Fixed.toDecimal(l, Fixed.MINOR)`).
@@ -148,7 +154,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   Mapping entity/row → model is private in the `*Impl` (`toModel()`), using
   `HouseholdZone.current()` for dates.
 - DI: `di/AppModule.kt` (Engine, WorkManager, DataStore, `@ApplicationScope`,
-  `RepositoryModule` @Binds), `di/DatabaseModule.kt` (DB + one `@Provides` per DAO),
+  `RepositoryModule` @Binds; `di/SyncModule.kt` for sync), `di/DatabaseModule.kt` (DB + one
+  `@Provides` per DAO),
   `di/CoreModule.kt` (`Clock`, `@IoDispatcher`, `@DefaultDispatcher`). Parsing and analytics
   on Default, database and network on IO.
 - Repositories: Receipt, ReceiptOptions, ReceiptFilterStore (the receipt list's last filters
@@ -165,6 +172,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   card and bank payments, read from `source_data` by core:engine `electronicPartOf` (credit
   notes subtract; unreadable data counts 0). Home and Insights pass the month's category
   spending they already loaded to `getMonthBudgets` instead of querying it twice.
+  Sync (`SyncRepository`: the on/off flag in DataStore, off by default; paired phones; the
+  paged history; the last successful sync for the Settings row).
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data
@@ -225,7 +234,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   category names → `categoryNameRes(slug)`.
 - Receipt text (descriptions, merchant names) is shown as printed, never translated.
 - Helpers in `core:ui`: `dateFormatter(pattern, locale)` (cached; never
-  `DateTimeFormatter.ofPattern` in a composable), `searchKey(text)` for accent-free matching
+  `DateTimeFormatter.ofPattern` in a composable), `dayTimeLabel(instant)` ("Today, 14:20"),
+  `searchKey(text)` for accent-free matching
   of in-memory lists, `DelayedProgressIndicator` (no spinner flash on fast loads), and
   `EmptyState` with a one-line description, and `AmountDialog` for typing money
   (`parseMoneyInput` reads "18.000" as 18000 in either convention); `IncomeDialog` (on top of

@@ -44,9 +44,9 @@ internal object BackupArchive {
     private const val EXTENSION = ".ndjson"
 
     /**
-     * Every table of the schema, parents first: rows are inserted in this order and deleted in
-     * reverse, which `RESTRICT` foreign keys need. `BackupArchiveTest` checks that it lists every
-     * table in the database.
+     * Every table of the schema except [LOCAL_TABLES], parents first: rows are inserted in this
+     * order and deleted in reverse, which `RESTRICT` foreign keys need. `BackupArchiveTest` checks
+     * that the two lists cover every table in the database.
      */
     val TABLES = listOf(
         "household",
@@ -61,6 +61,12 @@ internal object BackupArchive {
         "import_job",
         "tombstone",
     )
+
+    /**
+     * Tables that describe this phone, not the household's data: never exported, and a restore
+     * leaves them as they are. The sync history and paired phones stay with the phone.
+     */
+    val LOCAL_TABLES = listOf("sync_peer", "sync_event")
 
     /** Fixed-point column suffixes and their scales (`Fixed`). */
     private val SCALES = listOf(

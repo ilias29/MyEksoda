@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sync_title">Household sync</string>
+    <string name="sync_back">Back</string>
+    <string name="sync_switch">Sync with the household\'s phones</string>
+    <string name="sync_switch_hint">The household\'s phones share receipts, products and settings directly with each other when they are on the same Wi-Fi. Nothing goes over the internet. Receipt links stay on the phone that scanned them.</string>
+    <string name="sync_phones">Paired phones</string>
+    <string name="sync_phones_empty">No phones paired yet.</string>
+    <string name="sync_peer_last">Last synced: %1$s</string>
+    <string name="sync_peer_never">Not synced yet</string>
+    <string name="sync_history">History</string>
+    <string name="sync_history_empty">No syncs yet.</string>
+    <string name="sync_no_phone">No phone found</string>
+    <string name="sync_result_done">Done</string>
+    <string name="sync_result_failed">Failed</string>
+    <string name="sync_result_running">In progress…</string>
+    <string name="sync_no_changes">No changes</string>
+    <string name="sync_counts">New: %1$d · Changed: %2$d · Deleted: %3$d</string>
+    <string name="sync_started_auto">Automatic</string>
+    <string name="sync_started_user">Started by you</string>
+    <string name="sync_started_duration">%1$s · %2$d s</string>
+    <string name="sync_error_peer_unreachable">The other phone could not be reached on the network.</string>
+    <string name="sync_error_not_paired">The other phone is not paired with this household.</string>
+    <string name="sync_error_schema_mismatch">The two phones have different versions of Eksoda. Update the app on both.</string>
+    <string name="sync_error_permission_denied">Local network access was not allowed.</string>
+    <string name="sync_error_interrupted">The sync was interrupted.</string>
+    <string name="sync_error_merge_failed">The received data could not be saved. Nothing changed.</string>
+    <string name="sync_error_unknown">The sync failed.</string>
+</resources>

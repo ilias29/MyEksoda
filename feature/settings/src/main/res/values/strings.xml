@@ -19,6 +19,10 @@
     <string name="settings_household">Νοικοκυριό</string>
     <string name="settings_household_name">Όνομα</string>
     <string name="settings_currency">Νόμισμα</string>
+    <string name="settings_sync">Συγχρονισμός νοικοκυριού</string>
+    <string name="settings_sync_off">Ανενεργός</string>
+    <string name="settings_sync_on">Ενεργός</string>
+    <string name="settings_sync_on_last">Ενεργός · τελευταίος συγχρονισμός: %1$s</string>
     <string name="settings_about">Σχετικά</string>
     <string name="settings_version">Έκδοση</string>
     <string name="settings_made_by">Δημιουργός</string>

@@ -10,6 +10,7 @@ import assertk.assertions.contains
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isTrue
 import assertk.assertions.prop
 import io.eksoda.core.data.repository.BackupError
 import io.eksoda.core.data.repository.BackupException
@@ -48,7 +49,30 @@ class BackupArchiveTest {
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' " +
                 "AND name NOT IN ('room_master_table', 'android_metadata')",
         ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-        assertThat(tables).containsExactlyInAnyOrder(*BackupArchive.TABLES.toTypedArray())
+        val listed = BackupArchive.TABLES + BackupArchive.LOCAL_TABLES
+        assertThat(tables).containsExactlyInAnyOrder(*listed.toTypedArray())
+    }
+
+    @Test
+    fun `the sync tables are neither exported nor touched by a restore`() {
+        db.execSQL(
+            "INSERT INTO sync_peer (device_id, name, paired_at, last_address, last_seen_at, " +
+                "last_success_at) VALUES ('d1', 'Pixel 9', 1, NULL, NULL, NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO sync_event (id, peer_device_id, peer_name, started_by, started_at, " +
+                "finished_at, result, error_code, inserted, updated, deleted) VALUES ('e1', " +
+                "'d1', 'Pixel 9', 'user', 1, 2, 'done', NULL, 3, 0, 0)",
+        )
+        val written = transaction { BackupArchive.write(db) }
+        val names = ZipInputStream(written.bytes.inputStream()).use { zip ->
+            generateSequence { zip.nextEntry }.map { it.name }.toList()
+        }
+        assertThat(names.none { it.startsWith("sync_") }).isTrue()
+
+        transaction { BackupArchive.restore(db, written.bytes) }
+        assertThat(count("sync_peer")).isEqualTo(1)
+        assertThat(count("sync_event")).isEqualTo(1)
     }
 
     @Test
@@ -130,6 +154,11 @@ class BackupArchiveTest {
                 }
             }
         }
+    }
+
+    private fun count(table: String): Int = db.query("SELECT COUNT(*) FROM `$table`").use {
+        it.moveToFirst()
+        it.getInt(0)
     }
 
     private fun entry(archive: ByteArray, name: String): String =

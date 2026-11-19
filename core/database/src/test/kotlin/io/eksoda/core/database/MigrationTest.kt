@@ -56,6 +56,27 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun `5 to 6 keeps the data and adds the sync tables`() {
+        helper.createDatabase(NAME, 5).use { db ->
+            db.execSQL(
+                """INSERT INTO household (id, name, default_currency, timezone, created_at,
+                   updated_at, annual_income_minor) VALUES ('h1', 'Σπίτι', 'EUR', 'Europe/Athens',
+                   1, 1, 2400000)""",
+            )
+        }
+
+        helper.runMigrationsAndValidate(NAME, 6, true).use { db ->
+            db.query("SELECT name, annual_income_minor FROM household").use { row ->
+                assertThat(row.moveToFirst()).isTrue()
+                assertThat(row.getString(0)).isEqualTo("Σπίτι")
+                assertThat(row.getLong(1)).isEqualTo(2_400_000L)
+            }
+            assertThat(db.count("sync_peer")).isEqualTo(0)
+            assertThat(db.count("sync_event")).isEqualTo(0)
+        }
+    }
+
     private fun SupportSQLiteDatabase.count(table: String): Int =
         query("SELECT COUNT(*) FROM `$table`").use {
             it.moveToFirst()
