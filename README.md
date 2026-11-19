@@ -117,4 +117,16 @@ python3 decrypt_bu.py your_backup.eksoda [output_archive.zip]
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Copyright (C) 2026 Stefanos I. Tsaklidis
+
+Eksoda is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License](LICENSE) as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. It is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+In short: you may use, change and share the code, but any app you publish from it must also be
+open source under the GPL, with its full source code. The name "Eksoda" and the logo are not
+licensed: a fork needs its own name, icon and application id. See [TRADEMARKS.md](TRADEMARKS.md).
+
+Releases up to 0.1.1 were published under the MIT License.
