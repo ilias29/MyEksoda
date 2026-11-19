@@ -114,8 +114,8 @@ private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
                     CategoryDetailRoute(
                         onBack = back,
                         onProductClick = openProduct,
-                        onMerchantClick = {
-                            navController.navigate(MerchantDetailDestination(it))
+                        onMerchantClick = { merchantId ->
+                            navController.navigate(MerchantDetailDestination(merchantId))
                         },
                     )
                 }
