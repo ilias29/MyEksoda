@@ -27,6 +27,15 @@ data class ReceiptRow(
     @ColumnInfo(name = "has_warnings") val hasWarnings: Boolean,
 )
 
+/** A receipt's unique columns, for its tombstone's natural key (household sync). */
+data class ReceiptKeys(
+    val mark: String?,
+    @ColumnInfo(name = "issuer_country") val issuerCountry: String,
+    @ColumnInfo(name = "issuer_vat") val issuerVat: String,
+    val uid: String?,
+    @ColumnInfo(name = "source_key") val sourceKey: String?,
+)
+
 /**
  * A receipt as the list shows it: only the columns a row needs. The list never loads
  * `source_data`, `validation_warnings` or the `source_url` credential, so pages stay
@@ -144,6 +153,9 @@ interface ReceiptDao {
 
     @Query("DELETE FROM receipt WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("SELECT mark, issuer_country, issuer_vat, uid, source_key FROM receipt WHERE id = :id")
+    suspend fun keys(id: String): ReceiptKeys?
 
     // --- filter options -------------------------------------------------------------------------
 

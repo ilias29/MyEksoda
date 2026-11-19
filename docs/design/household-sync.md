@@ -57,14 +57,15 @@ the same Wi-Fi. No server, no account, no internet traffic.
    later frame is `length (uint32 BE) | AES-256-GCM(session key, counter nonce)`. A phone
    without the key fails the first frame (`not_paired`). A different `schemaVersion` stops
    the sync (`schema_mismatch`: update the app on both phones).
-2. Each side sends its **snapshot**: the `BackupArchive` NDJSON of the synced tables
-   (below), gzip-compressed. Without `receipt.source_url`, without `import_job`.
+2. Each side sends its **snapshot** (core:engine `SnapshotCodec`): gzip of JSON lines, one
+   per row of the synced tables (below), values as stored. Without `receipt.source_url`,
+   without `import_job` (`Snapshot.forPeer`).
 3. Each side merges what it received in one `WriteCoordinator` transaction and replies
    `Done {inserted, updated, deleted}`. Both write an entry in the sync history.
 
 The whole snapshot is sent every time. For a family this should be a few MB compressed
-(measure it in phase 2). Sending only rows changed since the last sync with that phone is
-an optimization for later; the merge does not change.
+(not measured yet: needs a real household's data, phase 4). Sending only rows changed since
+the last sync with that phone is an optimization for later; the merge does not change.
 
 ### What syncs
 
@@ -74,16 +75,21 @@ an optimization for later; the merge does not change.
 | import_job | no | local queue, holds the URL |
 | sync_peer, sync_event (new) | no | local; also left out of the backup file |
 
-### Merge rules (pure Kotlin in core:engine, with tests)
+### Merge rules (core:engine `sync/`, built)
 
 Merging depends only on the two row sets, never on the order of syncs, and running it twice
 changes nothing. So any phone can sync with any other, in any order, and all phones converge.
+The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, remote)`.
 
-- **Same id:** the row with the later `updated_at` wins; on a tie, the larger device id.
-  Rows are whole: a concurrent edit of two different fields of the same row keeps only one
-  (acceptable for a household).
+- **Same id:** the row with the later `updated_at` wins; on a tie, the larger row content
+  (local columns left out), so both phones pick the same copy. Rows are whole: a concurrent
+  edit of two different fields of the same row keeps only one (acceptable for a household).
 - **Deletes:** a tombstone wins over a row when `deleted_at >= updated_at`. Tombstones are
-  merged by union (latest `deleted_at`).
+  merged by union (latest `deleted_at`). A receipt's tombstone also holds its unique key
+  (`natural_key`), so it deletes the copy another phone imported under its own id. A deleted
+  parent takes its `CASCADE` children along and is cleared from `SET NULL` pointers; a
+  deleted row that a surviving row points at through `RESTRICT` (a product a new line was
+  matched to on the other phone) is kept.
 - **Same thing, different ids.** Two phones that imported the same thing on their own have
   different random ids. Rows are matched by their unique key, the **smaller id is kept** on
   both sides, and child rows are repointed:
@@ -99,9 +105,13 @@ changes nothing. So any phone can sync with any other, in any order, and all pho
   | budget | id is already `total` or the category id |
   | household | one row: the later `updated_at` wins |
 
-- **Products** have no unique key. When two mappings with the same key point to different
-  products, the two products are merged: the smaller id is kept, receipt items and mappings
-  are repointed, and the later `updated_at` decides name, brand, category and package.
+- **Products** have no unique key. When two different mappings with the same key point to
+  different products (two phones each created one), the products are merged: the smaller id
+  is kept, receipt items and mappings are repointed, and the later `updated_at` decides name,
+  brand, category and package. One mapping that a phone pointed at another product merges
+  nothing (its later copy decides). Products merged on a phone ("merge products") leave
+  tombstones with `replaced_by`: on the other phones their lines and mappings move to the
+  product kept, instead of the merged product coming back.
 - **Receipt URL:** when a receipt row from another phone wins, the local `source_url` (if
   this phone has one) is kept.
 - Analytics, budgets and Home simply see the merged rows; nothing else changes.
@@ -136,15 +146,19 @@ on it counts as scanned here too.
 - **core:database:** version 6 (done): `sync_peer` (device id, name, paired at, last address,
   last seen, last success) and `sync_event` (id, peer device id and name, `started_by`
   auto/user, started, finished, result, error code, counts), `SyncDao`; both in
-  `BackupArchive.LOCAL_TABLES` (not exported, untouched by a restore). Version 7 (phases 2
-  and 5): `receipt.source_url` nullable, `tombstone.natural_key` (see open points).
-- **core:engine** `sync/`: frame and crypto (javax.crypto), handshake, table descriptors
-  (unique keys, foreign keys), merge planner (input: local and remote rows; output: upserts,
-  deletes, id remaps), private-address check. Unit tests for every rule above.
-- **core:data** `sync/`: `SyncRepository` (done: enabled flag in DataStore, peers, history
-  paging, last success; to come: status, sync now, pair, join, leave), `SyncKeyStore`, NSD announce and discovery, socket listener tied to
-  the app's foreground state, snapshot writer and merge applier (built on `BackupArchive`).
-  Robolectric test: two in-memory databases synced through the real merge.
+  `BackupArchive.LOCAL_TABLES` (not exported, untouched by a restore). Version 7 (done):
+  `receipt.source_url` nullable, `tombstone.natural_key` (written by `deleteReceipt`) and
+  `tombstone.replaced_by` (written by `mergeProducts`).
+- **core:engine** `sync/`: done: `SyncSchema` (table rules), `Snapshot` and `SnapshotCodec`,
+  `SyncMerge` (identities, winners, tombstones, `Liveness`), with tests for every rule above.
+  To come: frame and crypto (javax.crypto), handshake, private-address check.
+- **core:data** `sync/`: done: `SyncRepository` (enabled flag in DataStore, peers, history
+  paging, last success), `SnapshotStore` (reads the snapshot, applies a merge: drops and
+  renames children first, then writes only changed rows parents first, then repoints import
+  jobs at the receipt kept or marks them `receipt_deleted`), `SyncMerger` (both under the
+  write lock). Robolectric test: two in-memory databases synced both ways. To come: status,
+  sync now, pair, join, leave, `SyncKeyStore`, NSD announce and discovery, socket listener
+  tied to the app's foreground state.
 - **feature:settings:** the "Household sync" row in the Household card that opens the Sync
   screen ("Off", "On", or "On · last sync: <time>"). The switch itself is on the Sync screen.
 - **app:** `SyncDestination` and its route in `MainNavHost`. `MainTabs` does not change.
@@ -165,20 +179,23 @@ on it counts as scanned here too.
 
 1. **Done (2026-11-19).** Sync screen (switch, paired phones, history) and its Settings row,
    `sync_peer` / `sync_event` tables, migration 6.
-2. Merge rules in core:engine with tests; snapshot writer and merge applier in core:data,
-   tested with two databases. Measure snapshot size.
+2. **Done (2026-11-19).** Merge rules in core:engine with tests; snapshot reader and merge
+   applier in core:data, tested with two databases; migration 7.
 3. Pairing: key store, device id, QR show and scan, leave.
 4. Transport and NSD: handshake, listener, discovery, automatic and manual sync, history
    entries.
-5. Synced receipts: nullable URL, the mark, URL actions hidden.
+5. Synced receipts: the mark, URL actions hidden (the URL is already nullable).
 6. When moving to `targetSdk` 37: the local network permission.
 
 ## Open points
 
-- **Deleted receipt coming back.** If two phones imported the same receipt on their own before
-  their first sync and one deletes it, the other's copy (different id) is not matched by the
-  tombstone and returns. Fix: receipt tombstones also store the receipt's unique key
-  (`tombstone.natural_key`), and the merge matches on it.
+- **Unique keys that change.** The merge writes changed rows one by one, so two rows that
+  swap a unique value in the same sync (two user categories renamed into each other's
+  names) hit the unique index: the merge fails as `merge_failed` and nothing changes. Rare;
+  if it happens in practice, write such rows in two steps.
+- **A missing `RESTRICT` parent** (a row pointing at a merchant or product that neither phone
+  has) fails the final foreign key check: `merge_failed`, nothing changes. It should not
+  happen; it is not silently dropped, so no line is lost.
 - **Clock skew.** Later `updated_at` wins, so a phone with a wrong clock wins edits it should
   not. Acceptable for now; a hybrid logical clock fixes it later if needed.
 - **Tombstone cleanup.** Kept forever for now.

@@ -52,13 +52,16 @@ import io.eksoda.core.database.entity.TombstoneEntity
         SyncPeerEntity::class,
         SyncEventEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         // 5: the budget table and household.annual_income_minor.
         AutoMigration(from = 4, to = 5),
         // 6: the sync_peer and sync_event tables (household sync).
         AutoMigration(from = 5, to = 6),
+        // 7: receipt.source_url nullable (synced receipts have no link), tombstone.natural_key
+        // and tombstone.replaced_by.
+        AutoMigration(from = 6, to = 7),
     ],
 )
 abstract class EksodaDatabase : RoomDatabase() {

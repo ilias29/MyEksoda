@@ -77,6 +77,52 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun `6 to 7 keeps receipts with their lines and lets a receipt have no link`() {
+        helper.createDatabase(NAME, 6).use { db ->
+            db.execSQL(
+                """INSERT INTO merchant (id, country_code, vat_number, legal_name, display_name,
+                   normalized_display_name, display_name_set_by_user, activity_description,
+                   tax_office, gemi_number, street, street_number, city, postal_code,
+                   details_as_of, created_at, updated_at) VALUES ('m1', 'GR', '094014201', 'A',
+                   'A', 'a', 0, '', '', '', '', '', '', '', NULL, 1, 1)""",
+            )
+            db.receipt("r1", mark = "1", url = "'https://a.invalid/1'")
+            db.execSQL(
+                """INSERT INTO receipt_item (id, receipt_id, line_number, line_type, description,
+                   normalized_description, gross_amount_minor, match_status, user_note,
+                   created_at, updated_at) VALUES ('i1', 'r1', 1, 'other', 'X', 'x', 100,
+                   'not_a_product', '', 1, 1)""",
+            )
+            db.execSQL("INSERT INTO tombstone (entity, id, deleted_at) VALUES ('receipt', 'r0', 1)")
+        }
+
+        helper.runMigrationsAndValidate(NAME, 7, true).use { db ->
+            assertThat(db.count("receipt")).isEqualTo(1)
+            assertThat(db.count("receipt_item")).isEqualTo(1)
+            db.query("SELECT natural_key, replaced_by FROM tombstone").use { row ->
+                assertThat(row.moveToFirst()).isTrue()
+                assertThat(row.isNull(0) && row.isNull(1)).isTrue()
+            }
+            // A receipt from another phone has no link.
+            db.receipt("r2", mark = "2", url = "NULL")
+            assertThat(db.count("receipt")).isEqualTo(2)
+        }
+    }
+
+    /** [url] is SQL: a quoted string or NULL. */
+    private fun SupportSQLiteDatabase.receipt(id: String, mark: String, url: String) = execSQL(
+        """INSERT INTO receipt (id, merchant_id, store_id, provider_code, parser_version,
+           issuer_country, issuer_vat, uid, mark, cancellation_mark, source_key, document_kind,
+           document_type_code, document_number, issued_at, issued_local_date, currency,
+           gross_total_minor, net_total_minor, vat_total_minor, discount_total_minor,
+           payment_method, status, validation_warnings, excluded_from_analytics, user_note,
+           source_url, source_url_fingerprint, source_data, created_at, updated_at) VALUES
+           ('$id', 'm1', NULL, 'impact', '1', 'GR', '094014201', NULL, '$mark', NULL, NULL,
+           'sale', NULL, 'A-1', 1, '2026-11-15', 'EUR', 100, NULL, NULL, NULL, 'card',
+           'active', '[]', 0, '', $url, 'fp', '{}', 1, 1)""",
+    )
+
     private fun SupportSQLiteDatabase.count(table: String): Int =
         query("SELECT COUNT(*) FROM `$table`").use {
             it.moveToFirst()

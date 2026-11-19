@@ -36,6 +36,7 @@ import io.eksoda.core.model.ReceiptWarning
 import io.eksoda.core.model.Store
 import io.eksoda.core.model.VatAmount
 import io.eksoda.engine.ReceiptException
+import io.eksoda.engine.sync.SyncSchema
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -118,15 +119,28 @@ class ReceiptRepositoryImpl @Inject constructor(
 
     /**
      * `delete_receipt`: the receipt and its lines go; its import jobs stay, marked
-     * `receipt_deleted`, so scanning the receipt again imports it again. A tombstone is kept for
-     * sync later.
+     * `receipt_deleted`, so scanning the receipt again imports it again. The tombstone carries
+     * the receipt's unique key, so household sync also deletes the copy another phone imported.
      */
     override suspend fun deleteReceipt(id: String): Result<Unit> = runCatching {
         coordinator.write {
             val now = clock.millis()
+            val keys = checkNotNull(receipts.keys(id)) { "no such receipt" }
             jobs.markReceiptDeleted(id, now)
             check(receipts.delete(id) == 1) { "no such receipt" }
-            tombstones.insert(TombstoneEntity(entity = "receipt", id = id, deletedAt = now))
+            val naturalKey = SyncSchema.naturalKey(
+                SyncSchema.RECEIPT,
+                mapOf(
+                    "mark" to keys.mark,
+                    "issuer_country" to keys.issuerCountry,
+                    "issuer_vat" to keys.issuerVat,
+                    "uid" to keys.uid,
+                    "source_key" to keys.sourceKey,
+                ),
+            )
+            tombstones.insert(
+                TombstoneEntity(SyncSchema.RECEIPT, id, deletedAt = now, naturalKey = naturalKey),
+            )
         }
     }
 
