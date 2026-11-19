@@ -1,5 +1,6 @@
 package io.eksoda.core.data.repository
 
+import io.eksoda.core.model.CategoryDetail
 import io.eksoda.core.model.CategorySpending
 import io.eksoda.core.model.MerchantSpending
 import io.eksoda.core.model.MonthPace
@@ -24,6 +25,13 @@ interface AnalyticsRepository {
     suspend fun getMonthlyTrend(months: Int): Result<MonthlyTrend>
 
     suspend fun getSpendingByCategory(period: Period): Result<CategorySpending>
+
+    /**
+     * One category of [getSpendingByCategory] (its total is the same) by product and by shop, with
+     * the period of equal length before; a null [categoryId] is the uncategorized bucket. Fails
+     * when the category does not exist.
+     */
+    suspend fun getCategoryDetail(categoryId: String?, period: Period): Result<CategoryDetail>
 
     suspend fun getSpendingByMerchant(period: Period): Result<List<MerchantSpending>>
 

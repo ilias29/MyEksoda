@@ -51,6 +51,7 @@ internal object BackupArchive {
     val TABLES = listOf(
         "household",
         "category",
+        "budget",
         "merchant",
         "store",
         "product",

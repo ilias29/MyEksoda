@@ -22,6 +22,11 @@
         <item quantity="one">%d απόδειξη σε εισαγωγή…</item>
         <item quantity="other">%d αποδείξεις σε εισαγωγή…</item>
     </plurals>
+    <plurals name="home_budgets_over">
+        <item quantity="one">Ξεπεράστηκε %d προϋπολογισμός</item>
+        <item quantity="other">Ξεπεράστηκαν %d προϋπολογισμοί</item>
+    </plurals>
+    <string name="home_budgets_over_body">Δείτε ποιοι στα Στατιστικά</string>
     <string name="home_importing_body">Θα εμφανιστούν εδώ μόλις ολοκληρωθούν</string>
 
     <string name="home_where_it_went">Πού πήγαν τα χρήματα</string>

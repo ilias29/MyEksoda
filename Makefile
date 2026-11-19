@@ -37,8 +37,8 @@ check:  ## Everything above in one Gradle run. Must pass before a task counts as
 install:  ## Install the debug app on the running emulator or device
 	$(GRADLE) installDebug
 
-install_rc:
-	$(GRADLE) installRelease
+install_rc:  ## Build the release APK and install it on one device (DEVICE=<serial> if several)
+	bash scripts/install_rc.sh $(DEVICE)
 
 format:  ## Apply ktlint formatting
 	$(GRADLE) spotlessApply

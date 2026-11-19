@@ -22,6 +22,11 @@
         <item quantity="one">%d receipt importing…</item>
         <item quantity="other">%d receipts importing…</item>
     </plurals>
+    <plurals name="home_budgets_over">
+        <item quantity="one">%d budget exceeded</item>
+        <item quantity="other">%d budgets exceeded</item>
+    </plurals>
+    <string name="home_budgets_over_body">See which in Insights</string>
     <string name="home_importing_body">They\'ll show up here when done</string>
 
     <string name="home_where_it_went">Where it went</string>

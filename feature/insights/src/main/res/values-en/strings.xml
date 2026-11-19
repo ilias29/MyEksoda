@@ -67,4 +67,59 @@
         <item quantity="one">%d buy</item>
         <item quantity="other">%d buys</item>
     </plurals>
+
+    <!-- Folding a card (screen readers: the action of tapping its title) -->
+    <string name="insights_card_collapse">Collapse</string>
+    <string name="insights_card_expand">Expand</string>
+
+    <!-- Budgets card -->
+    <string name="insights_budgets">Budgets</string>
+    <string name="insights_budgets_set">Set</string>
+    <string name="insights_budgets_edit">Edit</string>
+    <string name="insights_budgets_empty">Set how much you want to spend this month, in total or per category.</string>
+    <string name="insights_budget_month_gone">%1$s of the month has gone by</string>
+    <string name="insights_budget_total">All spending</string>
+    <string name="insights_budget_of">%1$s of %2$s</string>
+    <string name="insights_budget_left">%1$s left</string>
+    <string name="insights_budget_left_used">%1$s left · %2$s used</string>
+    <string name="insights_budget_over">Over by %1$s</string>
+
+    <!-- E-payments card -->
+    <string name="insights_epayments_title">E-payments %1$d</string>
+    <string name="insights_epayments_income">Income</string>
+    <string name="insights_epayments_paid">Paid by card or bank this year</string>
+    <string name="insights_epayments_no_income">Add your annual income to see your target: %1$s of it, up to %2$s.</string>
+    <string name="insights_epayments_add_income">Add income</string>
+    <string name="insights_epayments_left">%1$s left of the %2$s target, about %3$s a month.</string>
+    <string name="insights_epayments_reached">The %1$s target is reached.</string>
+    <string name="insights_epayments_projected">At this pace: %1$s by the end of the year.</string>
+    <string name="insights_epayments_note">This amount comes only from the receipts you have registered in the app. The tax office counts all your electronic payments (also the ones you didn\'t scan here, such as online shopping), so your real total may be higher.</string>
+
+    <!-- Budgets screen -->
+    <string name="budgets_title">Budgets</string>
+    <string name="budgets_back">Back</string>
+    <string name="budgets_intro">Set how much you want to spend each month. Insights and Home show how the month is going.</string>
+    <string name="budgets_whole_month">Whole month</string>
+    <string name="budgets_whole_month_hint">All spending, whatever the category</string>
+    <string name="budgets_categories">Per category</string>
+    <string name="budgets_none">No budget</string>
+    <string name="budgets_dialog_title">Monthly budget</string>
+    <string name="budgets_categories_sum">Together %1$s</string>
+    <string name="budgets_categories_sum_of">Together %1$s of the month\'s %2$s</string>
+    <string name="budgets_error_category">The categories together can\'t go over the month\'s budget. Up to %1$s is left for this one.</string>
+    <string name="budgets_error_total">The month\'s budget can\'t be less than its categories together (%1$s).</string>
+    <string name="budgets_save_failed">The budget could not be saved.</string>
+
+    <!-- One category, opened from its row in Insights -->
+    <string name="category_back">Back</string>
+    <string name="category_share">%1$s of the period\'s spending</string>
+    <string name="category_products">Products</string>
+    <plurals name="category_receipts">
+        <item quantity="one">On %d receipt</item>
+        <item quantity="other">On %d receipts</item>
+    </plurals>
+    <string name="category_unitemized">Not itemized</string>
+    <string name="category_unitemized_hint">Receipt amounts not broken down into items</string>
+    <string name="category_uncategorized_hint">Products with no category, from shops with no default category. Tap a product to give it a category, or a shop to give one to everything bought there.</string>
+    <string name="category_empty">Nothing was spent in this category in this period.</string>
 </resources>

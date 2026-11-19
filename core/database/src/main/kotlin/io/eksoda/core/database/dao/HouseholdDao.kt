@@ -23,4 +23,8 @@ interface HouseholdDao {
 
     @Update
     suspend fun update(household: HouseholdEntity)
+
+    /** Sets or clears ([income] null) the annual income; the number of rows changed. */
+    @Query("UPDATE household SET annual_income_minor = :income, updated_at = :now")
+    suspend fun setAnnualIncome(income: Long?, now: Long): Int
 }

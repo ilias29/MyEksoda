@@ -18,7 +18,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.eksoda.core.designsystem.chart.LineChart
-import io.eksoda.core.designsystem.component.SectionCard
 import io.eksoda.core.designsystem.text.monoNumbers
 import io.eksoda.core.designsystem.theme.EksodaTheme
 import io.eksoda.core.model.Money
@@ -39,7 +38,7 @@ internal fun PaceCard(pace: MonthPace) {
     val locale = appLocale()
     val currency = pace.currency
     val lastMonth = pace.month.minusMonths(1)
-    SectionCard(title = stringResource(R.string.insights_pace_title)) {
+    FoldableCard(InsightsCard.PACE, stringResource(R.string.insights_pace_title)) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

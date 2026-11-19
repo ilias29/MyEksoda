@@ -68,4 +68,59 @@
         <item quantity="one">%d αγορά</item>
         <item quantity="other">%d αγορές</item>
     </plurals>
+
+    <!-- Folding a card (screen readers: the action of tapping its title) -->
+    <string name="insights_card_collapse">Σύμπτυξη</string>
+    <string name="insights_card_expand">Ανάπτυξη</string>
+
+    <!-- Budgets card -->
+    <string name="insights_budgets">Προϋπολογισμοί</string>
+    <string name="insights_budgets_set">Ορισμός</string>
+    <string name="insights_budgets_edit">Αλλαγή</string>
+    <string name="insights_budgets_empty">Ορίστε πόσα θέλετε να ξοδεύετε τον μήνα, συνολικά ή ανά κατηγορία.</string>
+    <string name="insights_budget_month_gone">Έχει περάσει το %1$s του μήνα</string>
+    <string name="insights_budget_total">Όλα τα έξοδα</string>
+    <string name="insights_budget_of">%1$s από %2$s</string>
+    <string name="insights_budget_left">Απομένουν %1$s</string>
+    <string name="insights_budget_left_used">Απομένουν %1$s · χρησιμοποιήθηκε το %2$s</string>
+    <string name="insights_budget_over">Ξεπεράστηκε κατά %1$s</string>
+
+    <!-- E-payments card -->
+    <string name="insights_epayments_title">Ηλεκτρονικές πληρωμές %1$d</string>
+    <string name="insights_epayments_income">Εισόδημα</string>
+    <string name="insights_epayments_paid">Πληρωμές με κάρτα ή τράπεζα φέτος</string>
+    <string name="insights_epayments_no_income">Προσθέστε το ετήσιο εισόδημά σας για να δείτε τον στόχο σας: το %1$s του, έως %2$s.</string>
+    <string name="insights_epayments_add_income">Προσθήκη εισοδήματος</string>
+    <string name="insights_epayments_left">Απομένουν %1$s για τον στόχο των %2$s, περίπου %3$s τον μήνα.</string>
+    <string name="insights_epayments_reached">Ο στόχος των %1$s επιτεύχθηκε.</string>
+    <string name="insights_epayments_projected">Με αυτόν τον ρυθμό: %1$s ως το τέλος της χρονιάς.</string>
+    <string name="insights_epayments_note">Το ποσό αυτό βγαίνει μόνο από τις αποδείξεις που έχετε καταχωρίσει στην εφαρμογή. Η εφορία μετράει όλες τις ηλεκτρονικές πληρωμές σας (και όσες δεν έχετε σκανάρει εδώ, όπως αγορές online), οπότε το πραγματικό σας σύνολο μπορεί να είναι μεγαλύτερο.</string>
+
+    <!-- Budgets screen -->
+    <string name="budgets_title">Προϋπολογισμοί</string>
+    <string name="budgets_back">Πίσω</string>
+    <string name="budgets_intro">Ορίστε πόσα θέλετε να ξοδεύετε κάθε μήνα. Τα Στατιστικά και η Αρχική δείχνουν πώς πάει ο μήνας.</string>
+    <string name="budgets_whole_month">Όλος ο μήνας</string>
+    <string name="budgets_whole_month_hint">Όλα τα έξοδα, σε οποιαδήποτε κατηγορία</string>
+    <string name="budgets_categories">Ανά κατηγορία</string>
+    <string name="budgets_none">Χωρίς προϋπολογισμό</string>
+    <string name="budgets_dialog_title">Μηνιαίος προϋπολογισμός</string>
+    <string name="budgets_categories_sum">Μαζί %1$s</string>
+    <string name="budgets_categories_sum_of">Μαζί %1$s από τα %2$s του μήνα</string>
+    <string name="budgets_error_category">Οι κατηγορίες μαζί δεν μπορούν να ξεπερνούν τον προϋπολογισμό του μήνα. Για αυτή μένουν έως %1$s.</string>
+    <string name="budgets_error_total">Ο προϋπολογισμός του μήνα δεν μπορεί να είναι μικρότερος από τις κατηγορίες μαζί (%1$s).</string>
+    <string name="budgets_save_failed">Δεν ήταν δυνατή η αποθήκευση του προϋπολογισμού.</string>
+
+    <!-- One category, opened from its row in Insights -->
+    <string name="category_back">Πίσω</string>
+    <string name="category_share">Το %1$s των εξόδων του διαστήματος</string>
+    <string name="category_products">Προϊόντα</string>
+    <plurals name="category_receipts">
+        <item quantity="one">Σε %d απόδειξη</item>
+        <item quantity="other">Σε %d αποδείξεις</item>
+    </plurals>
+    <string name="category_unitemized">Χωρίς ανάλυση σε είδη</string>
+    <string name="category_unitemized_hint">Ποσά αποδείξεων που δεν χωρίζονται σε είδη</string>
+    <string name="category_uncategorized_hint">Προϊόντα χωρίς κατηγορία, από καταστήματα χωρίς προεπιλεγμένη κατηγορία. Πατήστε ένα προϊόν για να του ορίσετε κατηγορία, ή ένα κατάστημα για να δώσετε κατηγορία σε όλες τις αγορές εκεί.</string>
+    <string name="category_empty">Καμία αγορά σε αυτή την κατηγορία για το διάστημα.</string>
 </resources>

@@ -6,6 +6,61 @@
 
 Eksoda is a standalone, privacy-first Android household expense app built around Greek e-receipts. Simply scan the QR code on a receipt, and Eksoda downloads the official e-receipt data directly from the issuing company. It tracks your spending, itemized product costs over time, and price comparisons across merchants.
 
+**[⬇️ Download the latest APK](https://github.com/tsaklidis/MyEksoda/releases/latest)** · [How to install](#-install)
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home.png" width="200" alt="Home"><br><sub>Home</sub></td>
+    <td align="center"><img src="docs/screenshots/stats.png" width="200" alt="Stats"><br><sub>Stats</sub></td>
+    <td align="center"><img src="docs/screenshots/stats1.png" width="200" alt="Stats detail"><br><sub>Stats detail</sub></td>
+    <td align="center"><img src="docs/screenshots/insights.png" width="200" alt="Insights"><br><sub>Insights</sub></td>
+  </tr>
+</table>
+
+## 📱 Features
+
+**Receipts**
+- **Scan or share:** scan the receipt's QR code (zxing-cpp), or share a receipt link to Eksoda
+  from any app. Imports run in the background, retry on their own, and can notify you when done.
+- **Every line, not just the total:** products, quantities, package sizes, discounts and fees
+  are parsed and classified on the phone.
+- **Find any receipt:** filter by date, shop, store, category or product.
+
+**Spending insights**
+- **Any period:** today, this week, this month, last month, 3 months, this year, or your own
+  dates, compared with the period before.
+- **Month pace:** this month day by day against last month.
+- **By category:** a donut chart of where the money went. Tap a category to see its products
+  and shops for the period; tap "Uncategorized" to sort what is left.
+- **By shop, monthly trend and top products**, each on a card you can fold away.
+
+**Budgets and goals**
+- **Monthly budgets:** one for the whole month and one per category, with a warning on Home
+  when one is exceeded.
+- **E-payment target:** how much of the year's required card and bank spending (30% of the
+  income, up to 20.000 €) the receipts in the app already cover, and how much is left per month.
+
+**Products and prices**
+- **Price history** for every product, and **where it is cheapest**, across all the shops you
+  bought it at.
+- **Automatic categories** for products and shops, which you can change at any time.
+
+**Your data**
+- **Encrypted backups** you can export and restore, and open on a computer with
+  [`decrypt_bu.py`](decrypt_bu.py).
+- **Greek and English.**
+
+## 🔒 Privacy First
+
+- **Your receipts never leave your phone.** There is no backend server and no user account.
+- **Direct-only network access:** The app connects exclusively to registered receipt provider hosts via HTTPS (system CAs only).
+- **Encrypted storage:** All data is stored locally in an encrypted Room database (SQLCipher) secured by an Android Keystore wrapping key.
+- **Zero telemetry:** No Firebase, no analytics, no crash reporting SDKs, no tracking.
+- **Passphrase-protected backups:** Local backup files are encrypted using AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation.
+- **Independent Recovery:** Includes [`decrypt_bu.py`](decrypt_bu.py), a Python utility to decrypt and inspect backup files independently of the Android app, ensuring your data is never locked in.
+
 ## 📲 Install
 
 Eksoda is not on Google Play: each version is published as an APK on the
@@ -33,26 +88,6 @@ which you can check with `apksigner verify --print-certs eksoda-<version>.apk`.
 
 ---
 
-## 🔒 Privacy First
-
-- **Your receipts never leave your phone.** There is no backend server and no user account.
-- **Direct-only network access:** The app connects exclusively to registered receipt provider hosts via HTTPS (system CAs only).
-- **Encrypted storage:** All data is stored locally in an encrypted Room database (SQLCipher) secured by an Android Keystore wrapping key.
-- **Zero telemetry:** No Firebase, no analytics, no crash reporting SDKs, no tracking.
-- **Passphrase-protected backups:** Local backup files are encrypted using AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation.
-- **Independent Recovery:** Includes [`decrypt_bu.py`](decrypt_bu.py), a Python utility to decrypt and inspect backup files independently of the Android app, ensuring your data is never locked in.
-
----
-
-## 📱 Features
-
-- **QR Code Scanning:** Instant receipt import by scanning the receipt's QR code using high-performance zxing-cpp decoding.
-- **Smart Parsing & Classification:** Automatic line classification, normalization, package size detection, and category matching.
-- **Spending Insights:** Period-based analytics (weekly, monthly, custom ranges) with interactive charts.
-- **Product & Price History:** Track price evolution and find the cheapest merchants for any product.
-
----
-
 ## 🛠️ Technology Stack
 
 - **Language:** Kotlin 2.4.21
@@ -63,28 +98,7 @@ which you can check with `apksigner verify --print-certs eksoda-<version>.apk`.
 - **Background Processing:** WorkManager (for robust import scheduling & retries)
 - **Networking:** OkHttp (`SafeFetcher` with host allowlist and public DNS)
 - **Scanning:** zxing-cpp
-
----
-
-## 📱 Compatible Android Versions
-
-- **Minimum SDK:** API 26 (Android 8.0 Oreo)
-- **Target SDK:** API 36 / Compile SDK 37
-
----
-
-## 📸 Screenshots
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/screenshots/home.png" width="200" alt="Home"><br><sub>Home</sub></td>
-    <td align="center"><img src="docs/screenshots/stats.png" width="200" alt="Stats"><br><sub>Stats</sub></td>
-    <td align="center"><img src="docs/screenshots/stats1.png" width="200" alt="Stats detail"><br><sub>Stats detail</sub></td>
-    <td align="center"><img src="docs/screenshots/insights.png" width="200" alt="Insights"><br><sub>Insights</sub></td>
-  </tr>
-</table>
-
----
+- **Android versions:** minimum API 26 (Android 8.0), target API 36, compile SDK 37
 
 ## 🏗️ Building & Testing
 
@@ -95,7 +109,7 @@ make check           # Runs lint, ktlint, typed detekt, tests, Kover coverage, a
 make test            # Runs unit tests
 make build           # Builds debug APK
 make codemap         # Regenerates documentation symbols map
-make install_rc      # Install with adb
+make install_rc      # Build the release APK and install it on one device (DEVICE=<serial> if several)
 make new_release     # Check, bump the version and build the signed eksoda-<version>.apk
 make release_key     # Once per machine: create the release signing key in ~/.eksoda
 ```
@@ -118,4 +132,16 @@ python3 decrypt_bu.py your_backup.eksoda [output_archive.zip]
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Copyright (C) 2026 Stefanos I. Tsaklidis
+
+Eksoda is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License](LICENSE) as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. It is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+In short: you may use, change and share the code, but any app you publish from it must also be
+open source under the GPL, with its full source code. The name "Eksoda" and the logo are not
+licensed: a fork needs its own name, icon and application id. See [TRADEMARKS.md](TRADEMARKS.md).
+
+Releases up to 0.1.1 were published under the MIT License.

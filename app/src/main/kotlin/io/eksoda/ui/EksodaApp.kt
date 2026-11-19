@@ -28,6 +28,8 @@ import androidx.navigation.compose.rememberNavController
 import io.eksoda.R
 import io.eksoda.core.ui.motion.LocalNavAnimatedVisibilityScope
 import io.eksoda.core.ui.motion.LocalSharedTransitionScope
+import io.eksoda.feature.insights.budgets.BudgetsRoute
+import io.eksoda.feature.insights.category.CategoryDetailRoute
 import io.eksoda.feature.onboarding.OnboardingRoute
 import io.eksoda.feature.products.catalog.CategoriesRoute
 import io.eksoda.feature.products.catalog.MerchantDetailRoute
@@ -86,6 +88,16 @@ private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
                             onCategoriesClick = { navController.navigate(CategoriesDestination) },
                             onMerchantsClick = { navController.navigate(MerchantsDestination) },
                             onSettingsClick = { navController.navigate(SettingsDestination) },
+                            onBudgetsClick = { navController.navigate(BudgetsDestination) },
+                            onCategoryClick = { categoryId, period ->
+                                navController.navigate(
+                                    CategoryDetailDestination(
+                                        categoryId = categoryId,
+                                        from = period.start.toString(),
+                                        to = period.end.toString(),
+                                    ),
+                                )
+                            },
                         )
                     }
                 }
@@ -94,6 +106,17 @@ private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
                         onBack = back,
                         onCategoriesClick = { navController.navigate(CategoriesDestination) },
                         onMerchantsClick = { navController.navigate(MerchantsDestination) },
+                        onBudgetsClick = { navController.navigate(BudgetsDestination) },
+                    )
+                }
+                composable<BudgetsDestination> { BudgetsRoute(onBack = back) }
+                composable<CategoryDetailDestination> {
+                    CategoryDetailRoute(
+                        onBack = back,
+                        onProductClick = openProduct,
+                        onMerchantClick = { merchantId ->
+                            navController.navigate(MerchantDetailDestination(merchantId))
+                        },
                     )
                 }
                 composable<ReceiptDetailDestination> {

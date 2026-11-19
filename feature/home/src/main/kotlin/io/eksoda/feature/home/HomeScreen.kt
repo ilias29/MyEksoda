@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -81,6 +82,7 @@ import java.time.LocalDate
 fun HomeRoute(
     onReceiptsClick: () -> Unit,
     onInsightsClick: () -> Unit,
+    onBudgetsOverClick: () -> Unit,
     onReviewClick: () -> Unit,
     onImportsClick: () -> Unit,
     onReceiptClick: (String) -> Unit,
@@ -94,6 +96,7 @@ fun HomeRoute(
             state = state,
             onReceiptsClick = onReceiptsClick,
             onInsightsClick = onInsightsClick,
+            onBudgetsOverClick = onBudgetsOverClick,
             onReviewClick = onReviewClick,
             onImportsClick = onImportsClick,
             onReceiptClick = onReceiptClick,
@@ -108,6 +111,8 @@ fun HomeScreen(
     state: HomeUiState,
     onReceiptsClick: () -> Unit,
     onInsightsClick: () -> Unit,
+    // Insights on "This month", where the budgets are.
+    onBudgetsOverClick: () -> Unit,
     onReviewClick: () -> Unit,
     onImportsClick: () -> Unit,
     onReceiptClick: (String) -> Unit,
@@ -131,7 +136,14 @@ fun HomeScreen(
             if (state.loading || today == null) return@Column
             val pace = state.pace
             if (pace != null) HeroCard(pace, today, onInsightsClick)
-            AttentionList(state.needsReview, state.importing, onReviewClick, onImportsClick)
+            AttentionList(
+                needsReview = state.needsReview,
+                importing = state.importing,
+                budgetsOver = state.budgetsOver,
+                onReviewClick = onReviewClick,
+                onImportsClick = onImportsClick,
+                onBudgetsClick = onBudgetsOverClick,
+            )
             if (state.recent.isEmpty() && pace?.spentSoFar?.signum() == 0) {
                 EmptyState(
                     title = stringResource(R.string.home_empty_title),
@@ -280,39 +292,69 @@ private fun PaceChange(pace: MonthPace, sameDay: LocalDate) {
     }
 }
 
-/** "4 items to match" and "2 receipts importing…", each hidden when 0. */
+/**
+ * "2 budgets exceeded", "4 items to match" and "2 receipts importing…", each hidden when 0,
+ * the card itself when all are.
+ */
 @Composable
 private fun AttentionList(
     needsReview: Int,
     importing: Int,
+    budgetsOver: Int,
     onReviewClick: () -> Unit,
     onImportsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
 ) {
-    if (needsReview == 0 && importing == 0) return
+    if (needsReview == 0 && importing == 0 && budgetsOver == 0) return
     val colors = EksodaTheme.colors
-    SectionCard {
-        if (needsReview > 0) {
-            AttentionRow(
-                icon = Icons.Outlined.WarningAmber,
-                tint = colors.spend,
-                tile = colors.spendTint,
-                title = pluralStringResource(R.plurals.home_to_match, needsReview, needsReview),
-                body = stringResource(R.string.home_to_match_body),
-                onClick = onReviewClick,
-            )
+    val rows = buildList<@Composable () -> Unit> {
+        if (budgetsOver > 0) {
+            add {
+                AttentionRow(
+                    icon = Icons.Outlined.Savings,
+                    tint = colors.spend,
+                    tile = colors.spendTint,
+                    title = pluralStringResource(
+                        R.plurals.home_budgets_over,
+                        budgetsOver,
+                        budgetsOver,
+                    ),
+                    body = stringResource(R.string.home_budgets_over_body),
+                    onClick = onBudgetsClick,
+                )
+            }
         }
-        if (needsReview > 0 && importing > 0) {
-            HorizontalDivider(color = colors.line, modifier = Modifier.padding(start = 62.dp))
+        if (needsReview > 0) {
+            add {
+                AttentionRow(
+                    icon = Icons.Outlined.WarningAmber,
+                    tint = colors.spend,
+                    tile = colors.spendTint,
+                    title = pluralStringResource(R.plurals.home_to_match, needsReview, needsReview),
+                    body = stringResource(R.string.home_to_match_body),
+                    onClick = onReviewClick,
+                )
+            }
         }
         if (importing > 0) {
-            AttentionRow(
-                icon = Icons.Outlined.Sync,
-                tint = colors.compare,
-                tile = colors.compareTint,
-                title = pluralStringResource(R.plurals.home_importing, importing, importing),
-                body = stringResource(R.string.home_importing_body),
-                onClick = onImportsClick,
-            )
+            add {
+                AttentionRow(
+                    icon = Icons.Outlined.Sync,
+                    tint = colors.compare,
+                    tile = colors.compareTint,
+                    title = pluralStringResource(R.plurals.home_importing, importing, importing),
+                    body = stringResource(R.string.home_importing_body),
+                    onClick = onImportsClick,
+                )
+            }
+        }
+    }
+    SectionCard {
+        rows.forEachIndexed { index, row ->
+            if (index > 0) {
+                HorizontalDivider(color = colors.line, modifier = Modifier.padding(start = 62.dp))
+            }
+            row()
         }
     }
 }

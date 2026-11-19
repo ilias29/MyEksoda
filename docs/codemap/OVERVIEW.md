@@ -108,15 +108,18 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 
 ## Data layer
 
-- **Tables** (`core/database/.../entity/Entities.kt`, `HouseholdEntity.kt`): household,
-  category (19 system ones seeded), merchant, store, product, merchant_product_mapping,
-  receipt, receipt_item, import_job, tombstone. One DB file = one household (no
+- **Tables** (`core/database/.../entity/Entities.kt`, `HouseholdEntity.kt`,
+  `BudgetEntity.kt`): household (with `annual_income_minor`), category (19 system ones
+  seeded), budget (id `total` or the category's id), merchant, store, product,
+  merchant_product_mapping, receipt, receipt_item, import_job, tombstone. One DB file = one household (no
   `household_id`). UUID `TEXT` ids, `created_at`/`updated_at` epoch ms UTC, plus
   `issued_local_date` (`YYYY-MM-DD` in the household zone). Deletes write a `tombstone` row.
-- `EksodaDatabase` version **4**, `exportSchema = true`; schema JSON in
-  `core/database/schemas/`. Before the first release: bump the version and let the schema
-  change; no migrations yet (then `MigrationTestHelper`). A new table also goes in
-  `BackupArchive.TABLES`.
+- `EksodaDatabase` version **5**, `exportSchema = true`; schema JSON in
+  `core/database/schemas/`. Version 4 shipped in 0.1.1, so **every schema change needs a
+  migration** that keeps the data: an `AutoMigration` when Room can derive it (4 → 5 is one),
+  else a manual `Migration`, plus a case in `core/database` `MigrationTest`
+  (`MigrationTestHelper` on Robolectric, schemas as test assets). There is no destructive
+  fallback: a missing migration fails to open. A new table also goes in `BackupArchive.TABLES`.
 - **Decimals:** columns are fixed-point `Long` with a suffix: `_minor` (2), `_e2` (2),
   `_e4` (4), `_e6` (6). Convert only with `core/data/util/Fixed.kt`
   (`Fixed.toLong(v, Fixed.E4)`, `Fixed.toDecimal(l, Fixed.MINOR)`).
@@ -155,7 +158,13 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   top products, monthly trend, Home pace, over `AnalyticsDao`; `changes()` re-emits on table
   changes), Settings (preferences shown in Settings), Backup (export, open, restore; errors are
   `BackupException(BackupError)`). Each has an `*Impl`. `products/AutoCategoryBackfill`
-  categorizes old products and merchants once (versioned in preferences).
+  categorizes old products and merchants once (versioned in preferences). Goals (budgets and
+  the e-payment target: `GoalsRepository`; the rules are core:engine `analytics/Budgets.kt`
+  and `analytics/EPayments.kt`; the annual income is set through `HouseholdRepository`). The
+  e-payment total counts `payment_method` card/bank receipts whole and `mixed` ones by their
+  card and bank payments, read from `source_data` by core:engine `electronicPartOf` (credit
+  notes subtract; unreadable data counts 0). Home and Insights pass the month's category
+  spending they already loaded to `getMonthBudgets` instead of querying it twice.
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data
@@ -187,6 +196,16 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   that travel between screens use `Modifier.sharedBoundsIfAvailable(SharedKeys…)` (`core:ui`
   `motion/`). Back on a tab other than Home returns to the previous tab; only Back on Home
   leaves the app.
+- Insights cards fold to their title (`FoldableCard` in feature:insights, `SectionCard`'s
+  `expanded`/`onToggleExpanded`): a chevron, and a tap on the title; the folded set is kept in
+  `SettingsRepository.foldedInsightsCards`. The summary card at the top does not fold.
+- A category row in Insights opens `CategoryDetailDestination(categoryId, from, to)`
+  (feature:insights `category/`): the category over that period by product and by shop, from
+  `AnalyticsRepository.getCategoryDetail`. Its total equals the row's: product lines plus what
+  the receipts of merchants whose default it is hold beyond their lines (`AnalyticsDao`
+  `categoryProducts`, `categoryLinesByMerchant`, `categoryRemaindersByMerchant`; core:engine
+  `categoryShopTotals`). The "Uncategorized" row opens it with a null `categoryId`: product
+  lines with no product category at shops with no default (SQL `IS :categoryId`), to sort.
 - **Look: `docs/design/ui-redesign.md`** (color meanings, type, charts). Colors from
   `MaterialTheme.colorScheme` or `EksodaTheme.colors`, never a hex in a screen. Cards are
   `SectionCard`, small labels `OverlineText`, figures `StatRow`.
@@ -208,7 +227,10 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 - Helpers in `core:ui`: `dateFormatter(pattern, locale)` (cached; never
   `DateTimeFormatter.ofPattern` in a composable), `searchKey(text)` for accent-free matching
   of in-memory lists, `DelayedProgressIndicator` (no spinner flash on fast loads), and
-  `EmptyState` with a one-line description. Text fields keep their text in the screen
+  `EmptyState` with a one-line description, and `AmountDialog` for typing money
+  (`parseMoneyInput` reads "18.000" as 18000 in either convention); `IncomeDialog` (on top of
+  it) is the one annual-income dialog, shared by Insights and Settings. Text fields keep their text
+  in the screen
   (`rememberSaveable`) and send changes to the ViewModel; never feed a `TextField` from a
   Flow. Lazy rows use `Modifier.animateItem()`.
 - The splash screen stays up while `AppState` is `LOADING` (`MainActivity`).

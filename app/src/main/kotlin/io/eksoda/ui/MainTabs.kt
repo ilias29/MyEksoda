@@ -42,6 +42,7 @@ import io.eksoda.core.designsystem.component.EksodaNavigationRail
 import io.eksoda.core.designsystem.component.EksodaNavigationRailItem
 import io.eksoda.core.designsystem.component.ScanButton
 import io.eksoda.core.designsystem.component.ScanNavigationBarItem
+import io.eksoda.core.model.Period
 import io.eksoda.feature.home.HomeRoute
 import io.eksoda.feature.insights.InsightsRoute
 import io.eksoda.feature.products.list.ProductListRoute
@@ -96,6 +97,8 @@ fun MainTabs(
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
+    onCategoryClick: (categoryId: String?, period: Period) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // The tabs visited before this one, most recent last: Back returns to them in turn, then to
@@ -108,6 +111,8 @@ fun MainTabs(
             tab = entry
         }
     }
+    // Home's budget alert opens Insights on "This month", whatever period was chosen there before.
+    var insightsThisMonth by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = tab != Tab.HOME) {
         val previous = history.lastOrNull() ?: Tab.HOME
         history = history.dropLast(1)
@@ -121,6 +126,10 @@ fun MainTabs(
                     Tab.HOME -> HomeRoute(
                         onReceiptsClick = { select(Tab.RECEIPTS) },
                         onInsightsClick = { select(Tab.INSIGHTS) },
+                        onBudgetsOverClick = {
+                            insightsThisMonth = true
+                            select(Tab.INSIGHTS)
+                        },
                         onReviewClick = onReviewClick,
                         onImportsClick = onImportsClick,
                         onReceiptClick = onReceiptClick,
@@ -135,8 +144,11 @@ fun MainTabs(
 
                     Tab.INSIGHTS -> InsightsRoute(
                         onProductClick = onProductClick,
-                        onProductsClick = { select(Tab.PRODUCTS) },
                         onMerchantsClick = onMerchantsClick,
+                        onBudgetsClick = onBudgetsClick,
+                        onCategoryClick = onCategoryClick,
+                        showThisMonth = insightsThisMonth,
+                        onThisMonthShown = { insightsThisMonth = false },
                     )
 
                     Tab.PRODUCTS -> ProductListRoute(

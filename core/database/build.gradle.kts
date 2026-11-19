@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.eksoda.android.room)
 }
 
+android {
+    // MigrationTest reads the exported schemas as assets (MigrationTestHelper).
+    sourceSets.getByName("test").assets.srcDir("$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.sqlite)

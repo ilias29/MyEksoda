@@ -36,3 +36,13 @@ data class MerchantDetailDestination(val merchantId: String)
 
 @Serializable
 data object SettingsDestination
+
+@Serializable
+data object BudgetsDestination
+
+/**
+ * One category of Insights over a period ([categoryId] null: the uncategorized products); [from]
+ * and [to] are ISO dates, both included.
+ */
+@Serializable
+data class CategoryDetailDestination(val categoryId: String?, val from: String, val to: String)

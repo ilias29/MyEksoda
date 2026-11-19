@@ -1,8 +1,10 @@
 package io.eksoda.core.database
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import io.eksoda.core.database.dao.AnalyticsDao
+import io.eksoda.core.database.dao.BudgetDao
 import io.eksoda.core.database.dao.CategoryDao
 import io.eksoda.core.database.dao.HouseholdDao
 import io.eksoda.core.database.dao.ImportJobDao
@@ -10,6 +12,7 @@ import io.eksoda.core.database.dao.MerchantDao
 import io.eksoda.core.database.dao.ProductDao
 import io.eksoda.core.database.dao.ReceiptDao
 import io.eksoda.core.database.dao.TombstoneDao
+import io.eksoda.core.database.entity.BudgetEntity
 import io.eksoda.core.database.entity.CategoryEntity
 import io.eksoda.core.database.entity.HouseholdEntity
 import io.eksoda.core.database.entity.ImportJobEntity
@@ -23,8 +26,12 @@ import io.eksoda.core.database.entity.TombstoneEntity
 
 /**
  * The encrypted on-device database: one file per household. It is opened through SQLCipher with
- * the key from KeyManager (core:data); tests use plain Room in memory. Until the first release
- * the schema changes freely; each change updates the exported schema in core/database/schemas.
+ * the key from KeyManager (core:data); tests use plain Room in memory.
+ *
+ * Version 4 shipped in the first release (0.1.1), so every schema change from then on needs a
+ * migration that keeps the user's data: an [AutoMigration] where Room can derive it from the
+ * exported schemas in core/database/schemas, a manual one otherwise, and a test in
+ * `MigrationTest`. There is no destructive fallback: a missing migration fails to open.
  */
 @Database(
     entities = [
@@ -38,9 +45,14 @@ import io.eksoda.core.database.entity.TombstoneEntity
         ReceiptItemEntity::class,
         ImportJobEntity::class,
         TombstoneEntity::class,
+        BudgetEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
+    autoMigrations = [
+        // 5: the budget table and household.annual_income_minor.
+        AutoMigration(from = 4, to = 5),
+    ],
 )
 abstract class EksodaDatabase : RoomDatabase() {
     abstract fun householdDao(): HouseholdDao
@@ -58,4 +70,6 @@ abstract class EksodaDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
 
     abstract fun analyticsDao(): AnalyticsDao
+
+    abstract fun budgetDao(): BudgetDao
 }
