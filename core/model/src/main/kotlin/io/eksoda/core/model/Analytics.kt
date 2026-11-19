@@ -63,6 +63,55 @@ public data class SpendingBucket(
     val share: BigDecimal?,
 )
 
+/**
+ * One category in a period, opened from its row in Insights: its total (the same as its bucket in
+ * [CategorySpending]) by product and by shop.
+ */
+public data class CategoryDetail(
+    /** Null for the uncategorized bucket: products with no category, at shops with no default. */
+    val category: Category?,
+    val from: LocalDate,
+    val to: LocalDate,
+    val currency: String,
+    val total: BigDecimal,
+    /** Percent of the period's spending, or null when there was none. */
+    val share: BigDecimal?,
+    /** The category in the period of equal length before ([previousFrom] to [previousTo]). */
+    val previousTotal: BigDecimal,
+    val previousFrom: LocalDate,
+    val previousTo: LocalDate,
+    /** Its product lines by product, largest first. */
+    val products: List<CategoryProduct>,
+    /**
+     * What its receipts hold beyond their product lines (receipts without items, rounding): it
+     * counts to the shop's default category, so it is in [total] and [shops] but no product.
+     */
+    val unitemized: BigDecimal,
+    /** Largest first. */
+    val shops: List<CategoryShop>,
+) {
+    /** The change from the period before, in percent; null when that was 0. */
+    val changePercent: BigDecimal? get() = percentOf(total - previousTotal, previousTotal)
+}
+
+public data class CategoryProduct(
+    /** Null for lines not matched to a product, which are shown by their text. */
+    val productId: String?,
+    val name: String,
+    val receipts: Int,
+    val total: BigDecimal,
+    /** Percent of the category's total. */
+    val share: BigDecimal?,
+)
+
+public data class CategoryShop(
+    val merchantId: String,
+    val name: String,
+    val total: BigDecimal,
+    /** Percent of the category's total. */
+    val share: BigDecimal?,
+)
+
 /** `monthly_trend()`, with empty months filled in. */
 public data class MonthlyTrend(val currency: String, val months: List<MonthTotal>)
 

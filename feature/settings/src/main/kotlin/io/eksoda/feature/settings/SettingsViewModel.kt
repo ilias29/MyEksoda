@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.time.Clock
 import java.time.LocalDate
 import javax.inject.Inject
@@ -56,6 +57,9 @@ enum class BackupStep { EXPORT, OPEN, RESTORE }
 sealed interface SettingsEvent {
     data class NotifyImportsChanged(val enabled: Boolean) : SettingsEvent
 
+    /** The annual income for the e-payment target; null clears it. */
+    data class AnnualIncomeChanged(val income: BigDecimal?) : SettingsEvent
+
     data object ExportClicked : SettingsEvent
 
     data class ExportPassphraseSet(val passphrase: String) : SettingsEvent
@@ -80,12 +84,15 @@ sealed interface SettingsEffect {
     data class ChooseExportFile(val fileName: String) : SettingsEffect
 
     data object ChooseImportFile : SettingsEffect
+
+    /** The annual income could not be saved. */
+    data object IncomeSaveFailed : SettingsEffect
 }
 
 /** Settings: language, notifications, backup and restore, the household, catalog links. */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    households: HouseholdRepository,
+    private val households: HouseholdRepository,
     private val settings: SettingsRepository,
     private val backups: BackupRepository,
     private val clock: Clock,
@@ -108,6 +115,12 @@ class SettingsViewModel @Inject constructor(
         when (event) {
             is SettingsEvent.NotifyImportsChanged ->
                 viewModelScope.launch { settings.setNotifyImports(event.enabled) }
+
+            is SettingsEvent.AnnualIncomeChanged -> viewModelScope.launch {
+                if (households.setAnnualIncome(event.income).isFailure) {
+                    _effects.send(SettingsEffect.IncomeSaveFailed)
+                }
+            }
 
             SettingsEvent.ExportClicked -> backup.value = BackupDialog.ExportPassphrase
 

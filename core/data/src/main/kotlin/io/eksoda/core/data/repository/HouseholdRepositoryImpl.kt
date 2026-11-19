@@ -1,11 +1,13 @@
 package io.eksoda.core.data.repository
 
 import io.eksoda.core.data.db.WriteCoordinator
+import io.eksoda.core.data.util.Fixed
 import io.eksoda.core.database.dao.HouseholdDao
 import io.eksoda.core.database.entity.HouseholdEntity
 import io.eksoda.core.model.Household
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.math.BigDecimal
 import java.time.Clock
 import java.time.ZoneId
 import java.util.UUID
@@ -76,5 +78,19 @@ class HouseholdRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun HouseholdEntity.toModel() = Household(id, name, defaultCurrency, timezone)
+    override suspend fun setAnnualIncome(income: BigDecimal?): Result<Unit> = runCatching {
+        require(income == null || income.signum() >= 0) { "the income cannot be negative" }
+        val minor = income?.let { Fixed.toLong(it, Fixed.MINOR) }
+        coordinator.write {
+            check(households.setAnnualIncome(minor, clock.millis()) == 1) { "no household yet" }
+        }
+    }
+
+    private fun HouseholdEntity.toModel() = Household(
+        id = id,
+        name = name,
+        defaultCurrency = defaultCurrency,
+        timezone = timezone,
+        annualIncome = annualIncomeMinor?.let { Fixed.toDecimal(it, Fixed.MINOR) },
+    )
 }

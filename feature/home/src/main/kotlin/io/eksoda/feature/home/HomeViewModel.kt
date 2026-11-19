@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.eksoda.core.data.repository.AnalyticsRepository
+import io.eksoda.core.data.repository.GoalsRepository
 import io.eksoda.core.data.repository.ReceiptRepository
 import io.eksoda.core.model.CategorySpending
 import io.eksoda.core.model.MonthPace
@@ -41,6 +42,8 @@ data class HomeUiState(
     val summary: SpendingSummary? = null,
     val categories: CategorySpending? = null,
     val importing: Int = 0,
+    /** How many of this month's budgets the spending has passed. */
+    val budgetsOver: Int = 0,
     val recent: List<Receipt> = emptyList(),
 ) {
     val needsReview: Int get() = summary?.needsReviewCount ?: 0
@@ -54,6 +57,7 @@ private data class Figures(
     val pace: MonthPace?,
     val summary: SpendingSummary?,
     val categories: CategorySpending?,
+    val budgetsOver: Int,
     val failed: Boolean,
 )
 
@@ -61,6 +65,7 @@ private data class Figures(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val analytics: AnalyticsRepository,
+    private val goals: GoalsRepository,
     receipts: ReceiptRepository,
 ) : ViewModel() {
     private val retries = MutableStateFlow(0)
@@ -81,6 +86,7 @@ class HomeViewModel @Inject constructor(
             summary = figures?.summary,
             categories = figures?.categories,
             importing = importing,
+            budgetsOver = figures?.budgetsOver ?: 0,
             recent = recent,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), HomeUiState())
@@ -95,12 +101,16 @@ class HomeViewModel @Inject constructor(
         val pace = async { analytics.getMonthPace() }
         val summary = async { analytics.getSummary(soFar) }
         val categories = async { analytics.getSpendingByCategory(soFar) }
+        // A budget alert is extra: when it cannot be computed, Home just leaves it out. It reuses
+        // the month's category spending rather than querying it again.
+        val budgets = async { goals.getMonthBudgets(categories.await().getOrNull()) }
         val results = listOf(pace.await(), summary.await(), categories.await())
         Figures(
             today = today,
             pace = pace.await().getOrNull(),
             summary = summary.await().getOrNull(),
             categories = categories.await().getOrNull(),
+            budgetsOver = budgets.await().getOrNull()?.overCount ?: 0,
             failed = results.any { it.isFailure },
         )
     }

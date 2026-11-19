@@ -113,6 +113,51 @@ fun parseDecimalInput(text: String): BigDecimal? =
         ?.let { runCatching { BigDecimal(it) }.getOrNull() }
         ?.takeIf { it.signum() >= 0 }
 
+private const val MONEY_DECIMALS = 2
+private const val GROUP_DIGITS = 3
+
+/**
+ * Parses a money amount as people type it, with thousands separators in either convention:
+ * "18.000" and "18,000" are 18000, "18.000,50" and "18,000.50" are 18000.50, "12,5" is 12.50.
+ * With both separators the last one is the decimal point. A single separator before exactly three
+ * digits groups thousands (money never has three decimals); any other is the decimal point.
+ * Null when it is not a non-negative amount with at most two decimals.
+ */
+fun parseMoneyInput(text: String): BigDecimal? {
+    val value = text.filterNot { it.isWhitespace() }
+    if (value.isEmpty() || !value.all(::isAmountChar)) return null
+    val point = decimalPointIndex(value)
+    val whole = if (point < 0) value else value.substring(0, point)
+    // After the last separator of either kind, so digits only.
+    val fraction = if (point < 0) "" else value.substring(point + 1)
+    if (!isGrouped(whole) || fraction.length > MONEY_DECIMALS) return null
+    val digits = whole.filter(Char::isDigit)
+    return BigDecimal(if (fraction.isEmpty()) digits else "$digits.$fraction")
+}
+
+private fun isAmountChar(char: Char): Boolean = char.isDigit() || char == '.' || char == ','
+
+/** Where the decimal point of a typed amount is, or -1 when it has none (see [parseMoneyInput]). */
+private fun decimalPointIndex(value: String): Int {
+    if ('.' in value && ',' in value) return maxOf(value.lastIndexOf('.'), value.lastIndexOf(','))
+    val separator = value.firstOrNull { it == '.' || it == ',' } ?: return -1
+    val index = value.lastIndexOf(separator)
+    val single = value.indexOf(separator) == index
+    return if (single && value.length - index - 1 != GROUP_DIGITS) index else -1
+}
+
+/**
+ * Plain digits, or one to three digits (not starting with 0) and then groups of exactly three:
+ * "18000" and "18.000" are, "12,345,6", "25000.000" and "0,500" are not.
+ */
+private fun isGrouped(whole: String): Boolean {
+    val groups = whole.split('.', ',')
+    val lead = groups.first()
+    if (groups.size == 1) return lead.isNotEmpty()
+    val leadFits = lead.length in 1..GROUP_DIGITS && !lead.startsWith('0')
+    return leadFits && groups.drop(1).all { it.length == GROUP_DIGITS }
+}
+
 /**
  * "Today", "Yesterday", a weekday within the last week, then "11 Nov", and "11 Nov 2025" for
  * other years.

@@ -68,6 +68,28 @@ public fun combineCategoryBuckets(
     return buckets to spending
 }
 
+/** A total under a key (a shop's id), with the name to show. */
+public data class KeyedTotal(val key: String, val name: String, val total: BigDecimal)
+
+/**
+ * One category opened from Insights, by shop, counted like its bucket in [combineCategoryBuckets]
+ * so the shops add up to the amount the user tapped: the category's product lines at each shop
+ * ([lines]), plus what each shop's receipts hold beyond their lines when the shop's default
+ * category is this one ([remainders]). Shops that come to 0 are left out; the largest come
+ * first, then by name.
+ */
+public fun categoryShopTotals(
+    lines: List<KeyedTotal>,
+    remainders: List<KeyedTotal>,
+): List<KeyedTotal> = (lines + remainders)
+    .groupBy { it.key }
+    .map { (key, parts) ->
+        val total = parts.fold(BigDecimal.ZERO) { sum, part -> sum + part.total }
+        KeyedTotal(key, parts.first().name, total)
+    }
+    .filter { it.total.signum() != 0 }
+    .sortedWith(compareByDescending<KeyedTotal> { it.total }.thenBy { it.name })
+
 /**
  * Running totals by day of [month] from [daily] totals: one value per day, null after
  * [through] (the days still to come). With [through] null, every day of the month is filled.

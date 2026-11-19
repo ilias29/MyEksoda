@@ -14,6 +14,7 @@ import io.eksoda.core.data.db.sqlCipherRawKey
 import io.eksoda.core.database.CategorySeed
 import io.eksoda.core.database.EksodaDatabase
 import io.eksoda.core.database.dao.AnalyticsDao
+import io.eksoda.core.database.dao.BudgetDao
 import io.eksoda.core.database.dao.CategoryDao
 import io.eksoda.core.database.dao.HouseholdDao
 import io.eksoda.core.database.dao.ImportJobDao
@@ -70,4 +71,6 @@ object DatabaseModule {
     @Provides fun tombstoneDao(database: EksodaDatabase): TombstoneDao = database.tombstoneDao()
 
     @Provides fun analyticsDao(database: EksodaDatabase): AnalyticsDao = database.analyticsDao()
+
+    @Provides fun budgetDao(database: EksodaDatabase): BudgetDao = database.budgetDao()
 }

@@ -31,8 +31,10 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -70,7 +74,13 @@ import io.eksoda.core.designsystem.component.SectionCard
 import io.eksoda.core.designsystem.theme.EksodaTheme
 import io.eksoda.core.designsystem.theme.tabular
 import io.eksoda.core.model.Household
+import io.eksoda.core.model.Money
+import io.eksoda.core.ui.component.IncomeDialog
 import io.eksoda.core.ui.text.AppLanguage
+import io.eksoda.core.ui.text.appLocale
+import io.eksoda.core.ui.text.formatMoney
+import java.math.BigDecimal
+import io.eksoda.core.ui.R as UiR
 
 /** Settings, reached from the household button on Home. */
 @Composable
@@ -78,6 +88,7 @@ fun SettingsRoute(
     onBack: () -> Unit,
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -94,14 +105,18 @@ fun SettingsRoute(
     val openBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> viewModel.onEvent(SettingsEvent.ImportFileChosen(uri)) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val incomeFailed = stringResource(UiR.string.income_save_failed)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
-            // No app may handle the picker on a stripped-down device: then nothing happens.
-            runCatching {
-                when (effect) {
-                    is SettingsEffect.ChooseExportFile -> createBackup.launch(effect.fileName)
-                    SettingsEffect.ChooseImportFile -> openBackup.launch(arrayOf("*/*"))
-                }
+            when (effect) {
+                SettingsEffect.IncomeSaveFailed -> snackbarHostState.showSnackbar(incomeFailed)
+
+                // No app may handle the picker on a stripped-down device: then nothing happens.
+                is SettingsEffect.ChooseExportFile ->
+                    runCatching { createBackup.launch(effect.fileName) }
+
+                SettingsEffect.ChooseImportFile -> runCatching { openBackup.launch(arrayOf("*/*")) }
             }
         }
     }
@@ -120,7 +135,9 @@ fun SettingsRoute(
         },
         onCategoriesClick = onCategoriesClick,
         onMerchantsClick = onMerchantsClick,
+        onBudgetsClick = onBudgetsClick,
         onEvent = viewModel::onEvent,
+        snackbarHostState = snackbarHostState,
     )
 }
 
@@ -147,12 +164,15 @@ fun SettingsScreen(
     onNotifyImportsChange: (Boolean) -> Unit,
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
     onEvent: (SettingsEvent) -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val colors = EksodaTheme.colors
     BackupDialogs(dialog = state.backup, onEvent = onEvent)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
@@ -180,7 +200,12 @@ fun SettingsScreen(
         ) {
             // Settings opens from the household button on Home, so the household comes first;
             // then what is used most (organizing), preferences, the data, and the app itself.
-            state.household?.let { household -> HouseholdCard(household) }
+            state.household?.let { household ->
+                HouseholdCard(
+                    household = household,
+                    onIncomeChange = { onEvent(SettingsEvent.AnnualIncomeChanged(it)) },
+                )
+            }
             SectionCard(title = stringResource(R.string.settings_catalog)) {
                 LinkRow(
                     label = stringResource(R.string.settings_categories),
@@ -192,6 +217,12 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_merchants),
                     icon = Icons.Outlined.Storefront,
                     onClick = onMerchantsClick,
+                )
+                HorizontalDivider(color = colors.line)
+                LinkRow(
+                    label = stringResource(R.string.settings_budgets),
+                    icon = Icons.Outlined.Savings,
+                    onClick = onBudgetsClick,
                 )
             }
             PreferencesCard(
@@ -324,8 +355,10 @@ private fun RowIcon(icon: ImageVector) {
 }
 
 /**
- * Who made the app, with links to the author's GitHub profile and email. When no app can open a
- * link (no browser or no mail app), the address is copied instead and a short message says so.
+ * Who made the app, with links to the author's GitHub profile and email, and the license notice
+ * the GPL asks an interactive program to show (copyright, no warranty, where the license is).
+ * When no app can open a link (no browser or no mail app), the address is copied instead and a
+ * short message says so.
  */
 @Composable
 private fun Credits() {
@@ -363,8 +396,17 @@ private fun Credits() {
         icon = Icons.Outlined.Email,
         onClick = { open("mailto:$EMAIL", EMAIL) },
     )
+    LinkRow(
+        label = stringResource(R.string.settings_license),
+        value = LICENSE_LABEL,
+        icon = Icons.Outlined.Gavel,
+        onClick = { open(LICENSE_URL, LICENSE_URL) },
+    )
+    Hint(stringResource(R.string.settings_license_notice))
 }
 
+private const val LICENSE_URL = "https://github.com/tsaklidis/MyEksoda/blob/master/LICENSE"
+private const val LICENSE_LABEL = "GPL-3.0"
 private const val GITHUB_URL = "https://github.com/tsaklidis"
 private const val GITHUB_LABEL = "github.com/tsaklidis"
 private const val EMAIL = "stefanos@tsaklidis.gr"
@@ -440,33 +482,72 @@ private fun LinkRow(
     }
 }
 
+/** A label and its value; with [onClick], the row opens an editor and ends with a chevron. */
 @Composable
-private fun ValueRow(label: String, value: String, number: Boolean = false) {
+private fun ValueRow(
+    label: String,
+    value: String,
+    number: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    val colors = EksodaTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Text(
             value,
             style = MaterialTheme.typography.bodyMedium.let { if (number) it.tabular() else it },
-            color = EksodaTheme.colors.ink2,
+            color = if (onClick != null) colors.compare else colors.ink2,
         )
+        if (onClick != null) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.ink2,
+            )
+        }
     }
 }
 
+/** The household's details, and its annual income (for the e-payment target in Insights). */
 @Composable
-private fun HouseholdCard(household: Household) {
+private fun HouseholdCard(household: Household, onIncomeChange: (BigDecimal?) -> Unit) {
     val colors = EksodaTheme.colors
+    val locale = appLocale()
+    var editingIncome by rememberSaveable { mutableStateOf(false) }
+    val income = household.annualIncome
     SectionCard(title = stringResource(R.string.settings_household)) {
         ValueRow(stringResource(R.string.settings_household_name), household.name)
         HorizontalDivider(color = colors.line)
         ValueRow(stringResource(R.string.settings_currency), household.defaultCurrency)
+        // The time zone is not shown: every household is Europe/Athens for now
+        // (OnboardingViewModel.DEFAULT_TIMEZONE, HouseholdZone.DEFAULT).
         HorizontalDivider(color = colors.line)
-        ValueRow(stringResource(R.string.settings_timezone), household.timezone)
+        ValueRow(
+            label = stringResource(R.string.settings_income),
+            value = income?.let { formatMoney(Money(it, household.defaultCurrency), locale) }
+                ?: stringResource(R.string.settings_income_none),
+            number = income != null,
+            onClick = { editingIncome = true },
+        )
+    }
+    if (editingIncome) {
+        IncomeDialog(
+            income = income,
+            currency = household.defaultCurrency,
+            onChange = {
+                editingIncome = false
+                onIncomeChange(it)
+            },
+            onDismiss = { editingIncome = false },
+        )
     }
 }
 
@@ -486,6 +567,7 @@ private fun SettingsScreenPreview() {
             onNotifyImportsChange = {},
             onCategoriesClick = {},
             onMerchantsClick = {},
+            onBudgetsClick = {},
             onEvent = {},
         )
     }

@@ -16,4 +16,6 @@ data class HouseholdEntity(
     val timezone: String,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** The annual income for the e-payment target (schema 5); null until set. */
+    @ColumnInfo(name = "annual_income_minor") val annualIncomeMinor: Long? = null,
 )

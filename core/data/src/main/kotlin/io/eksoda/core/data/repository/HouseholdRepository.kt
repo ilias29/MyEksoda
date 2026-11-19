@@ -2,6 +2,7 @@ package io.eksoda.core.data.repository
 
 import io.eksoda.core.model.Household
 import kotlinx.coroutines.flow.Flow
+import java.math.BigDecimal
 
 /**
  * The one household in this database. There are no members, roles or invitations. Null until
@@ -21,4 +22,7 @@ interface HouseholdRepository {
         defaultCurrency: String,
         timezone: String,
     ): Result<Unit>
+
+    /** The annual income the e-payment target is computed from; null clears it. */
+    suspend fun setAnnualIncome(income: BigDecimal?): Result<Unit>
 }

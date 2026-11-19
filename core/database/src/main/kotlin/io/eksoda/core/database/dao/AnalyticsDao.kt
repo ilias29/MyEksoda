@@ -54,6 +54,20 @@ data class TopProductRow(
     @ColumnInfo(name = "spend_minor") val spendMinor: Long,
 )
 
+/** One category's product lines by product; lines with no product by their text. */
+data class CategoryProductRow(
+    @ColumnInfo(name = "product_id") val productId: String?,
+    val name: String,
+    val receipts: Int,
+    @ColumnInfo(name = "total_minor") val totalMinor: Long,
+)
+
+/** An included receipt paid in several ways: its payments are in its stored data. */
+data class MixedPaymentRow(
+    @ColumnInfo(name = "document_kind") val documentKind: String,
+    @ColumnInfo(name = "source_data") val sourceData: String,
+)
+
 private const val INCLUDED = """receipt.status = 'active' AND receipt.excluded_from_analytics = 0
     AND receipt.issued_local_date >= :start AND receipt.issued_local_date <= :end"""
 private const val OWN = "receipt.currency = :currency"
@@ -63,6 +77,19 @@ private const val SIGNED_TOTAL =
 private const val SIGNED_LINE =
     "CASE WHEN receipt.document_kind = 'credit_note' THEN -receipt_item.gross_amount_minor " +
         "ELSE receipt_item.gross_amount_minor END"
+
+/**
+ * A product line of category :categoryId (its product's category, else the merchant default);
+ * with a null :categoryId, a line with neither (the uncategorized bucket). `IS` matches both.
+ */
+private const val LINE_IN_CATEGORY = """receipt_item.line_type = 'product'
+    AND COALESCE(product.category_id, merchant.default_category_id) IS :categoryId"""
+
+/** The lines of the included receipts, with their merchant and product. */
+private const val LINES = """receipt_item
+    JOIN receipt ON receipt.id = receipt_item.receipt_id
+    JOIN merchant ON merchant.id = receipt.merchant_id
+    LEFT JOIN product ON product.id = receipt_item.product_id"""
 
 @Dao
 interface AnalyticsDao {
@@ -176,7 +203,80 @@ interface AnalyticsDao {
         limit: Int,
     ): List<TopProductRow>
 
+    // One category (core:engine `categoryShopTotals`): its product lines, plus what the receipts
+    // of merchants whose default category it is hold beyond their lines, like `categoryLines`,
+    // `receiptTotalsByDefaultCategory` and `lineTotalsByDefaultCategory` count it.
+
+    /** The category's product lines by product, largest first; products that net 0 left out. */
+    @Query(
+        """SELECT receipt_item.product_id AS product_id,
+            COALESCE(product.name, receipt_item.description) AS name,
+            COUNT(DISTINCT receipt_item.receipt_id) AS receipts,
+            SUM($SIGNED_LINE) AS total_minor
+           FROM $LINES
+           WHERE $INCLUDED AND $OWN AND $LINE_IN_CATEGORY
+           GROUP BY COALESCE(receipt_item.product_id, receipt_item.normalized_description)
+           HAVING total_minor != 0
+           ORDER BY total_minor DESC, name""",
+    )
+    suspend fun categoryProducts(
+        categoryId: String?,
+        start: String,
+        end: String,
+        currency: String,
+    ): List<CategoryProductRow>
+
+    /** The category's product lines by merchant. */
+    @Query(
+        """SELECT merchant.id AS merchant_id, merchant.display_name AS merchant_name,
+            SUM($SIGNED_LINE) AS total_minor, COUNT(DISTINCT receipt.id) AS receipts
+           FROM $LINES
+           WHERE $INCLUDED AND $OWN AND $LINE_IN_CATEGORY
+           GROUP BY merchant.id""",
+    )
+    suspend fun categoryLinesByMerchant(
+        categoryId: String?,
+        start: String,
+        end: String,
+        currency: String,
+    ): List<MerchantTotalRow>
+
+    /**
+     * For merchants whose default category is :categoryId: their receipts' totals minus all their
+     * lines (receipts without items, rounding), signed, by merchant.
+     */
+    @Query(
+        """SELECT merchant.id AS merchant_id, merchant.display_name AS merchant_name,
+            SUM(CASE WHEN receipt.document_kind = 'credit_note' THEN -1 ELSE 1 END *
+                (receipt.gross_total_minor - (SELECT COALESCE(SUM(item.gross_amount_minor), 0)
+                    FROM receipt_item AS item WHERE item.receipt_id = receipt.id))) AS total_minor,
+            COUNT(*) AS receipts
+           FROM receipt JOIN merchant ON merchant.id = receipt.merchant_id
+           WHERE $INCLUDED AND $OWN AND merchant.default_category_id = :categoryId
+           GROUP BY merchant.id""",
+    )
+    suspend fun categoryRemaindersByMerchant(
+        categoryId: String,
+        start: String,
+        end: String,
+        currency: String,
+    ): List<MerchantTotalRow>
+
     /** `needs_review_count`: lines (not receipts) waiting to be matched. */
     @Query("SELECT COUNT(*) FROM receipt_item WHERE match_status = 'needs_review'")
     suspend fun needsReviewCount(): Int
+
+    /** Signed totals of the included receipts paid only by card or bank payment. */
+    @Query(
+        """SELECT COALESCE(SUM($SIGNED_TOTAL), 0) FROM receipt
+           WHERE $INCLUDED AND $OWN AND receipt.payment_method IN ('card', 'bank')""",
+    )
+    suspend fun electronicTotal(start: String, end: String, currency: String): Long
+
+    /** The included receipts paid in several ways (rare), for their card and bank parts. */
+    @Query(
+        """SELECT receipt.document_kind AS document_kind, receipt.source_data AS source_data
+           FROM receipt WHERE $INCLUDED AND $OWN AND receipt.payment_method = 'mixed'""",
+    )
+    suspend fun mixedPayments(start: String, end: String, currency: String): List<MixedPaymentRow>
 }

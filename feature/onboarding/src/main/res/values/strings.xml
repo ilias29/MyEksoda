@@ -6,7 +6,7 @@
     <string name="onboarding_create_title">Δημιουργήστε το νοικοκυριό σας</string>
     <string name="onboarding_household_name">Όνομα νοικοκυριού</string>
     <string name="onboarding_household_name_hint">Σπίτι</string>
-    <string name="onboarding_defaults">Νόμισμα %1$s · Ζώνη ώρας %2$s</string>
+    <string name="onboarding_defaults">Νόμισμα: %1$s</string>
     <string name="onboarding_create">Δημιουργία νοικοκυριού</string>
     <string name="onboarding_failed">Το νοικοκυριό δεν δημιουργήθηκε. Δοκιμάστε ξανά.</string>
 </resources>

@@ -18,6 +18,8 @@ import io.eksoda.core.data.repository.BackupRepository
 import io.eksoda.core.data.repository.BackupRepositoryImpl
 import io.eksoda.core.data.repository.CatalogRepository
 import io.eksoda.core.data.repository.CatalogRepositoryImpl
+import io.eksoda.core.data.repository.GoalsRepository
+import io.eksoda.core.data.repository.GoalsRepositoryImpl
 import io.eksoda.core.data.repository.HouseholdRepository
 import io.eksoda.core.data.repository.HouseholdRepositoryImpl
 import io.eksoda.core.data.repository.ProductRepository
@@ -105,4 +107,7 @@ interface RepositoryModule {
 
     @Binds
     fun bindBackupRepository(implementation: BackupRepositoryImpl): BackupRepository
+
+    @Binds
+    fun bindGoalsRepository(implementation: GoalsRepositoryImpl): GoalsRepository
 }

@@ -100,7 +100,8 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = stringResource(R.string.onboarding_defaults, state.currency, state.timezone),
+                // The time zone (Europe/Athens) is not shown or chosen for now.
+                text = stringResource(R.string.onboarding_defaults, state.currency),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),

@@ -8,4 +8,6 @@ public data class Household(
     val defaultCurrency: String,
     /** IANA zone, `Europe/Athens` by default. */
     val timezone: String,
+    /** For the e-payment target; null until the household sets it. */
+    val annualIncome: java.math.BigDecimal? = null,
 )

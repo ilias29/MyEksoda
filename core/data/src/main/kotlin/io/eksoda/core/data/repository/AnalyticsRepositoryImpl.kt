@@ -6,8 +6,12 @@ import io.eksoda.core.database.EksodaDatabase
 import io.eksoda.core.database.dao.AnalyticsDao
 import io.eksoda.core.database.dao.CategoryDao
 import io.eksoda.core.database.dao.HouseholdDao
+import io.eksoda.core.database.dao.MerchantTotalRow
 import io.eksoda.core.database.dao.TotalsRow
 import io.eksoda.core.model.Category
+import io.eksoda.core.model.CategoryDetail
+import io.eksoda.core.model.CategoryProduct
+import io.eksoda.core.model.CategoryShop
 import io.eksoda.core.model.CategorySpending
 import io.eksoda.core.model.MerchantSpending
 import io.eksoda.core.model.MonthPace
@@ -21,7 +25,9 @@ import io.eksoda.core.model.SpendingSummary
 import io.eksoda.core.model.TopProduct
 import io.eksoda.core.model.percentOf
 import io.eksoda.engine.analytics.DefaultCategoryTotal
+import io.eksoda.engine.analytics.KeyedTotal
 import io.eksoda.engine.analytics.LineTotal
+import io.eksoda.engine.analytics.categoryShopTotals
 import io.eksoda.engine.analytics.combineCategoryBuckets
 import io.eksoda.engine.analytics.runningTotals
 import io.eksoda.engine.analytics.totalBySameDay
@@ -61,6 +67,9 @@ class AnalyticsRepositoryImpl @Inject constructor(
             "product",
             "category",
             "merchant",
+            // Budgets and the annual income (GoalsRepository) feed the same screens.
+            "budget",
+            "household",
             emitInitialState = false,
         )
         .map { }
@@ -76,15 +85,20 @@ class AnalyticsRepositoryImpl @Inject constructor(
 
     override suspend fun getSummary(period: Period): Result<SpendingSummary> = compute {
         val currency = currency()
-        val previousLast = period.start.minusDays(1)
-        val days = period.end.toEpochDay() - period.start.toEpochDay()
-        val previousFirst = previousLast.minusDays(days)
+        val previous = previousOf(period)
         SpendingSummary(
             currency = currency,
             current = totals(period.start, period.end, currency),
-            previous = totals(previousFirst, previousLast, currency),
+            previous = totals(previous.start, previous.end, currency),
             needsReviewCount = analytics.needsReviewCount(),
         )
+    }
+
+    /** The period of equal length that ends the day before [period] starts. */
+    private fun previousOf(period: Period): Period.Range {
+        val last = period.start.minusDays(1)
+        val days = period.end.toEpochDay() - period.start.toEpochDay()
+        return Period.Range(last.minusDays(days), last)
     }
 
     private suspend fun totals(first: LocalDate, last: LocalDate, currency: String): PeriodTotals =
@@ -143,6 +157,73 @@ class AnalyticsRepositoryImpl @Inject constructor(
             ),
         )
     }
+
+    override suspend fun getCategoryDetail(
+        categoryId: String?,
+        period: Period,
+    ): Result<CategoryDetail> = compute {
+        val currency = currency()
+        val category = categoryId?.let { id ->
+            val row = checkNotNull(categories.get(id)) { "no category" }
+            Category(row.id, row.name, row.slug, row.isSystem)
+        }
+        val start = period.start.toString()
+        val end = period.end.toString()
+        val current = categoryParts(categoryId, period, currency)
+        val previous = previousOf(period)
+        val total = current.total
+        CategoryDetail(
+            category = category,
+            from = period.start,
+            to = period.end,
+            currency = currency,
+            total = total,
+            share = percentOf(total, money(analytics.totals(start, end, currency).spendingMinor)),
+            previousTotal = categoryParts(categoryId, previous, currency).total,
+            previousFrom = previous.start,
+            previousTo = previous.end,
+            products = analytics.categoryProducts(categoryId, start, end, currency).map {
+                val amount = money(it.totalMinor)
+                CategoryProduct(
+                    it.productId,
+                    it.name,
+                    it.receipts,
+                    amount,
+                    percentOf(amount, total),
+                )
+            },
+            unitemized = current.unitemized,
+            shops = current.shops.map {
+                CategoryShop(it.key, it.name, it.total, percentOf(it.total, total))
+            },
+        )
+    }
+
+    /**
+     * A category's shops ([categoryShopTotals]) in [period], and the part not on its lines. The
+     * uncategorized bucket (null [categoryId]) has no such part: receipts at shops with no default
+     * category leave it to "unallocated".
+     */
+    private suspend fun categoryParts(
+        categoryId: String?,
+        period: Period,
+        currency: String,
+    ): CategoryParts {
+        val start = period.start.toString()
+        val end = period.end.toString()
+        val remainders = categoryId
+            ?.let { analytics.categoryRemaindersByMerchant(it, start, end, currency) }
+            .orEmpty()
+            .map { it.keyed() }
+        val lines = analytics.categoryLinesByMerchant(categoryId, start, end, currency)
+            .map { it.keyed() }
+        return CategoryParts(
+            shops = categoryShopTotals(lines, remainders),
+            unitemized = remainders.fold(BigDecimal.ZERO) { sum, part -> sum + part.total },
+        )
+    }
+
+    private fun MerchantTotalRow.keyed() = KeyedTotal(merchantId, merchantName, money(totalMinor))
 
     override suspend fun getSpendingByMerchant(period: Period): Result<List<MerchantSpending>> =
         compute {
@@ -216,6 +297,11 @@ class AnalyticsRepositoryImpl @Inject constructor(
     )
 
     private fun money(minor: Long): BigDecimal = Fixed.toDecimal(minor, Fixed.MINOR)
+
+    /** One category in a period, by shop; [total] is what its bucket in Insights shows. */
+    private class CategoryParts(val shops: List<KeyedTotal>, val unitemized: BigDecimal) {
+        val total: BigDecimal = shops.fold(BigDecimal.ZERO) { sum, shop -> sum + shop.total }
+    }
 
     private companion object {
         const val DEFAULT_CURRENCY = "EUR"

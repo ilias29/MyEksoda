@@ -20,20 +20,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -92,25 +97,58 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import io.eksoda.core.ui.R as UiR
 
-/** Insights (docs/design/ui-redesign.md §5): a period, its summary and its breakdowns. */
+/**
+ * Insights (docs/design/ui-redesign.md §5): a period, its summary and its breakdowns. With
+ * [showThisMonth] (Home's budget alert) it switches to "This month", where the budgets are, and
+ * calls [onThisMonthShown] so it happens once.
+ */
 @Composable
 fun InsightsRoute(
     onProductClick: (String) -> Unit,
-    onProductsClick: () -> Unit,
     onMerchantsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
+    onCategoryClick: (categoryId: String?, period: Period) -> Unit,
+    showThisMonth: Boolean = false,
+    onThisMonthShown: () -> Unit = {},
     viewModel: InsightsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    // The screen has no Scaffold, so it sets the text color itself.
-    CompositionLocalProvider(LocalContentColor provides EksodaTheme.colors.ink) {
-        InsightsScreen(
-            state = state,
-            onEvent = viewModel::onEvent,
-            onProductClick = onProductClick,
-            onAssignCategories = onProductsClick,
-            onMerchantsClick = onMerchantsClick,
-        )
+    val folds = remember(state.folded) {
+        CardFolds(state.folded) { viewModel.onEvent(InsightsEvent.CardToggled(it)) }
+    }
+    LaunchedEffect(showThisMonth) {
+        if (showThisMonth) {
+            viewModel.onEvent(InsightsEvent.PeriodSelected(InsightsPeriod.DEFAULT))
+            onThisMonthShown()
+        }
+    }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val incomeFailed = stringResource(UiR.string.income_save_failed)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                InsightsEffect.IncomeSaveFailed -> snackbarHostState.showSnackbar(incomeFailed)
+            }
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        // The screen has no Scaffold, so it sets the text color itself.
+        CompositionLocalProvider(
+            LocalContentColor provides EksodaTheme.colors.ink,
+            LocalCardFolds provides folds,
+        ) {
+            InsightsScreen(
+                state = state,
+                onEvent = viewModel::onEvent,
+                onProductClick = onProductClick,
+                onMerchantsClick = onMerchantsClick,
+                onBudgetsClick = onBudgetsClick,
+                onCategoryClick = onCategoryClick,
+            )
+        }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -119,8 +157,10 @@ fun InsightsScreen(
     state: InsightsUiState,
     onEvent: (InsightsEvent) -> Unit,
     onProductClick: (String) -> Unit,
-    onAssignCategories: () -> Unit,
     onMerchantsClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
+    // A category row (null: uncategorized) opens that category over the period shown.
+    onCategoryClick: (categoryId: String?, period: Period) -> Unit,
 ) {
     var showHelp by rememberSaveable { mutableStateOf(false) }
     var pickingDates by rememberSaveable { mutableStateOf(false) }
@@ -166,8 +206,11 @@ fun InsightsScreen(
             state.pace?.let { pace ->
                 Card(pace, retry) { if (it.spentSoFar.signum() != 0) PaceCard(it) }
             }
+            state.budgets?.let { budgets ->
+                Card(budgets, retry) { BudgetCard(it, onBudgetsClick) }
+            }
             Card(state.categories, retry) {
-                if (it.buckets.isNotEmpty()) CategoryCard(it, onAssignCategories)
+                if (it.buckets.isNotEmpty()) CategoryCard(it, onCategoryClick)
             }
             Card(state.merchants, retry) {
                 if (it.isNotEmpty()) MerchantCard(it, currency, onMerchantsClick)
@@ -179,6 +222,9 @@ fun InsightsScreen(
                 }
             }
             TopProductsCard(state.topBySpend, state.topByCount, currency, onProductClick, retry)
+            Card(state.ePayments, retry) { progress ->
+                EPaymentCard(progress, onIncomeChange = { onEvent(InsightsEvent.IncomeSet(it)) })
+            }
         }
     }
     if (pickingDates) {
@@ -307,7 +353,7 @@ private fun Header(range: Period?, summary: CardState<SpendingSummary>, onHelp: 
 }
 
 /** "1–15 Νοεμβρίου 2026", "17–31 Οκτ", "1 Σεπ – 15 Νοε", "17 Νοε" for one day. */
-private fun rangeLabel(period: Period, locale: Locale, withYear: Boolean): String {
+internal fun rangeLabel(period: Period, locale: Locale, withYear: Boolean): String {
     val start = period.start
     val end = period.end
     val year = if (withYear) " yyyy" else ""
@@ -340,54 +386,11 @@ private fun SummaryCard(summary: SpendingSummary) {
                     color = colors.ink2,
                 )
                 HeroMoney(Money(summary.current.spending, currency))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val percent = summary.changePercent
-                    val previousRange =
-                        rangeLabel(Period.Range(previous.from, previous.to), locale, false)
-                    val previousAmount = formatMoney(Money(previous.spending, currency), locale)
-                    if (percent == null) {
-                        ChangeBadge(ChangeDirection.NONE, "")
-                        Text(
-                            monoNumbers(
-                                stringResource(R.string.insights_no_previous, previousRange),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.ink2,
-                        )
-                    } else {
-                        val shown = percent.setScale(1, RoundingMode.HALF_UP)
-                        val amount = formatPercent(shown, locale)
-                        val (direction, words) = when (shown.signum()) {
-                            1 ->
-                                ChangeDirection.UP to
-                                    stringResource(R.string.insights_change_more, amount)
-
-                            -1 ->
-                                ChangeDirection.DOWN to
-                                    stringResource(R.string.insights_change_less, amount)
-
-                            else ->
-                                ChangeDirection.NONE to
-                                    stringResource(R.string.insights_change_same)
-                        }
-                        ChangeBadge(direction, words)
-                        Text(
-                            monoNumbers(
-                                stringResource(
-                                    R.string.insights_change_than,
-                                    previousRange,
-                                    previousAmount,
-                                ),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.ink2,
-                        )
-                    }
-                }
+                ChangeLine(
+                    percent = summary.changePercent,
+                    previous = Period.Range(previous.from, previous.to),
+                    previousAmount = Money(previous.spending, currency),
+                )
             }
             val refunds = summary.current.creditNotesTotal
             // Days in the period, both ends included; "per day" says nothing for one day.
@@ -443,11 +446,60 @@ private fun SummaryCard(summary: SpendingSummary) {
     }
 }
 
+/**
+ * "▲ 12,5% more than 1–15 Oct (420 €)": the change in [percent] from the [previous] period, which
+ * came to [previousAmount]; with no [percent] (nothing then), just that nothing was spent.
+ */
+@Composable
+internal fun ChangeLine(percent: BigDecimal?, previous: Period, previousAmount: Money) {
+    val colors = EksodaTheme.colors
+    val locale = appLocale()
+    val previousRange = rangeLabel(previous, locale, withYear = false)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (percent == null) {
+            ChangeBadge(ChangeDirection.NONE, "")
+            Text(
+                monoNumbers(stringResource(R.string.insights_no_previous, previousRange)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.ink2,
+            )
+        } else {
+            val shown = percent.setScale(1, RoundingMode.HALF_UP)
+            val amount = formatPercent(shown, locale)
+            val (direction, words) = when (shown.signum()) {
+                1 -> ChangeDirection.UP to stringResource(R.string.insights_change_more, amount)
+                -1 -> ChangeDirection.DOWN to stringResource(R.string.insights_change_less, amount)
+                else -> ChangeDirection.NONE to stringResource(R.string.insights_change_same)
+            }
+            ChangeBadge(direction, words)
+            Text(
+                monoNumbers(
+                    stringResource(
+                        R.string.insights_change_than,
+                        previousRange,
+                        formatMoney(previousAmount, locale),
+                    ),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.ink2,
+            )
+        }
+    }
+}
+
 /** A stable key for a bucket, to find it again after ranking. */
 private fun SpendingBucket.key(): String = kind.code + ":" + category?.id.orEmpty()
 
 @Composable
-private fun CategoryCard(spending: CategorySpending, onAssignCategories: () -> Unit) {
+private fun CategoryCard(
+    spending: CategorySpending,
+    onCategoryClick: (categoryId: String?, period: Period) -> Unit,
+) {
+    val period = Period.Range(spending.from, spending.to)
     val colors = EksodaTheme.colors
     val locale = appLocale()
     val byKey = spending.buckets.associateBy { it.key() }
@@ -460,7 +512,7 @@ private fun CategoryCard(spending: CategorySpending, onAssignCategories: () -> U
     // Negative buckets (discounts) are not in the chart, but the list shows them.
     val negative = spending.buckets.filter { it.total.signum() < 0 }
     val names = spending.buckets.associate { it.key() to bucketName(it) }
-    SectionCard(title = stringResource(R.string.insights_by_category)) {
+    FoldableCard(InsightsCard.CATEGORIES, stringResource(R.string.insights_by_category)) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -513,7 +565,7 @@ private fun CategoryCard(spending: CategorySpending, onAssignCategories: () -> U
                         name = names[item.key].orEmpty(),
                         swatch = item,
                         currency = spending.currency,
-                        onAssignCategories = onAssignCategories,
+                        onCategoryClick = { onCategoryClick(it, period) },
                     )
                 }
                 negative.forEach { bucket ->
@@ -522,7 +574,7 @@ private fun CategoryCard(spending: CategorySpending, onAssignCategories: () -> U
                         name = names[bucket.key()].orEmpty(),
                         swatch = null,
                         currency = spending.currency,
-                        onAssignCategories = onAssignCategories,
+                        onCategoryClick = { onCategoryClick(it, period) },
                     )
                 }
             }
@@ -536,16 +588,29 @@ private fun CategoryRow(
     name: String,
     swatch: RankedItem?,
     currency: String,
-    onAssignCategories: () -> Unit,
+    onCategoryClick: (categoryId: String?) -> Unit,
 ) {
     val colors = EksodaTheme.colors
     val locale = appLocale()
     val assign = bucket.kind == SpendingBucketKind.UNCATEGORIZED
+    // A category, or the uncategorized products (to give them one), open over the period.
+    val categoryId = bucket.category?.id?.takeIf { bucket.kind == SpendingBucketKind.CATEGORY }
+    val onClick: (() -> Unit)? = when {
+        assign -> {
+            { onCategoryClick(null) }
+        }
+
+        categoryId != null -> {
+            { onCategoryClick(categoryId) }
+        }
+
+        else -> null
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (assign) 52.dp else 44.dp)
-            .then(if (assign) Modifier.clickable(onClick = onAssignCategories) else Modifier),
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -590,6 +655,13 @@ private fun CategoryRow(
             negative = bucket.total.signum() < 0,
             style = MaterialTheme.typography.bodyMedium,
         )
+        // Every row keeps the space, so the amounts stay aligned.
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = if (onClick != null) colors.ink2 else Color.Transparent,
+            modifier = Modifier.size(18.dp),
+        )
     }
     HorizontalDivider(color = colors.line)
 }
@@ -604,7 +676,8 @@ private fun MerchantCard(
     val locale = appLocale()
     val top = merchants.take(TOP_MERCHANTS)
     val max = top.maxOfOrNull { it.total } ?: BigDecimal.ONE
-    SectionCard(
+    FoldableCard(
+        card = InsightsCard.MERCHANTS,
         title = stringResource(R.string.insights_by_shop),
         action = if (merchants.size > TOP_MERCHANTS) {
             {
@@ -666,7 +739,8 @@ private fun TrendCard(trend: MonthlyTrend, today: LocalDate) {
             .divide(BigDecimal(full.size), 2, RoundingMode.HALF_UP)
     }
     var selected by rememberSaveable(months.size) { mutableIntStateOf(months.lastIndex) }
-    SectionCard(
+    FoldableCard(
+        card = InsightsCard.TREND,
         title = stringResource(R.string.insights_monthly_trend),
         action = average?.let {
             {
@@ -824,7 +898,7 @@ private fun TopProductsCard(
     var mode by rememberSaveable { mutableIntStateOf(0) }
     val card = if (mode == 0) bySpend else byCount
     if (card is CardState.Ready && card.value.isEmpty() && mode == 0) return
-    SectionCard(title = stringResource(R.string.insights_top_products)) {
+    FoldableCard(InsightsCard.TOP_PRODUCTS, stringResource(R.string.insights_top_products)) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
