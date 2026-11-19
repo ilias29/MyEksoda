@@ -1,5 +1,6 @@
 package io.eksoda.feature.household.sync
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,21 +17,24 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -62,7 +66,29 @@ import java.time.Instant
 fun SyncRoute(onBack: () -> Unit, viewModel: SyncViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val history = viewModel.history.collectAsLazyPagingItems()
-    SyncScreen(state = state, history = history, onEvent = viewModel::onEvent, onBack = onBack)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            val message = when (effect) {
+                is SyncEffect.Joined -> resources.getString(R.string.sync_joined, effect.phoneName)
+                SyncEffect.NotACode -> resources.getString(R.string.sync_join_not_a_code)
+                SyncEffect.OwnCode -> resources.getString(R.string.sync_join_own_code)
+                SyncEffect.JoinFailed -> resources.getString(R.string.sync_join_failed)
+                SyncEffect.CodeFailed -> resources.getString(R.string.sync_code_failed)
+                SyncEffect.Left -> resources.getString(R.string.sync_left)
+                SyncEffect.LeaveFailed -> resources.getString(R.string.sync_leave_failed)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+    SyncScreen(
+        state = state,
+        history = history,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        snackbarHostState = snackbarHostState,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,9 +98,20 @@ fun SyncScreen(
     history: LazyPagingItems<SyncEvent>,
     onEvent: (SyncScreenEvent) -> Unit,
     onBack: () -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    if (state.scanning) {
+        BackHandler { onEvent(SyncScreenEvent.ScanCancelled) }
+        JoinScanner(
+            onCode = { onEvent(SyncScreenEvent.CodeScanned(it)) },
+            onCancel = { onEvent(SyncScreenEvent.ScanCancelled) },
+        )
+        return
+    }
+    SyncDialogs(state.dialog, onEvent)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.sync_title)) },
@@ -107,7 +144,12 @@ fun SyncScreen(
             }
             if (state.enabled) {
                 item(key = "phones") {
-                    PeersCard(state.peers, Modifier.padding(top = CARD_GAP))
+                    HouseholdCard(
+                        peers = state.peers,
+                        hasKey = state.hasKey,
+                        onEvent = onEvent,
+                        modifier = Modifier.padding(top = CARD_GAP),
+                    )
                 }
             }
             item(key = "history-title") {
@@ -173,52 +215,6 @@ private fun SwitchCard(enabled: Boolean, loading: Boolean, onChange: (Boolean) -
                 )
             }
             Switch(checked = enabled, onCheckedChange = null, enabled = !loading)
-        }
-    }
-}
-
-@Composable
-private fun PeersCard(peers: List<SyncPeer>, modifier: Modifier = Modifier) {
-    val colors = EksodaTheme.colors
-    SectionCard(modifier = modifier, title = stringResource(R.string.sync_phones)) {
-        if (peers.isEmpty()) {
-            Text(
-                text = stringResource(R.string.sync_phones_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.ink2,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-        peers.forEachIndexed { index, peer ->
-            if (index > 0) HorizontalDivider(color = colors.line)
-            PeerRow(peer)
-        }
-    }
-}
-
-@Composable
-private fun PeerRow(peer: SyncPeer) {
-    val lastSuccess = peer.lastSuccessAt
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = EksodaTheme.colors.ink2)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(peer.name, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = if (lastSuccess != null) {
-                    stringResource(R.string.sync_peer_last, dayTimeLabel(lastSuccess))
-                } else {
-                    stringResource(R.string.sync_peer_never)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = EksodaTheme.colors.ink2,
-            )
         }
     }
 }
@@ -376,6 +372,7 @@ private fun SyncScreenPreview() {
             state = SyncUiState(
                 loading = false,
                 enabled = true,
+                hasKey = true,
                 peers = listOf(
                     SyncPeer("d1", "Pixel 8", now, now, now.minusSeconds(3_597)),
                     SyncPeer("d2", "Galaxy A55", now, null, null),

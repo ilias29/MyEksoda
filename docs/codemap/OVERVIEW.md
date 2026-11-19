@@ -175,8 +175,9 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   card and bank payments, read from `source_data` by core:engine `electronicPartOf` (credit
   notes subtract; unreadable data counts 0). Home and Insights pass the month's category
   spending they already loaded to `getMonthBudgets` instead of querying it twice.
-  Sync (`SyncRepository`: the on/off flag in DataStore, off by default; paired phones; the
-  paged history; the last successful sync for the Settings row).
+  Sync (`SyncRepository`: the on/off flag in DataStore, off by default, turning it on makes
+  the household key; paired phones; the paged history; the last successful sync for the
+  Settings row; `pairingCode`, `join`, `leave`).
 - **Household sync merge** (docs/design/household-sync.md): core:engine `sync/` is pure:
   `SyncSchema.TABLES` (per synced table: unique keys, foreign keys with their `ON DELETE`,
   local columns such as `receipt.source_url`; parents first, the same order as
@@ -187,6 +188,12 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   applies a `MergeResult` (removals children first, then only changed rows parents first,
   then import jobs repointed); `SyncMerger` runs both under `WriteCoordinator`. A schema
   change to a synced table may need its `TableSpec` updated.
+- **Household sync pairing:** the household key (`HouseholdKey`, 32 bytes) is held by
+  core:data `sync/SyncDevice` (`KeystoreSyncDevice`: wrapped by its own Keystore alias in
+  `noBackupFilesDir`, next to the device id; tests use a fake). The QR text is core:engine
+  `PairingCode`. feature:household draws it with zxing core (`HouseholdCodeDialog`, a
+  secure window) and reads it with its own zxing-cpp scanner (`JoinScanner`). The code holds
+  the key: never in saved state, a destination, a log or `toString()`.
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data

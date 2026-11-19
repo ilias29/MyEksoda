@@ -40,3 +40,18 @@ public enum class SyncResult(public val code: String) {
     DONE("done"),
     FAILED("failed"),
 }
+
+/** Scanning another phone's household code. */
+public sealed interface SyncJoinResult {
+    /** This phone is now of [phoneName]'s household. */
+    public data class Joined(val phoneName: String) : SyncJoinResult
+
+    /** The QR code is not an Eksoda household code. */
+    public data object NotACode : SyncJoinResult
+
+    /** The QR code is this phone's own. */
+    public data object OwnCode : SyncJoinResult
+
+    /** The key could not be stored. */
+    public data object Failed : SyncJoinResult
+}

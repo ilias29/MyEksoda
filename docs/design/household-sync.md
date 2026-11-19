@@ -23,20 +23,26 @@ the same Wi-Fi. No server, no account, no internet traffic.
 
 ## How it works
 
-### Pairing (once per phone)
+### Pairing (once per phone, built)
 
-- The first phone to turn sync on creates a **household sync key**: 32 random bytes, wrapped
-  with an Android Keystore key like the database key (`KeyManager`), in `noBackupFilesDir`.
-  Each install also gets a random **device id**.
-- On the Sync screen, "Add a phone" shows a QR code with: protocol version, the sync key, this
-  phone's device id, and its current local IP and port (the fallback when discovery fails).
-- The new phone scans it ("Join household" on its Sync screen; reuses the camera scanner of
-  feature:scan), stores the key, and runs a first sync right away. Its existing data is
-  merged in, not replaced: the first sync is an ordinary sync.
+- The first phone to turn sync on creates a **household sync key** (`HouseholdKey.create`,
+  32 random bytes), wrapped with an Android Keystore key under its own alias, in
+  `noBackupFilesDir/sync.key` (core:data `sync/SyncDevice.kt`, `KeystoreSyncDevice`). Each
+  install also gets a random **device id** (`sync.device`); its name is the device model.
+- On the Sync screen, "Add a phone" shows a QR code (`PairingCode`:
+  `eksoda-pair:1?k=<key>&d=<device id>&n=<name>&a=<host:port>`; the address is added in
+  phase 4). The dialog's window is secure (`SecureFlagPolicy.SecureOn`: no screenshots, hidden
+  in recent apps) and the code is held only while it is open. Drawn with zxing core (pure
+  Java, offline), since zxing-cpp's Android library only reads.
+- The new phone scans it ("Join a household": its own camera scanner in feature:household,
+  zxing-cpp like feature:scan; features do not depend on each other). It stores the key, pairs
+  the phone that showed the code, and turns sync on. A different household's key replaces its
+  own and forgets the phones paired before (asked first when there are any). Its existing
+  data is merged in on the first sync, not replaced: the first sync is an ordinary sync.
 - Anyone holding the key is a member. Every paired phone can add further phones.
-- "Leave household sync" (on the screen) deletes the key and the paired phone list on this
-  phone. The data stays. Turning the switch off does **not** forget the pairing: turning it on
-  again resumes.
+- "Leave household sync" (on the screen, confirmed) deletes the key and the paired phone list
+  on this phone and turns sync off. The data and the history stay. Turning the switch off does
+  **not** forget the pairing: turning it on again resumes.
 
 ### Discovery and triggers
 
@@ -181,7 +187,7 @@ on it counts as scanned here too.
    `sync_peer` / `sync_event` tables, migration 6.
 2. **Done (2026-11-19).** Merge rules in core:engine with tests; snapshot reader and merge
    applier in core:data, tested with two databases; migration 7.
-3. Pairing: key store, device id, QR show and scan, leave.
+3. **Done (2026-11-19).** Pairing: key store, device id, QR show and scan, leave.
 4. Transport and NSD: handshake, listener, discovery, automatic and manual sync, history
    entries.
 5. Synced receipts: the mark, URL actions hidden (the URL is already nullable).

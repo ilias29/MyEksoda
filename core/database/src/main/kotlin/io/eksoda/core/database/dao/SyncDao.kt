@@ -15,8 +15,15 @@ interface SyncDao {
     @Query("SELECT * FROM sync_peer ORDER BY name, device_id")
     fun observePeers(): Flow<List<SyncPeerEntity>>
 
+    @Query("SELECT * FROM sync_peer WHERE device_id = :deviceId")
+    suspend fun peer(deviceId: String): SyncPeerEntity?
+
     @Upsert
     suspend fun upsertPeer(peer: SyncPeerEntity)
+
+    /** Leaving household sync, or joining another household. */
+    @Query("DELETE FROM sync_peer")
+    suspend fun deletePeers()
 
     /** The history newest first, walking the `(started_at, id)` index backwards. */
     @Query("SELECT * FROM sync_event ORDER BY started_at DESC, id DESC")

@@ -142,5 +142,11 @@ public class SyncException(public val code: String, cause: Throwable? = null) :
 
         /** The merged rows could not be stored; the transaction rolled back. */
         public const val MERGE_FAILED: String = "merge_failed"
+
+        /** The other phone does not hold this household's key. */
+        public const val NOT_PAIRED: String = "not_paired"
+
+        /** The connection broke off halfway. */
+        public const val INTERRUPTED: String = "interrupted"
     }
 }
