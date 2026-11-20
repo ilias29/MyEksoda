@@ -11,12 +11,15 @@ line range. Keep this file current when a change adds a module, a pipeline step 
 
 Your receipts never leave the phone: no account, no analytics, no crash reporting.
 The only network traffic is HTTPS GETs to the receipt providers (Impact, Entersoft, AADE,
-Epsilon Digital).
+Epsilon Digital), and, only when the user turns household sync on, encrypted sessions with
+the household's phones on the local network (private addresses, never the internet).
 Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false`,
 `dataExtractionRules`); the user's own encrypted export is the only backup.
 
 Not built yet: backup reminder, restore from onboarding, app lock, hide content
-(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile).
+(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile),
+household sync between phones on the same Wi-Fi beyond its screen and switch (design and
+phases: `docs/design/household-sync.md`).
 
 ## Modules and dependency rules
 
@@ -40,7 +43,7 @@ core:ui                Shared composables (EmptyState, MoneyText, HeroMoney) and
                        categoryNameRes)
 feature:*              Screens. See only core:data interfaces, core:model, core:ui,
                        core:designsystem (wired by the eksoda.android.feature plugin).
-                       feature:household is empty.
+                       feature:household: the Sync screen (`sync/`, opened from Settings).
 build-logic            Convention plugins: eksoda.android.{application,library,compose,
                        feature,room}, eksoda.jvm.library, eksoda.hilt; Quality.kt (Spotless,
                        detekt, Kover); NoTelemetryCheck.kt
@@ -113,13 +116,20 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   seeded), budget (id `total` or the category's id), merchant, store, product,
   merchant_product_mapping, receipt, receipt_item, import_job, tombstone. One DB file = one household (no
   `household_id`). UUID `TEXT` ids, `created_at`/`updated_at` epoch ms UTC, plus
-  `issued_local_date` (`YYYY-MM-DD` in the household zone). Deletes write a `tombstone` row.
-- `EksodaDatabase` version **5**, `exportSchema = true`; schema JSON in
+  `issued_local_date` (`YYYY-MM-DD` in the household zone). Deletes write a `tombstone` row
+  (a receipt's with its `natural_key`, `SyncSchema.naturalKey`; merged products' with
+  `replaced_by`, the product kept). `receipt.source_url` is null on a receipt that came from
+  another phone by sync.
+  Local to the phone (`SyncEntities.kt`): sync_peer (paired phones) and sync_event (the sync
+  history); never backed up and never synced.
+- `EksodaDatabase` version **7**, `exportSchema = true`; schema JSON in
   `core/database/schemas/`. Version 4 shipped in 0.1.1, so **every schema change needs a
-  migration** that keeps the data: an `AutoMigration` when Room can derive it (4 → 5 is one),
-  else a manual `Migration`, plus a case in `core/database` `MigrationTest`
+  migration** that keeps the data: an `AutoMigration` when Room can derive it (4 → 5 and
+  5 → 6 and 6 → 7 are), else a manual `Migration`, plus a case in `core/database` `MigrationTest`
   (`MigrationTestHelper` on Robolectric, schemas as test assets). There is no destructive
-  fallback: a missing migration fails to open. A new table also goes in `BackupArchive.TABLES`.
+  fallback: a missing migration fails to open. A new table also goes in `BackupArchive.TABLES`
+  (household data) or `BackupArchive.LOCAL_TABLES` (about this phone: not exported, left as it
+  is by a restore).
 - **Decimals:** columns are fixed-point `Long` with a suffix: `_minor` (2), `_e2` (2),
   `_e4` (4), `_e6` (6). Convert only with `core/data/util/Fixed.kt`
   (`Fixed.toLong(v, Fixed.E4)`, `Fixed.toDecimal(l, Fixed.MINOR)`).
@@ -148,7 +158,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   Mapping entity/row → model is private in the `*Impl` (`toModel()`), using
   `HouseholdZone.current()` for dates.
 - DI: `di/AppModule.kt` (Engine, WorkManager, DataStore, `@ApplicationScope`,
-  `RepositoryModule` @Binds), `di/DatabaseModule.kt` (DB + one `@Provides` per DAO),
+  `RepositoryModule` @Binds; `di/SyncModule.kt` for sync), `di/DatabaseModule.kt` (DB + one
+  `@Provides` per DAO),
   `di/CoreModule.kt` (`Clock`, `@IoDispatcher`, `@DefaultDispatcher`). Parsing and analytics
   on Default, database and network on IO.
 - Repositories: Receipt, ReceiptOptions, ReceiptFilterStore (the receipt list's last filters
@@ -165,6 +176,36 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   card and bank payments, read from `source_data` by core:engine `electronicPartOf` (credit
   notes subtract; unreadable data counts 0). Home and Insights pass the month's category
   spending they already loaded to `getMonthBudgets` instead of querying it twice.
+  Sync (`SyncRepository`: the on/off flag in DataStore, off by default, turning it on makes
+  the household key; paired phones; the paged history; the last successful sync for the
+  Settings row; `pairingCode`, `join`, `leave`).
+- **Household sync merge** (docs/design/household-sync.md): core:engine `sync/` is pure:
+  `SyncSchema.TABLES` (per synced table: unique keys, foreign keys with their `ON DELETE`,
+  local columns such as `receipt.source_url`; parents first, the same order as
+  `BackupArchive.TABLES`, a test checks), `Snapshot` / `SnapshotCodec` (gzip JSON lines,
+  values as stored), `SyncMerge.merge(local, remote)` (same result whichever phone merges;
+  copies of one thing under two ids become the smaller id; later `updated_at` wins;
+  tombstones by id or natural key). core:data `sync/SnapshotStore` reads the snapshot and
+  applies a `MergeResult` (removals children first, then only changed rows parents first,
+  then import jobs repointed); `SyncMerger` runs both under `WriteCoordinator`. A schema
+  change to a synced table may need its `TableSpec` updated.
+- **Household sync pairing:** the household key (`HouseholdKey`, 32 bytes) is held by
+  core:data `sync/SyncDevice` (`KeystoreSyncDevice`: wrapped by its own Keystore alias in
+  `noBackupFilesDir`, next to the device id; tests use a fake). The QR text is core:engine
+  `PairingCode`. feature:household draws it with zxing core (`HouseholdCodeDialog`, a
+  secure window) and reads it with its own zxing-cpp scanner (`JoinScanner`). The code holds
+  the key: never in saved state, a destination, a log or `toString()`.
+- **Household sync connection:** core:engine `SyncSession` is the protocol (hellos sealed
+  with the household key, then a per-session key; the client sends its snapshot, the server
+  merges and answers with its own) over `Frames`; `LocalNetwork.isLocal` is the address rule.
+  core:data `sync/SyncRunner` runs one session at a time over a TCP socket and writes the
+  history and paired phones; `SyncDiscovery` is NSD (`_eksoda._tcp`, device id and household
+  tag) and the Wi-Fi address (`localAddress`); `SyncRuntime` (started by
+  `EksodaApplication`) listens on the Wi-Fi address and discovers only while the app is in
+  the foreground, sync is on and a key is held (`SyncDevice.keyVersion`: a new key restarts
+  it), and syncs automatically or on "Sync now". A sync already running answers `busy`;
+  nothing a session throws escapes (`internal`); history entries are always finished. The
+  repository reaches it through `SyncControl`.
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data
@@ -225,7 +266,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   category names → `categoryNameRes(slug)`.
 - Receipt text (descriptions, merchant names) is shown as printed, never translated.
 - Helpers in `core:ui`: `dateFormatter(pattern, locale)` (cached; never
-  `DateTimeFormatter.ofPattern` in a composable), `searchKey(text)` for accent-free matching
+  `DateTimeFormatter.ofPattern` in a composable), `dayTimeLabel(instant)` ("Today, 14:20"),
+  `searchKey(text)` for accent-free matching
   of in-memory lists, `DelayedProgressIndicator` (no spinner flash on fast loads), and
   `EmptyState` with a one-line description, and `AmountDialog` for typing money
   (`parseMoneyInput` reads "18.000" as 18000 in either convention); `IncomeDialog` (on top of

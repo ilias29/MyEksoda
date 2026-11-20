@@ -47,6 +47,13 @@ Eksoda is a standalone, privacy-first Android household expense app built around
   bought it at.
 - **Automatic categories** for products and shops, which you can change at any time.
 
+**Household sync**
+- **Share one household's receipts across phones,** directly over the same Wi-Fi: no server,
+  no account. Off by default; pair phones once with a QR code.
+- Receipts, products, categories, shops, budgets and settings sync automatically while the app
+  is open, or with **Sync now**, and every sync is listed in the sync history.
+- Receipt links never leave the phone that scanned them.
+
 **Your data**
 - **Encrypted backups** you can export and restore, and open on a computer with
   [`decrypt_bu.py`](decrypt_bu.py).
@@ -54,8 +61,9 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 
 ## 🔒 Privacy First
 
-- **Your receipts never leave your phone.** There is no backend server and no user account.
-- **Direct-only network access:** The app connects exclusively to registered receipt provider hosts via HTTPS (system CAs only).
+- **Your receipts never leave your phones.** There is no backend server and no user account.
+- **Direct-only network access:** The app connects exclusively to registered receipt provider hosts via HTTPS (system CAs only), and, only if you turn household sync on, to your household's phones on the same Wi-Fi.
+- **Household sync stays local:** phones pair by QR code and share a household key; each sync is encrypted (AES-256-GCM, with a key per session derived by HKDF-SHA256), only private local-network addresses are contacted, and receipt links stay on the phone that scanned them.
 - **Encrypted storage:** All data is stored locally in an encrypted Room database (SQLCipher) secured by an Android Keystore wrapping key.
 - **Zero telemetry:** No Firebase, no analytics, no crash reporting SDKs, no tracking.
 - **Passphrase-protected backups:** Local backup files are encrypted using AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation.
@@ -96,8 +104,8 @@ which you can check with `apksigner verify --print-certs eksoda-<version>.apk`.
 - **Database:** Room with SQLCipher encryption
 - **Dependency Injection:** Hilt
 - **Background Processing:** WorkManager (for robust import scheduling & retries)
-- **Networking:** OkHttp (`SafeFetcher` with host allowlist and public DNS)
-- **Scanning:** zxing-cpp
+- **Networking:** OkHttp (`SafeFetcher` with host allowlist and public DNS); household sync over plain TCP on the local network, found with Android's NSD (mDNS)
+- **Scanning:** zxing-cpp (reading QR codes), ZXing core (drawing the pairing QR code)
 - **Android versions:** minimum API 26 (Android 8.0), target API 36, compile SDK 37
 
 ## 🏗️ Building & Testing
@@ -129,6 +137,8 @@ python3 decrypt_bu.py your_backup.eksoda [output_archive.zip]
 |---|---|
 | [`docs/codemap/OVERVIEW.md`](docs/codemap/OVERVIEW.md) | Architecture, modules, import pipeline, data layer, backup, and rules |
 | [`docs/design/ui-redesign.md`](docs/design/ui-redesign.md) | UI rules: color meanings, type, components, charts |
+| [`docs/design/household-sync.md`](docs/design/household-sync.md) | Household sync: pairing, protocol, merge rules |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release |
 
 ## License
 

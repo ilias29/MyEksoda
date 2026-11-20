@@ -11,6 +11,7 @@ import io.eksoda.core.database.dao.ImportJobDao
 import io.eksoda.core.database.dao.MerchantDao
 import io.eksoda.core.database.dao.ProductDao
 import io.eksoda.core.database.dao.ReceiptDao
+import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.database.dao.TombstoneDao
 import io.eksoda.core.database.entity.BudgetEntity
 import io.eksoda.core.database.entity.CategoryEntity
@@ -22,6 +23,8 @@ import io.eksoda.core.database.entity.ProductEntity
 import io.eksoda.core.database.entity.ReceiptEntity
 import io.eksoda.core.database.entity.ReceiptItemEntity
 import io.eksoda.core.database.entity.StoreEntity
+import io.eksoda.core.database.entity.SyncEventEntity
+import io.eksoda.core.database.entity.SyncPeerEntity
 import io.eksoda.core.database.entity.TombstoneEntity
 
 /**
@@ -46,12 +49,19 @@ import io.eksoda.core.database.entity.TombstoneEntity
         ImportJobEntity::class,
         TombstoneEntity::class,
         BudgetEntity::class,
+        SyncPeerEntity::class,
+        SyncEventEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         // 5: the budget table and household.annual_income_minor.
         AutoMigration(from = 4, to = 5),
+        // 6: the sync_peer and sync_event tables (household sync).
+        AutoMigration(from = 5, to = 6),
+        // 7: receipt.source_url nullable (synced receipts have no link), tombstone.natural_key
+        // and tombstone.replaced_by.
+        AutoMigration(from = 6, to = 7),
     ],
 )
 abstract class EksodaDatabase : RoomDatabase() {
@@ -72,4 +82,6 @@ abstract class EksodaDatabase : RoomDatabase() {
     abstract fun analyticsDao(): AnalyticsDao
 
     abstract fun budgetDao(): BudgetDao
+
+    abstract fun syncDao(): SyncDao
 }

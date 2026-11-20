@@ -8,6 +8,7 @@ import dagger.hilt.android.HiltAndroidApp
 import io.eksoda.core.data.di.ApplicationScope
 import io.eksoda.core.data.imports.ImportStartup
 import io.eksoda.core.data.products.AutoCategoryBackfill
+import io.eksoda.core.data.sync.SyncRuntime
 import io.eksoda.core.ui.text.AppLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -23,6 +24,9 @@ class EksodaApplication :
     @Inject lateinit var importStartup: Lazy<ImportStartup>
 
     @Inject lateinit var autoCategoryBackfill: Lazy<AutoCategoryBackfill>
+
+    /** Household sync while the app is open; off unless the user turned it on. */
+    @Inject lateinit var syncRuntime: Lazy<SyncRuntime>
 
     @Inject @ApplicationScope
     lateinit var applicationScope: CoroutineScope
@@ -41,5 +45,6 @@ class EksodaApplication :
             // Products imported before automatic categories get one (AutoCategory.kt).
             runCatching { autoCategoryBackfill.get().run() }
         }
+        applicationScope.launch { runCatching { syncRuntime.get().start() } }
     }
 }

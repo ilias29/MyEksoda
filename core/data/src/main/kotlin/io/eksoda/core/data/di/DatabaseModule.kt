@@ -21,6 +21,7 @@ import io.eksoda.core.database.dao.ImportJobDao
 import io.eksoda.core.database.dao.MerchantDao
 import io.eksoda.core.database.dao.ProductDao
 import io.eksoda.core.database.dao.ReceiptDao
+import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.database.dao.TombstoneDao
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.time.Clock
@@ -73,4 +74,6 @@ object DatabaseModule {
     @Provides fun analyticsDao(database: EksodaDatabase): AnalyticsDao = database.analyticsDao()
 
     @Provides fun budgetDao(database: EksodaDatabase): BudgetDao = database.budgetDao()
+
+    @Provides fun syncDao(database: EksodaDatabase): SyncDao = database.syncDao()
 }

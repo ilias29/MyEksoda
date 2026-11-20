@@ -212,8 +212,12 @@ data class ReceiptEntity(
     @ColumnInfo(name = "validation_warnings") val validationWarnings: String,
     @ColumnInfo(name = "excluded_from_analytics") val excludedFromAnalytics: Boolean = false,
     @ColumnInfo(name = "user_note") val userNote: String = "",
-    /** The credential: encrypted at rest with the database, never logged or shown. */
-    @ColumnInfo(name = "source_url") val sourceUrl: String,
+    /**
+     * The credential: encrypted at rest with the database, never logged or shown. Null on a
+     * receipt that came from another phone by household sync (schema 7): links never leave the
+     * phone that scanned them.
+     */
+    @ColumnInfo(name = "source_url") val sourceUrl: String?,
     @ColumnInfo(name = "source_url_fingerprint") val sourceUrlFingerprint: String,
     /** Canonical JSON without URL, unknown values or card numbers (`sourceData`). */
     @ColumnInfo(name = "source_data") val sourceData: String,
@@ -319,10 +323,17 @@ data class ImportJobEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
-/** Deleted rows, kept for a future sync. Nothing reads them yet. */
+/** Deleted rows, so household sync deletes them on the other phones too (core:engine `sync/`). */
 @Entity(tableName = "tombstone", primaryKeys = ["entity", "id"])
 data class TombstoneEntity(
     val entity: String,
     val id: String,
     @ColumnInfo(name = "deleted_at") val deletedAt: Long,
+    /**
+     * The row's unique key (`SyncSchema.naturalKey`, schema 7), so the deletion also reaches a
+     * copy another phone imported under its own id.
+     */
+    @ColumnInfo(name = "natural_key") val naturalKey: String? = null,
+    /** A product merged into another: what pointed at this one points at that one (schema 7). */
+    @ColumnInfo(name = "replaced_by") val replacedBy: String? = null,
 )

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -78,6 +79,7 @@ import io.eksoda.core.model.Money
 import io.eksoda.core.ui.component.IncomeDialog
 import io.eksoda.core.ui.text.AppLanguage
 import io.eksoda.core.ui.text.appLocale
+import io.eksoda.core.ui.text.dayTimeLabel
 import io.eksoda.core.ui.text.formatMoney
 import java.math.BigDecimal
 import io.eksoda.core.ui.R as UiR
@@ -89,6 +91,7 @@ fun SettingsRoute(
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
     onBudgetsClick: () -> Unit,
+    onSyncClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -136,6 +139,7 @@ fun SettingsRoute(
         onCategoriesClick = onCategoriesClick,
         onMerchantsClick = onMerchantsClick,
         onBudgetsClick = onBudgetsClick,
+        onSyncClick = onSyncClick,
         onEvent = viewModel::onEvent,
         snackbarHostState = snackbarHostState,
     )
@@ -165,6 +169,7 @@ fun SettingsScreen(
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
     onBudgetsClick: () -> Unit,
+    onSyncClick: () -> Unit,
     onEvent: (SettingsEvent) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
@@ -203,7 +208,9 @@ fun SettingsScreen(
             state.household?.let { household ->
                 HouseholdCard(
                     household = household,
+                    sync = state.sync,
                     onIncomeChange = { onEvent(SettingsEvent.AnnualIncomeChanged(it)) },
+                    onSyncClick = onSyncClick,
                 )
             }
             SectionCard(title = stringResource(R.string.settings_catalog)) {
@@ -516,9 +523,17 @@ private fun ValueRow(
     }
 }
 
-/** The household's details, and its annual income (for the e-payment target in Insights). */
+/**
+ * The household's details, its annual income (for the e-payment target in Insights), and the
+ * row that opens household sync.
+ */
 @Composable
-private fun HouseholdCard(household: Household, onIncomeChange: (BigDecimal?) -> Unit) {
+private fun HouseholdCard(
+    household: Household,
+    sync: SyncSummary,
+    onIncomeChange: (BigDecimal?) -> Unit,
+    onSyncClick: () -> Unit,
+) {
     val colors = EksodaTheme.colors
     val locale = appLocale()
     var editingIncome by rememberSaveable { mutableStateOf(false) }
@@ -536,6 +551,18 @@ private fun HouseholdCard(household: Household, onIncomeChange: (BigDecimal?) ->
                 ?: stringResource(R.string.settings_income_none),
             number = income != null,
             onClick = { editingIncome = true },
+        )
+        HorizontalDivider(color = colors.line)
+        val lastSuccess = sync.lastSuccess
+        LinkRow(
+            label = stringResource(R.string.settings_sync),
+            supporting = when {
+                !sync.enabled -> stringResource(R.string.settings_sync_off)
+                lastSuccess == null -> stringResource(R.string.settings_sync_on)
+                else -> stringResource(R.string.settings_sync_on_last, dayTimeLabel(lastSuccess))
+            },
+            icon = Icons.Outlined.Sync,
+            onClick = onSyncClick,
         )
     }
     if (editingIncome) {
@@ -568,6 +595,7 @@ private fun SettingsScreenPreview() {
             onCategoriesClick = {},
             onMerchantsClick = {},
             onBudgetsClick = {},
+            onSyncClick = {},
             onEvent = {},
         )
     }

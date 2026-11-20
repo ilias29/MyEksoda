@@ -117,6 +117,12 @@ public data class ReceiptDetail(
     val cancellationMark: String?,
     val providerCode: String,
     val parserVersion: String,
+    /**
+     * This phone holds the receipt's link (it scanned the receipt). False for a receipt that
+     * came from another phone by household sync: links never leave the phone that scanned them.
+     * The link itself is never in the model.
+     */
+    val hasLink: Boolean = true,
 )
 
 /** A choice in a filter or picker. */

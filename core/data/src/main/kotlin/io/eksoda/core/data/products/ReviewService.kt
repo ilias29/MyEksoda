@@ -112,7 +112,8 @@ class ReviewService @Inject constructor(
         val moved = products.itemsOf(ids).map { it.copy(productId = target.id, updatedAt = now) }
         refreshPrices(moved, target)
         products.delete(ids)
-        ids.forEach { tombstones.insert(TombstoneEntity(PRODUCT, it, now)) }
+        // replaced_by: household sync points the other phones' lines and mappings at the target.
+        ids.forEach { tombstones.insert(TombstoneEntity(PRODUCT, it, now, replacedBy = target.id)) }
     }
 
     private suspend fun match(item: ReceiptItemEntity): ProductEntity? {

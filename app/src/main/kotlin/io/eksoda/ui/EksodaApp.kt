@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import io.eksoda.R
 import io.eksoda.core.ui.motion.LocalNavAnimatedVisibilityScope
 import io.eksoda.core.ui.motion.LocalSharedTransitionScope
+import io.eksoda.feature.household.sync.SyncRoute
 import io.eksoda.feature.insights.budgets.BudgetsRoute
 import io.eksoda.feature.insights.category.CategoryDetailRoute
 import io.eksoda.feature.onboarding.OnboardingRoute
@@ -107,8 +108,10 @@ private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
                         onCategoriesClick = { navController.navigate(CategoriesDestination) },
                         onMerchantsClick = { navController.navigate(MerchantsDestination) },
                         onBudgetsClick = { navController.navigate(BudgetsDestination) },
+                        onSyncClick = { navController.navigate(SyncDestination) },
                     )
                 }
+                composable<SyncDestination> { SyncRoute(onBack = back) }
                 composable<BudgetsDestination> { BudgetsRoute(onBack = back) }
                 composable<CategoryDetailDestination> {
                     CategoryDetailRoute(
