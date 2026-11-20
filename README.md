@@ -69,6 +69,85 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 - **Passphrase-protected backups:** Local backup files are encrypted using AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation.
 - **Independent Recovery:** Includes [`decrypt_bu.py`](decrypt_bu.py), a Python utility to decrypt and inspect backup files independently of the Android app, ensuring your data is never locked in.
 
+## ⚙️ How it works
+
+### Getting a receipt
+
+The phone fetches the receipt from the company that issued it and reads it itself. Nothing
+passes through a server of ours, because there is none.
+
+```mermaid
+flowchart LR
+    A["Scan the QR code<br/>or share the link"] --> B["Recognize the provider<br/>unknown links are refused"]
+    B --> C["Import in the background<br/>retries on its own"]
+    C --> D["Download the e-receipt<br/>from the provider only, HTTPS"]
+    D --> E["Read and check it<br/>on the phone"]
+    E --> F["Match the shop, products,<br/>categories and prices"]
+    F --> G[("Encrypted database<br/>on the phone")]
+```
+
+### Joining a household
+
+Done once per phone. Every phone that holds the household key is a member, and any member can
+add the next phone.
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant A as Phone in the household
+    participant N as New phone
+    You->>A: Settings → Household sync → turn it on
+    Note over A: Creates the household key<br/>(the first phone only),<br/>wrapped by the Keystore
+    You->>A: Add a phone
+    A-->>You: A QR code with the household key and the phone's<br/>local address (screenshots blocked)
+    You->>N: Settings → Household sync → turn it on → Join a household
+    N->>A: Scan the code on its screen
+    Note over N: Stores the key<br/>and pairs that phone
+    N->>A: The first sync starts at once
+    Note over A,N: Both phones now hold<br/>the data of both.<br/>Nothing is replaced,<br/>only merged.
+```
+
+**Leave household sync** forgets the key and the paired phones on that phone. Its data and its
+sync history stay. Turning the switch off only pauses sync: turning it on again resumes it.
+
+### Syncing receipts between phones
+
+While the app is open and sync is on, phones on the same Wi-Fi find each other and sync on
+their own (each pair at most every 15 minutes), or when you tap **Sync now**.
+
+```mermaid
+sequenceDiagram
+    participant A as Phone A
+    participant B as Phone B
+    Note over A,B: Each phone announces itself<br/>on the Wi-Fi (NSD) with a household<br/>tag that reveals nothing of the key:<br/>other households are ignored
+    A->>B: Hello, sealed with the household key
+    alt B is in another household or busy with another sync
+        B-->>A: Refused, nothing is exchanged
+    else Same household
+        B->>A: Hello, sealed with the household key
+        Note over A,B: A key for this session only,<br/>from both hellos (HKDF-SHA256).<br/>Everything after this is<br/>encrypted with it (AES-256-GCM).
+        A->>B: All of A's data, without receipt links
+        B->>B: Merge it in (one transaction)
+        B->>A: All of B's data, A's included now
+        A->>A: Merge it in
+        Note over A,B: Both phones hold the same data.<br/>Each adds the sync to its history:<br/>when, which phone, what changed.
+    end
+```
+
+How two copies become one:
+
+- **The same receipt scanned on both phones** is recognized (by its official mark or issuer
+  and number) and kept once. The same goes for shops, stores, products and categories.
+- **An edit on both phones:** the later edit wins.
+- **A deletion** wins over an older copy, so a deleted receipt does not come back from the
+  other phone.
+- **Receipt links stay on the phone that scanned them.** A receipt from another phone says so
+  and has no "Open original".
+- Syncing in any order, with any phone, gives every phone the same result.
+
+The details (protocol, merge rules, limits) are in
+[`docs/design/household-sync.md`](docs/design/household-sync.md).
+
 ## 📲 Install
 
 Eksoda is not on Google Play: each version is published as an APK on the
@@ -118,9 +197,22 @@ make test            # Runs unit tests
 make build           # Builds debug APK
 make codemap         # Regenerates documentation symbols map
 make install_rc      # Build the release APK and install it on one device (DEVICE=<serial> if several)
-make new_release     # Check, bump the version and build the signed eksoda-<version>.apk
+make bump            # On a PR branch: bump the version (BUMP=patch|minor|major), add its changelog section
+make publish         # After merging to master: check, build the signed APK, tag and publish the release
 make release_key     # Once per machine: create the release signing key in ~/.eksoda
 ```
+
+### Releasing
+
+Every merge to master is a release:
+
+1. On the pull request's branch, `make bump BUMP=minor` (patch by default) raises the version in
+   `version.properties` and adds a section for it to [`CHANGELOG.md`](CHANGELOG.md). Replace its
+   TODO line with the release notes and commit both files with the pull request.
+2. Merge the pull request.
+3. `make publish` runs the checks, builds the APK signed with the release key, tags master
+   `v<version>` and creates the GitHub release with the changelog section and the checksums as
+   its notes. It needs `gh` logged in with an account that can push to the repository.
 
 ## 📦 Backup Recovery (`decrypt_bu.py`)
 
@@ -136,7 +228,6 @@ python3 decrypt_bu.py your_backup.eksoda [output_archive.zip]
 | Document | Description |
 |---|---|
 | [`docs/codemap/OVERVIEW.md`](docs/codemap/OVERVIEW.md) | Architecture, modules, import pipeline, data layer, backup, and rules |
-| [`docs/design/ui-redesign.md`](docs/design/ui-redesign.md) | UI rules: color meanings, type, components, charts |
 | [`docs/design/household-sync.md`](docs/design/household-sync.md) | Household sync: pairing, protocol, merge rules |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release |
 

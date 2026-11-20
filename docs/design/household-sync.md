@@ -1,4 +1,4 @@
-# Household sync (design, not built yet)
+# Household sync (design; built in 0.3.0)
 
 Phones of the same household (for example four family members) share one set of receipts,
 products, categories, budgets and household settings by syncing directly with each other on
