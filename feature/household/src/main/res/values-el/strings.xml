@@ -46,6 +46,8 @@
     <string name="sync_counts">Νέα: %1$d · Αλλαγές: %2$d · Διαγραφές: %3$d</string>
     <string name="sync_started_auto">Αυτόματα</string>
     <string name="sync_started_user">Από εσάς</string>
+    <string name="sync_started_peer">Από το άλλο κινητό</string>
+    <string name="sync_error_busy">Το άλλο κινητό συγχρονιζόταν εκείνη τη στιγμή. Δοκιμάστε ξανά σε λίγο.</string>
     <string name="sync_started_duration">%1$s · %2$d δευτ.</string>
     <string name="sync_error_peer_unreachable">Το άλλο κινητό δεν βρέθηκε στο δίκτυο.</string>
     <string name="sync_error_not_paired">Το άλλο κινητό δεν είναι συνδεδεμένο με αυτό το νοικοκυριό.</string>

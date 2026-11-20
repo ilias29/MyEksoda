@@ -33,6 +33,9 @@ public enum class SyncStart(public val code: String) {
 
     /** "Sync now". */
     USER("user"),
+
+    /** The other phone connected to this one (its own automatic sync or its "Sync now"). */
+    PEER("peer"),
 }
 
 public enum class SyncResult(public val code: String) {

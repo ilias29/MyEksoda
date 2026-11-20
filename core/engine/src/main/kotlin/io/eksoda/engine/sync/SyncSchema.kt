@@ -148,5 +148,11 @@ public class SyncException(public val code: String, cause: Throwable? = null) :
 
         /** The connection broke off halfway. */
         public const val INTERRUPTED: String = "interrupted"
+
+        /** The other phone was syncing with another one; nothing changed, try again. */
+        public const val BUSY: String = "busy"
+
+        /** Something this version did not expect; nothing changed. */
+        public const val INTERNAL: String = "internal"
     }
 }

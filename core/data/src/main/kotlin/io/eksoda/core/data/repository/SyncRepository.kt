@@ -22,6 +22,7 @@ import io.eksoda.core.model.SyncStatus
 import io.eksoda.engine.sync.PairingCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
@@ -92,7 +93,8 @@ class SyncRepositoryImpl @Inject constructor(
 
     override suspend fun syncNow() = control.syncNow()
 
-    override val hasHouseholdKey: Flow<Boolean> get() = device.hasKey
+    override val hasHouseholdKey: Flow<Boolean>
+        get() = device.keyVersion.map { it != null }.distinctUntilChanged()
 
     override suspend fun pairingCode(): Result<String> = withContext(io) {
         runCatching {

@@ -33,7 +33,9 @@ public interface SyncLocal {
  * "Protocol"). The phone that connected is the client:
  *
  * 1. Both send a hello sealed with the household key; a phone without the key cannot read it,
- *    and the server answers one it cannot open with an empty frame (`not_paired`).
+ *    and the server answers one it cannot open with an empty frame (`not_paired`). A server
+ *    syncing with another phone answers a household phone's hello with a one-byte frame
+ *    (`busy`) instead of its own hello.
  * 2. The session key is HKDF of the household key and both hellos' nonces.
  * 3. The client sends its snapshot. The server merges it and sends its own snapshot, now with
  *    the client's data in it (or an error frame). The client merges that.
@@ -68,12 +70,16 @@ public object SyncSession {
         peer to local.merge(receiveSnapshot(channel))
     }
 
+    /**
+     * [admit] runs once the client proved it holds the key, before anything else is sent or
+     * checked (so a schema mismatch is still the server's to record); false answers `busy`.
+     */
     public suspend fun accept(
         input: InputStream,
         output: OutputStream,
         key: ByteArray,
         local: SyncLocal,
-        onPeer: suspend (SyncPeerInfo) -> Unit = {},
+        admit: suspend (SyncPeerInfo) -> Boolean = { true },
     ): Pair<SyncPeerInfo, SyncCounts> = interruptible {
         val frames = Frames(input, output)
         val theirs = try {
@@ -82,9 +88,13 @@ public object SyncSession {
             if (e.code == SyncException.NOT_PAIRED) Hello.refuse(frames)
             throw e
         }
+        if (!admit(SyncPeerInfo(theirs.deviceId, theirs.deviceName))) {
+            Hello.busy(frames)
+            throw SyncException(SyncException.BUSY)
+        }
         val mine = hello(local)
         Hello.write(frames, key, Hello.SERVER, mine)
-        val peer = checked(theirs, local).also { onPeer(it) }
+        val peer = checked(theirs, local)
         val channel = SecureChannel(
             frames,
             SecureChannel.sessionKey(key, theirs.nonce, mine.nonce),

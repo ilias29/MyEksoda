@@ -39,6 +39,13 @@ interface SyncDao {
     @Update
     suspend fun updateEvent(event: SyncEventEntity)
 
+    /** Entries a killed app left running: they ended, unfinished. */
+    @Query(
+        """UPDATE sync_event SET result = 'failed', error_code = :code, finished_at = :now
+           WHERE result = 'running'""",
+    )
+    suspend fun failRunning(code: String, now: Long)
+
     /** Keeps the newest [keep] entries of the history. */
     @Query(
         """DELETE FROM sync_event WHERE id NOT IN

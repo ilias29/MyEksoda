@@ -1,20 +1,17 @@
 package io.eksoda.core.data.sync
 
-import android.content.Context
-import android.net.ConnectivityManager
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.eksoda.core.data.di.ApplicationScope
 import io.eksoda.core.data.di.IoDispatcher
 import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.model.SyncStart
 import io.eksoda.core.model.SyncStatus
 import io.eksoda.engine.sync.HouseholdKey
-import io.eksoda.engine.sync.LocalNetwork
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
@@ -29,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.Inet4Address
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,15 +52,16 @@ interface SyncControl {
 
 /**
  * Household sync while the app is open (docs/design/household-sync.md, "Discovery and
- * triggers"): when the app is in the foreground, sync is on and this phone holds a household
- * key, it listens on a TCP port, announces itself and looks for the household's other phones.
- * A phone found is synced with automatically (the one with the smaller device id starts, at
- * most every 15 minutes); "Sync now" syncs with every phone found. When any of the three
- * stops, the socket closes and nothing is announced.
+ * triggers"): when the app is in the foreground, sync is on, this phone holds a household key
+ * and it is on Wi-Fi (or Ethernet), it listens on that network only, announces itself and
+ * looks for the household's other phones. A phone that appears is synced with automatically
+ * (the one with the smaller device id starts, at most every 15 minutes); "Sync now" syncs
+ * with every paired phone it can reach. When any condition changes (the key too: joining
+ * another household), it starts over; when one stops, the socket closes and nothing is
+ * announced.
  */
 @Singleton
 class SyncRuntime @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val preferences: DataStore<Preferences>,
     private val device: SyncDevice,
     private val runner: SyncRunner,
@@ -71,31 +70,44 @@ class SyncRuntime @Inject constructor(
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : SyncControl {
-    private val listeningPort = MutableStateFlow<Int?>(null)
+    private val listening = MutableStateFlow<InetSocketAddress?>(null)
     private val found = MutableStateFlow<Map<String, PeerAddress>>(emptyMap())
 
     override val status: Flow<SyncStatus> =
-        combine(listeningPort, found, runner.syncing) { port, peers, syncing ->
-            SyncStatus(listening = port != null, phonesFound = peers.size, syncing = syncing)
+        combine(listening, found, runner.syncing) { address, peers, syncing ->
+            SyncStatus(listening = address != null, phonesFound = peers.size, syncing = syncing)
         }
 
     /** Called once, at app start. */
     fun start() {
         scope.launch {
+            runCatching { runner.closeStaleEntries() }
             val enabled = preferences.data.map { it[SyncPreferences.ENABLED] == true }
-            combine(foreground(), enabled, device.hasKey) { open, on, key -> open && on && key }
+            combine(
+                foreground(),
+                enabled,
+                device.keyVersion,
+                discovery.localAddress(),
+            ) { open, on, key, address ->
+                val wanted = open && on
+                if (wanted && key != null && address != null) Target(key, address) else null
+            }
                 .distinctUntilChanged()
-                .collectLatest { active -> if (active) listen() }
+                .collectLatest { target -> if (target != null) listenGuarded(target.address) }
         }
     }
 
-    /** "Sync now": with every household phone found here, else where each was last seen. */
+    /**
+     * "Sync now": with every household phone found here, and with every other paired phone
+     * where it was last seen (discovery may be blocked where the phone is not); with none, the
+     * history says so.
+     */
     override suspend fun syncNow() = withContext(io) {
-        val targets = found.value.values.toList().ifEmpty {
-            sync.peerList().mapNotNull { peer ->
-                peer.lastAddress?.let { PeerAddress.parse(peer.deviceId, it) }
-            }
-        }
+        val discovered = found.value
+        val elsewhere = sync.peerList()
+            .filter { it.deviceId !in discovered }
+            .mapNotNull { peer -> peer.lastAddress?.let { PeerAddress.parse(peer.deviceId, it) } }
+        val targets = discovered.values + elsewhere
         if (targets.isEmpty()) runner.nobodyToSync()
         targets.forEach { runner.connect(it, SyncStart.USER) }
     }
@@ -104,37 +116,41 @@ class SyncRuntime @Inject constructor(
         scope.launch { syncNow() }
     }
 
-    /**
-     * Where this phone listens, for its pairing code ("192.168.1.20:41234"): its local IPv4
-     * address on the current network, or null when it is not listening or has none.
-     */
+    /** Where this phone listens, for its pairing code ("192.168.1.20:41234"), or null. */
     override fun address(): String? {
-        val port = listeningPort.value ?: return null
-        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
-        val host = manager.getLinkProperties(manager.activeNetwork)?.linkAddresses
-            ?.map { it.address }
-            ?.firstOrNull { it is Inet4Address && LocalNetwork.isLocal(it) }
-            ?: return null
-        return PeerAddress(null, host, port).text()
+        val address = listening.value ?: return null
+        return PeerAddress(null, address.address, address.port).text()
     }
 
     private fun foreground(): Flow<Boolean> = ProcessLifecycleOwner.get().lifecycle
         .currentStateFlow
         .map { it.isAtLeast(Lifecycle.State.STARTED) }
 
+    /** Nothing listening throws may stop sync for good: the next change starts it again. */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun listenGuarded(address: Inet4Address) {
+        try {
+            listen(address)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (ignored: Exception) {
+            // Sync stays off on this network until the app returns to the foreground.
+        }
+    }
+
     /** Runs until cancelled (the app goes to the background, sync goes off, the key goes). */
-    private suspend fun listen() = withContext(io) {
-        val key = device.key() ?: return@withContext
+    private suspend fun listen(address: Inet4Address) = withContext(io) {
+        val key = runCatching { device.key() }.getOrNull() ?: return@withContext
         val tag = HouseholdKey.tag(key)
         val server = try {
-            ServerSocket(0)
+            ServerSocket(0, BACKLOG, address)
         } catch (ignored: IOException) {
             return@withContext
         }
         try {
             coroutineScope {
                 val tasks = this
-                listeningPort.value = server.localPort
+                listening.value = InetSocketAddress(address, server.localPort)
                 // Closing the socket ends the blocking accept below.
                 launch {
                     try {
@@ -146,13 +162,15 @@ class SyncRuntime @Inject constructor(
                 launch { acceptAll(server) }
                 launch { discovery.announce(server.localPort, device.deviceId, tag) }
                 discovery.peers(tag, device.deviceId).collect { peers ->
+                    // Only a phone that just appeared starts an automatic sync.
+                    val appeared = peers.keys - found.value.keys
                     found.value = peers
-                    peers.values.forEach { peer -> tasks.launch { autoSync(peer) } }
+                    appeared.mapNotNull(peers::get).forEach { tasks.launch { autoSync(it) } }
                 }
             }
         } finally {
             server.close()
-            listeningPort.value = null
+            listening.value = null
             found.value = emptyMap()
         }
     }
@@ -173,5 +191,12 @@ class SyncRuntime @Inject constructor(
     private suspend fun autoSync(peer: PeerAddress) {
         val other = peer.deviceId ?: return
         if (device.deviceId < other) runner.connect(peer, SyncStart.AUTO)
+    }
+
+    /** What listening depends on: the key's version and this phone's Wi-Fi address. */
+    private data class Target(val keyVersion: Int, val address: Inet4Address)
+
+    private companion object {
+        const val BACKLOG = 4
     }
 }

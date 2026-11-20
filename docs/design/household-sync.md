@@ -46,22 +46,30 @@ the same Wi-Fi. No server, no account, no internet traffic.
 
 ### Discovery and triggers (built: core:data `sync/SyncRuntime`, `SyncDiscovery`)
 
-- While the app is in the foreground, sync is on and the phone holds a key: listen on a TCP
-  port (any free one) and announce `_eksoda._tcp` with `NsdManager` (platform, no Google Play
+- While the app is in the foreground, sync is on, the phone holds a key and it is on Wi-Fi or
+  Ethernet: listen on a TCP port (any free one) bound to that network's private IPv4 address
+  only (never mobile data, whose carrier addresses can look private too) and announce `_eksoda._tcp` with `NsdManager` (platform, no Google Play
   services), with the device id and the household tag (`HouseholdKey.tag`, an HMAC that says
   nothing of the key) as attributes, so other households' phones are skipped without
   connecting. Discover the others. Stop all of it when the app goes to the background
-  (`ProcessLifecycleOwner`), the switch goes off, or the key goes. Started from
-  `EksodaApplication` (off the main thread).
-- **Automatic:** when a household phone is found, the phone with the smaller device id starts
-  a sync, unless the two synced in the last 15 minutes.
-- **Manual:** "Sync now" on the screen syncs with every household phone found by NSD, else
-  with each paired phone's last known address; with none, the history says no phone was
-  found.
+  (`ProcessLifecycleOwner`), the switch goes off, the network changes or the key goes, and
+  start over when the key changes (joining another household). Started from
+  `EksodaApplication` (off the main thread); entries a killed app left running end as
+  `interrupted` at the next start. Nothing a session throws stops the listener or the app.
+- **Automatic:** when a household phone appears, the phone with the smaller device id starts
+  a sync. Each phone is tried at most every 15 minutes, whatever the outcome, and not at all
+  when the two synced in the last 15 minutes.
+- **Manual:** "Sync now" on the screen syncs with every household phone found by NSD and
+  with every other paired phone at its last known address; with none, the history says no
+  phone was found.
 - **After joining:** the first sync starts at once, through the address in the code if the
   phone is not found by NSD. The "Add a phone" code carries this phone's local IPv4 address
   and port while it listens.
-- One session at a time (`SyncRunner`), 5 s to connect, 30 s without data ends it.
+- One session at a time (`SyncRunner`). A household phone that connects while another sync
+  runs is told `busy` at once (no waiting, so two phones syncing each other never wait on
+  each other). 5 s to connect; until the other phone proved it holds the key, 10 s of
+  silence or 15 s in all end the connection, and it holds no lock; after that, 120 s of
+  silence (the other phone may be merging a large household).
 - Only private addresses are used, outgoing and incoming: 10/8, 172.16/12, 192.168/16,
   169.254/16, fc00::/7, fe80::/10. Anything else is refused before connecting and on accept.
 
@@ -71,9 +79,12 @@ Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
 
 1. Each side sends a hello `{protocol, device_id, device_name, schema, nonce (32 bytes)}`,
    sealed with AES-256-GCM under the household key (random 12-byte nonce, the role as
-   additional data, so a hello cannot be sent back as the other's). A phone that cannot open
-   the client's hello answers with an empty frame: both stop with `not_paired`. A different
-   protocol or schema stops both with `schema_mismatch` (update the app on both phones).
+   additional data, so a hello cannot be sent back as the other's). A hello is at most 4 KB,
+   refused before anything is allocated. A phone that cannot open the client's hello answers
+   with an empty frame: both stop with `not_paired`. A server syncing with another phone
+   answers a household hello with a one-byte frame: both stop with `busy`. A different
+   protocol or schema stops both with `schema_mismatch` (update the app on both phones);
+   the server records it too.
 2. The session key is HKDF-SHA256 of the household key with both nonces. Every later frame is
    sealed with it; each direction numbers its frames from 0 and the number is the GCM nonce,
    so a frame repeated, dropped or reordered does not open (`damaged`).
@@ -82,7 +93,8 @@ Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
    merges it in one transaction, then sends its own snapshot, which now holds the client's
    data too (or an error frame with its reason, e.g. `merge_failed`). The client merges that.
    Both phones end with the same data, and each writes an entry in its history (the server
-   only once the client proved it holds the key: strangers leave no trace).
+   only once the client proved it holds the key: strangers leave no trace; its entry says the
+   other phone started it).
 
 The whole snapshot is sent every time. For a family this should be a few MB compressed
 (not measured yet: needs a real household's data on two phones). Sending only rows changed since

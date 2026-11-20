@@ -28,16 +28,22 @@ internal class Frames(input: InputStream, output: OutputStream) {
         output.flush()
     }
 
-    /** Throws `EOFException` when the other phone closed the connection. */
-    fun read(): ByteArray {
+    /**
+     * A frame of at most [max] bytes; a larger size is refused before anything is allocated.
+     * Throws `EOFException` when the other phone closed the connection.
+     */
+    fun read(max: Int = MAX_FRAME): ByteArray {
         val size = input.readInt()
-        if (size < 0 || size > MAX_FRAME) throw SyncException(SyncException.DAMAGED)
+        if (size < 0 || size > max) throw SyncException(SyncException.DAMAGED)
         return ByteArray(size).also(input::readFully)
     }
 
-    private companion object {
+    companion object {
         /** A compressed snapshot; far above any household's. */
         const val MAX_FRAME = 128 * 1024 * 1024
+
+        /** A hello, read before the other phone is known: small, so a stranger costs nothing. */
+        const val MAX_HELLO = 4 * 1024
     }
 }
 
@@ -74,10 +80,12 @@ internal class Hello(
 
         /**
          * Throws [SyncException.NOT_PAIRED] when the hello was not sealed with this key (or the
-         * other phone said so with an empty frame).
+         * other phone said so with an empty frame), [SyncException.BUSY] when the other phone
+         * answered that it is syncing with another one.
          */
         fun read(frames: Frames, key: ByteArray, role: String): Hello {
-            val bytes = frames.read()
+            val bytes = frames.read(Frames.MAX_HELLO)
+            if (bytes.size == BUSY_FRAME.size) throw SyncException(SyncException.BUSY)
             if (bytes.size <= SyncCrypto.NONCE_BYTES) throw SyncException(SyncException.NOT_PAIRED)
             val nonce = bytes.copyOf(SyncCrypto.NONCE_BYTES)
             val sealed = bytes.copyOfRange(SyncCrypto.NONCE_BYTES, bytes.size)
@@ -91,6 +99,11 @@ internal class Hello(
 
         /** Tells a phone whose hello did not open that it is not of this household. */
         fun refuse(frames: Frames) = frames.write(ByteArray(0))
+
+        /** Tells a household phone that this one is syncing with another: try again later. */
+        fun busy(frames: Frames) = frames.write(BUSY_FRAME)
+
+        private val BUSY_FRAME = byteArrayOf(1)
 
         private fun decode(bytes: ByteArray): Hello = try {
             val json = Json.parseToJsonElement(bytes.toString(Charsets.UTF_8)).jsonObject

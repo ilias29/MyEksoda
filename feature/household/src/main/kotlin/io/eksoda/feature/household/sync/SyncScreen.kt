@@ -346,6 +346,7 @@ private fun startAndDuration(event: SyncEvent): String {
         when (event.startedBy) {
             SyncStart.AUTO -> R.string.sync_started_auto
             SyncStart.USER -> R.string.sync_started_user
+            SyncStart.PEER -> R.string.sync_started_peer
         },
     )
     val finished = event.finishedAt ?: return started
@@ -364,6 +365,7 @@ internal fun syncErrorRes(code: String?): Int = when (code) {
     "interrupted" -> R.string.sync_error_interrupted
     "merge_failed" -> R.string.sync_error_merge_failed
     "damaged" -> R.string.sync_error_damaged
+    "busy" -> R.string.sync_error_busy
     else -> R.string.sync_error_unknown
 }
 

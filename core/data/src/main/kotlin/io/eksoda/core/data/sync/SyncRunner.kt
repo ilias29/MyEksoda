@@ -13,10 +13,14 @@ import io.eksoda.engine.sync.SyncException
 import io.eksoda.engine.sync.SyncLocal
 import io.eksoda.engine.sync.SyncPeerInfo
 import io.eksoda.engine.sync.SyncSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -27,14 +31,18 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.Clock
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Where a household phone listens on the local network. */
 data class PeerAddress(val deviceId: String?, val host: InetAddress, val port: Int) {
-    /** "192.168.1.20:41234", "[fe80::1]:41234": as stored in `sync_peer.last_address`. */
+    /**
+     * "192.168.1.20:41234", "[fe80::1%wlan0]:41234": as stored in `sync_peer.last_address`.
+     * A link-local IPv6 address keeps its scope, without which it cannot be dialed again.
+     */
     fun text(): String {
-        val literal = host.hostAddress.orEmpty().substringBefore('%')
+        val literal = host.hostAddress.orEmpty()
         return if (host is Inet6Address) "[$literal]:$port" else "$literal:$port"
     }
 
@@ -49,7 +57,9 @@ data class PeerAddress(val deviceId: String?, val host: InetAddress, val port: I
         }
 
         private const val MAX_PORT = 65_535
-        private val LITERAL = Regex("[0-9a-fA-F.:]+")
+
+        /** Digits, dots and colons, and an IPv6 scope (`%wlan0`, `%12`). */
+        private val LITERAL = Regex("[0-9a-fA-F.:]+(%[0-9A-Za-z_.-]+)?")
     }
 }
 
@@ -60,8 +70,9 @@ open class SyncAddressPolicy @Inject constructor() {
 
 /**
  * Runs household sync sessions (core:engine `SyncSession`), one at a time, and keeps the
- * history: every sync this phone starts gets an entry, and so does every sync another
- * household phone starts with it. A stranger that connects without the key leaves none.
+ * history: every sync this phone starts gets an entry, and so does every sync a household
+ * phone starts with it once it proved it holds the key (a stranger leaves none). A phone that
+ * connects while a sync runs is told `busy` at once instead of waiting.
  */
 @Singleton
 class SyncRunner @Inject constructor(
@@ -74,6 +85,9 @@ class SyncRunner @Inject constructor(
 ) {
     private val lock = Mutex()
     private val running = MutableStateFlow(false)
+
+    /** When each phone was last tried automatically, whatever came of it. */
+    private val autoAttempts = ConcurrentHashMap<String, Long>()
 
     val syncing: StateFlow<Boolean> = running.asStateFlow()
 
@@ -88,14 +102,16 @@ class SyncRunner @Inject constructor(
     }
 
     /**
-     * Syncs with the phone at [target]. An automatic sync is skipped when that phone synced
-     * with this one in the last [AUTO_INTERVAL_MILLIS].
+     * Syncs with the phone at [target]. An automatic sync is tried at most every
+     * [AUTO_INTERVAL_MILLIS] per phone, and skipped when the two synced within that time.
      */
     suspend fun connect(target: PeerAddress, startedBy: SyncStart) = withContext(io) {
+        val automatic = startedBy == SyncStart.AUTO
+        if (automatic && !autoDue(target.deviceId)) return@withContext
         lock.withLock {
-            val key = device.key() ?: return@withLock
+            val key = currentKey() ?: return@withLock
             val known = target.deviceId?.let { sync.peer(it) }
-            if (startedBy == SyncStart.AUTO && recentlySynced(known)) return@withLock
+            if (automatic && recentlySynced(known)) return@withLock
             val event = started(startedBy, known?.deviceId, known?.name)
             var peer: SyncPeerInfo? = null
             val outcome = session { open(target, key) { peer = it } }
@@ -103,23 +119,45 @@ class SyncRunner @Inject constructor(
         }
     }
 
-    /** Answers a household phone that connected to this one; closes [socket]. */
+    /**
+     * Answers a phone that connected to this one; closes [socket]. Until it proves it holds
+     * the key it has [HANDSHAKE_DEADLINE_MILLIS], a small hello and no lock.
+     */
     suspend fun serve(socket: Socket) = withContext(io) {
-        socket.use {
+        socket.use { _ ->
             if (!policy.allows(socket.inetAddress)) return@withContext
-            val key = device.key() ?: return@withContext
-            socket.soTimeout = READ_TIMEOUT
-            lock.withLock {
-                var event: SyncEventEntity? = null
-                var peer: SyncPeerInfo? = null
+            val key = currentKey() ?: return@withContext
+            socket.soTimeout = HANDSHAKE_TIMEOUT
+            var event: SyncEventEntity? = null
+            var peer: SyncPeerInfo? = null
+            var locked = false
+            val deadline = launch {
+                delay(HANDSHAKE_DEADLINE_MILLIS)
+                if (peer == null) runCatching { socket.close() }
+            }
+            try {
                 val outcome = session {
-                    SyncSession.accept(socket.inputStream, socket.outputStream, key, local) {
-                        peer = it
-                        event = started(SyncStart.AUTO, it.deviceId, it.deviceName)
+                    SyncSession.accept(
+                        socket.inputStream,
+                        socket.outputStream,
+                        key,
+                        local,
+                    ) { info ->
+                        // Another sync runs: this phone hears `busy` instead of waiting.
+                        if (!lock.tryLock()) return@accept false
+                        locked = true
+                        peer = info
+                        socket.soTimeout = SESSION_TIMEOUT
+                        event = started(SyncStart.PEER, info.deviceId, info.deviceName)
+                        true
                     }.second
                 }
+                deadline.cancel()
                 // Its port here is not the one it listens on: its stored address stays.
-                event?.let { finished(it, peer, outcome, address = null) }
+                event?.let { entry -> finished(entry, peer, outcome, address = null) }
+            } finally {
+                deadline.cancel()
+                if (locked) lock.unlock()
             }
         }
     }
@@ -128,6 +166,11 @@ class SyncRunner @Inject constructor(
     suspend fun nobodyToSync() = withContext(io) {
         val event = started(SyncStart.USER, null, null)
         finished(event, null, Result.failure(SyncException(PEER_UNREACHABLE)), address = null)
+    }
+
+    /** Entries a killed app left running end as interrupted (at app start). */
+    suspend fun closeStaleEntries() = withContext(io) {
+        sync.failRunning(SyncException.INTERRUPTED, clock.millis())
     }
 
     private suspend fun open(
@@ -142,11 +185,25 @@ class SyncRunner @Inject constructor(
             } catch (e: IOException) {
                 unreachable(e)
             }
-            socket.soTimeout = READ_TIMEOUT
+            socket.soTimeout = HANDSHAKE_TIMEOUT
             SyncSession.connect(socket.inputStream, socket.outputStream, key, local) {
+                // The other phone merges before it answers: give it time.
+                socket.soTimeout = SESSION_TIMEOUT
                 onPeer(it)
             }.second
         }
+    }
+
+    /** The key, or null (none, or the Keystore failed in a way it does not report). */
+    private fun currentKey(): ByteArray? = runCatching { device.key() }.getOrNull()
+
+    private fun autoDue(deviceId: String?): Boolean {
+        val id = deviceId ?: return false
+        val now = clock.millis()
+        val last = autoAttempts[id]
+        if (last != null && now - last < AUTO_INTERVAL_MILLIS) return false
+        autoAttempts[id] = now
+        return true
     }
 
     private fun recentlySynced(peer: SyncPeerEntity?): Boolean {
@@ -167,40 +224,50 @@ class SyncRunner @Inject constructor(
             inserted = 0,
             updated = 0,
             deleted = 0,
-        ).also { sync.insertEvent(it) }
+        ).also {
+            running.value = true
+            sync.insertEvent(it)
+        }
 
+    /**
+     * Ends the entry even when the app is leaving (the merge may already be stored): not
+     * cancellable, so an entry is never left running.
+     */
     private suspend fun finished(
         event: SyncEventEntity,
         peer: SyncPeerInfo?,
         outcome: Result<SyncCounts>,
         address: String?,
-    ) {
-        val now = clock.millis()
-        val named = event.copy(
-            peerDeviceId = peer?.deviceId ?: event.peerDeviceId,
-            peerName = peer?.deviceName ?: event.peerName,
-            finishedAt = now,
-        )
-        outcome.fold(
-            onSuccess = { counts ->
-                sync.updateEvent(
-                    named.copy(
-                        result = SyncResult.DONE.code,
-                        inserted = counts.inserted,
-                        updated = counts.updated,
-                        deleted = counts.deleted,
-                    ),
-                )
-            },
-            onFailure = { error ->
-                val code = (error as? SyncException)?.code ?: SyncException.INTERRUPTED
-                sync.updateEvent(named.copy(result = SyncResult.FAILED.code, errorCode = code))
-            },
-        )
-        // A phone that answered with the key is of the household: it is (or stays) paired.
-        if (peer != null) remember(peer, address, success = outcome.isSuccess, now = now)
-        sync.pruneEvents(HISTORY_SIZE)
+    ) = withContext(NonCancellable) {
+        try {
+            val now = clock.millis()
+            val named = event.copy(
+                peerDeviceId = peer?.deviceId ?: event.peerDeviceId,
+                peerName = peer?.deviceName ?: event.peerName,
+                finishedAt = now,
+            )
+            sync.updateEvent(
+                outcome.fold(onSuccess = { named.done(it) }, onFailure = { named.failed(it) }),
+            )
+            // A phone that answered with the key is of the household: it is (or stays) paired.
+            peer?.let { remember(it, address, success = outcome.isSuccess, now = now) }
+            sync.pruneEvents(HISTORY_SIZE)
+        } finally {
+            running.value = false
+        }
     }
+
+    private fun SyncEventEntity.done(counts: SyncCounts) = copy(
+        result = SyncResult.DONE.code,
+        inserted = counts.inserted,
+        updated = counts.updated,
+        deleted = counts.deleted,
+    )
+
+    private fun SyncEventEntity.failed(error: Throwable) = copy(
+        result = SyncResult.FAILED.code,
+        errorCode = (error as? SyncException)?.code ?: SyncException.INTERNAL,
+    )
 
     private suspend fun remember(
         peer: SyncPeerInfo,
@@ -221,18 +288,21 @@ class SyncRunner @Inject constructor(
         )
     }
 
-    /** A session's outcome; a broken connection is `interrupted`. */
-    private suspend fun session(block: suspend () -> SyncCounts): Result<SyncCounts> {
-        running.value = true
-        return try {
-            Result.success(block())
-        } catch (e: SyncException) {
-            Result.failure(e)
-        } catch (e: IOException) {
-            Result.failure(SyncException(SyncException.INTERRUPTED, e))
-        } finally {
-            running.value = false
-        }
+    /**
+     * A session's outcome. Nothing a session throws may end the app or the listener: what is
+     * not a sync failure or a broken connection is recorded as `internal`.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun session(block: suspend () -> SyncCounts): Result<SyncCounts> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: SyncException) {
+        Result.failure(e)
+    } catch (e: IOException) {
+        Result.failure(SyncException(SyncException.INTERRUPTED, e))
+    } catch (e: Exception) {
+        Result.failure(SyncException(SyncException.INTERNAL, e))
     }
 
     private fun unreachable(cause: Throwable? = null): Nothing =
@@ -245,6 +315,12 @@ class SyncRunner @Inject constructor(
         const val AUTO_INTERVAL_MILLIS = 15 * 60 * 1000L
         const val HISTORY_SIZE = 500
         private const val CONNECT_TIMEOUT = 5_000
-        private const val READ_TIMEOUT = 30_000
+
+        /** Silence allowed before the other phone proved it holds the key. */
+        private const val HANDSHAKE_TIMEOUT = 10_000
+        private const val HANDSHAKE_DEADLINE_MILLIS = 15_000L
+
+        /** Silence allowed once it did: the other phone may be merging a large household. */
+        private const val SESSION_TIMEOUT = 120_000
     }
 }

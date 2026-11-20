@@ -1,6 +1,10 @@
 package io.eksoda.core.data.sync
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
@@ -11,8 +15,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -28,6 +34,56 @@ import kotlin.coroutines.resume
 @Singleton
 class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
     private val nsd: NsdManager? = context.getSystemService(NsdManager::class.java)
+    private val connectivity: ConnectivityManager? =
+        context.getSystemService(ConnectivityManager::class.java)
+
+    /**
+     * This phone's private IPv4 address on Wi-Fi or Ethernet, as the default network changes;
+     * null on mobile data or with no network. Sync listens only there: never on a carrier's
+     * network, whose addresses can look private too.
+     */
+    fun localAddress(): Flow<Inet4Address?> = callbackFlow {
+        val manager = connectivity ?: run {
+            send(null)
+            awaitClose()
+            return@callbackFlow
+        }
+        var capabilities: NetworkCapabilities? = null
+        var link: LinkProperties? = null
+        val update = { trySend(wifiAddress(capabilities, link)) }
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                capabilities = caps
+                update()
+            }
+
+            override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) {
+                link = properties
+                update()
+            }
+
+            override fun onLost(network: Network) {
+                capabilities = null
+                link = null
+                update()
+            }
+        }
+        send(null)
+        manager.registerDefaultNetworkCallback(callback)
+        awaitClose { runCatching { manager.unregisterNetworkCallback(callback) } }
+    }.distinctUntilChanged()
+
+    private fun wifiAddress(caps: NetworkCapabilities?, link: LinkProperties?): Inet4Address? {
+        val local = caps != null &&
+            (
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                )
+        if (!local) return null
+        return link?.linkAddresses?.map { it.address }
+            ?.filterIsInstance<Inet4Address>()
+            ?.firstOrNull(LocalNetwork::isLocal)
+    }
 
     /** Announces this phone until cancelled. */
     suspend fun announce(port: Int, deviceId: String, tag: String) {
@@ -115,7 +171,10 @@ class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
         val device = attributes[DEVICE]?.toString(Charsets.UTF_8) ?: return null
         val itsTag = attributes[TAG]?.toString(Charsets.UTF_8)
         if (device == selfId || itsTag != tag) return null
-        val host = addresses(info).firstOrNull(LocalNetwork::isLocal) ?: return null
+        // IPv4 first: a link-local IPv6 address needs its interface to be dialed.
+        val host = addresses(info).filter(LocalNetwork::isLocal)
+            .minByOrNull { if (it is Inet4Address) 0 else 1 }
+            ?: return null
         return PeerAddress(device, host, info.port)
     }
 

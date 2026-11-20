@@ -71,7 +71,7 @@ class SyncRunnerTest {
         assertThat(onA.startedBy).isEqualTo("user")
         assertThat(onA.peerName).isEqualTo("Galaxy")
         assertThat(onB.result).isEqualTo("done")
-        assertThat(onB.startedBy).isEqualTo("auto")
+        assertThat(onB.startedBy).isEqualTo("peer")
         assertThat(onB.peerName).isEqualTo("Pixel 8")
         assertThat(a.database.syncDao().peer("phone-b")?.lastSuccessAt).isEqualTo(NOW)
         assertThat(b.database.syncDao().peer("phone-a")?.lastSuccessAt).isEqualTo(NOW)
@@ -115,12 +115,28 @@ class SyncRunnerTest {
     }
 
     @Test
+    fun `an entry a killed app left running ends as interrupted`() = runBlocking {
+        a.database.syncDao().insertEvent(
+            SyncEventEntity("e1", null, null, "auto", 1, null, "running", null, 0, 0, 0),
+        )
+
+        a.runner.closeStaleEntries()
+
+        val entry = a.events().single()
+        assertThat(entry.result).isEqualTo("failed")
+        assertThat(entry.errorCode).isEqualTo("interrupted")
+    }
+
+    @Test
     fun `addresses are written and read back as stored`() {
         val v4 = PeerAddress.parse("d", "192.168.1.20:41234")
         val v6 = PeerAddress.parse("d", "[fe80::1]:41234")
+        val scoped = PeerAddress.parse("d", "[fe80::1%1]:41234")
 
         assertThat(v4?.text()).isEqualTo("192.168.1.20:41234")
         assertThat(v6?.text()).isEqualTo("[fe80:0:0:0:0:0:0:1]:41234")
+        // A link-local address keeps its interface, or it cannot be dialed again.
+        assertThat(scoped?.text()).isEqualTo("[fe80:0:0:0:0:0:0:1%1]:41234")
         assertThat(PeerAddress.parse("d", "phone.local:41234")).isNull()
         assertThat(PeerAddress.parse("d", "192.168.1.20:99999")).isNull()
         assertThat(PeerAddress.parse("d", "192.168.1.20")).isNull()
@@ -193,7 +209,7 @@ class SyncRunnerTest {
         override val deviceName: String,
         private val key: ByteArray,
     ) : SyncDevice {
-        override val hasKey: StateFlow<Boolean> = MutableStateFlow(true)
+        override val keyVersion: StateFlow<Int?> = MutableStateFlow(1)
 
         override fun key() = key.copyOf()
 

@@ -28,8 +28,12 @@ interface SyncDevice {
     /** What other phones show for this one: the device model. */
     val deviceName: String
 
-    /** Whether this phone holds a household key; does not unwrap it. */
-    val hasKey: StateFlow<Boolean>
+    /**
+     * Null while this phone holds no household key, else a number that changes whenever the
+     * key does (joining another household), so whoever uses the key knows to start over.
+     * Does not unwrap the key.
+     */
+    val keyVersion: StateFlow<Int?>
 
     /** The household key, or null when this phone has none (or it can no longer be unwrapped). */
     fun key(): ByteArray?
@@ -53,7 +57,7 @@ interface SyncDevice {
 class KeystoreSyncDevice @Inject constructor(@ApplicationContext context: Context) : SyncDevice {
     private val keyFile = File(context.noBackupFilesDir, KEY_FILE)
     private val idFile = File(context.noBackupFilesDir, ID_FILE)
-    private val state by lazy { MutableStateFlow(keyFile.exists()) }
+    private val state by lazy { MutableStateFlow(if (keyFile.exists()) 0 else null) }
 
     override val deviceId: String by lazy {
         synchronized(this) {
@@ -64,7 +68,7 @@ class KeystoreSyncDevice @Inject constructor(@ApplicationContext context: Contex
 
     override val deviceName: String = Build.MODEL.orEmpty().ifBlank { "Android" }
 
-    override val hasKey: StateFlow<Boolean> get() = state.asStateFlow()
+    override val keyVersion: StateFlow<Int?> get() = state.asStateFlow()
 
     @Synchronized
     override fun key(): ByteArray? {
@@ -97,14 +101,14 @@ class KeystoreSyncDevice @Inject constructor(@ApplicationContext context: Contex
     override fun forgetKey() {
         keyFile.delete()
         keyStore().deleteEntry(KEY_ALIAS)
-        state.value = false
+        state.value = null
     }
 
     private fun store(key: ByteArray) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, existingWrappingKey() ?: newWrappingKey())
         write(keyFile, cipher.iv + cipher.doFinal(key))
-        state.value = true
+        state.value = (state.value ?: 0) + 1
     }
 
     private fun write(file: File, bytes: ByteArray) {

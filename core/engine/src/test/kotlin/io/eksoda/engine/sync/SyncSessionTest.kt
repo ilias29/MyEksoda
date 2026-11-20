@@ -72,6 +72,16 @@ class SyncSessionTest {
     }
 
     @Test
+    fun `a server syncing with another phone answers busy at once`() {
+        val server = Phone("s")
+        val (onClient, onServer) = session(Phone("c"), key, server, key, admit = false)
+
+        assertCode(SyncException.BUSY, onClient)
+        assertCode(SyncException.BUSY, onServer)
+        assertThat(server.merged).isFalse()
+    }
+
+    @Test
     fun `a merge that fails on the server is reported to the client`() {
         val server = Phone("s", failMerge = true)
         val client = Phone("c")
@@ -109,6 +119,7 @@ class SyncSessionTest {
         clientKey: ByteArray,
         server: Phone,
         serverKey: ByteArray,
+        admit: Boolean = true,
     ): Pair<Result<Pair<SyncPeerInfo, SyncCounts>>, Result<Pair<SyncPeerInfo, SyncCounts>>> {
         val toServer = PipedOutputStream()
         val toClient = PipedOutputStream()
@@ -119,8 +130,9 @@ class SyncSessionTest {
         return try {
             runBlocking(threads.asCoroutineDispatcher()) {
                 val onServer = async {
-                    runCatching { SyncSession.accept(serverInput, toClient, serverKey, server) }
-                        .also { toClient.close() }
+                    runCatching {
+                        SyncSession.accept(serverInput, toClient, serverKey, server) { admit }
+                    }.also { toClient.close() }
                 }
                 val onClient = async {
                     runCatching { SyncSession.connect(clientInput, toServer, clientKey, client) }

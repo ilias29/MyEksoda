@@ -200,9 +200,12 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   merges and answers with its own) over `Frames`; `LocalNetwork.isLocal` is the address rule.
   core:data `sync/SyncRunner` runs one session at a time over a TCP socket and writes the
   history and paired phones; `SyncDiscovery` is NSD (`_eksoda._tcp`, device id and household
-  tag); `SyncRuntime` (started by `EksodaApplication`) listens and discovers only while the
-  app is in the foreground, sync is on and a key is held, and syncs automatically or on
-  "Sync now". The repository reaches it through `SyncControl`.
+  tag) and the Wi-Fi address (`localAddress`); `SyncRuntime` (started by
+  `EksodaApplication`) listens on the Wi-Fi address and discovers only while the app is in
+  the foreground, sync is on and a key is held (`SyncDevice.keyVersion`: a new key restarts
+  it), and syncs automatically or on "Sync now". A sync already running answers `busy`;
+  nothing a session throws escapes (`internal`); history entries are always finished. The
+  repository reaches it through `SyncControl`.
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data

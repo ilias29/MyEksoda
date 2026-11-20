@@ -175,9 +175,9 @@ class SyncRepositoryTest {
     /** The Keystore is not there on Robolectric: the key is kept in memory. */
     private class FakeDevice(override val deviceId: String) : SyncDevice {
         private var stored: ByteArray? = null
-        private val state = MutableStateFlow(false)
+        private val state = MutableStateFlow<Int?>(null)
         override val deviceName = "Test phone"
-        override val hasKey: StateFlow<Boolean> = state
+        override val keyVersion: StateFlow<Int?> = state
 
         override fun key() = stored?.copyOf()
 
@@ -185,12 +185,12 @@ class SyncRepositoryTest {
 
         override fun replaceKey(key: ByteArray) {
             stored = key.copyOf()
-            state.value = true
+            state.value = (state.value ?: 0) + 1
         }
 
         override fun forgetKey() {
             stored = null
-            state.value = false
+            state.value = null
         }
     }
 

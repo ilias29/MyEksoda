@@ -44,6 +44,17 @@ class FramesTest {
         assertCode(SyncException.NOT_PAIRED) { Hello.read(reading(bytes), other, Hello.CLIENT) }
         val refused = written { Hello.refuse(it) }
         assertCode(SyncException.NOT_PAIRED) { Hello.read(reading(refused), key, Hello.CLIENT) }
+        val busy = written { Hello.busy(it) }
+        assertCode(SyncException.BUSY) { Hello.read(reading(busy), key, Hello.CLIENT) }
+    }
+
+    @Test
+    fun `a hello larger than a hello is refused before it is read`() {
+        val huge = ByteArrayOutputStream().also {
+            DataOutputStream(it).writeInt(Frames.MAX_HELLO + 1)
+        }
+
+        assertCode(SyncException.DAMAGED) { Hello.read(reading(huge.toByteArray()), key, "x") }
     }
 
     @Test
