@@ -32,7 +32,7 @@
     <string name="settings_license">License</string>
     <string name="settings_license_notice">Copyright © 2026 Stefanos I. Tsaklidis. Eksoda is free software under the GNU GPL v3 and comes with absolutely no warranty. You may share and change it under the terms of the license.</string>
     <string name="settings_data">Data and privacy</string>
-    <string name="settings_data_hint">Everything stays encrypted on this phone. There is no server: Eksoda connects only to the receipt websites and sends no usage statistics. Export a backup now and then and keep it somewhere safe.</string>
+    <string name="settings_data_hint">Everything stays encrypted on this phone. There is no server: Eksoda connects only to the receipt websites (and, with household sync on, to the household\'s phones on the same Wi-Fi) and sends no usage statistics. Export a backup now and then and keep it somewhere safe.</string>
 
     <string name="backup_exported_title">Backup created</string>
     <string name="backup_exported_text">The backup was created and saved successfully.</string>

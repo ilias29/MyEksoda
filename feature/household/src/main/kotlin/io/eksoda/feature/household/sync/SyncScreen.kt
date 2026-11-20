@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -48,6 +49,7 @@ import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import io.eksoda.core.designsystem.component.EksodaButton
 import io.eksoda.core.designsystem.component.SectionCard
 import io.eksoda.core.designsystem.component.groupedItem
 import io.eksoda.core.designsystem.theme.EksodaTheme
@@ -55,6 +57,7 @@ import io.eksoda.core.model.SyncEvent
 import io.eksoda.core.model.SyncPeer
 import io.eksoda.core.model.SyncResult
 import io.eksoda.core.model.SyncStart
+import io.eksoda.core.model.SyncStatus
 import io.eksoda.core.ui.text.dayTimeLabel
 import io.eksoda.feature.household.R
 import kotlinx.coroutines.flow.flowOf
@@ -142,6 +145,15 @@ fun SyncScreen(
                     onChange = { onEvent(SyncScreenEvent.EnabledChanged(it)) },
                 )
             }
+            if (state.enabled && state.hasKey) {
+                item(key = "status") {
+                    StatusCard(
+                        status = state.status,
+                        onSyncNow = { onEvent(SyncScreenEvent.SyncNowClicked) },
+                        modifier = Modifier.padding(top = CARD_GAP),
+                    )
+                }
+            }
             if (state.enabled) {
                 item(key = "phones") {
                     HouseholdCard(
@@ -215,6 +227,41 @@ private fun SwitchCard(enabled: Boolean, loading: Boolean, onChange: (Boolean) -
                 )
             }
             Switch(checked = enabled, onCheckedChange = null, enabled = !loading)
+        }
+    }
+}
+
+/** What sync is doing on this network, and "Sync now". */
+@Composable
+private fun StatusCard(status: SyncStatus, onSyncNow: () -> Unit, modifier: Modifier = Modifier) {
+    val text = when {
+        status.syncing -> stringResource(R.string.sync_status_syncing)
+
+        !status.listening -> stringResource(R.string.sync_status_searching)
+
+        status.phonesFound == 0 -> stringResource(R.string.sync_status_none)
+
+        else -> pluralStringResource(
+            R.plurals.sync_status_found,
+            status.phonesFound,
+            status.phonesFound,
+        )
+    }
+    SectionCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = EksodaTheme.colors.ink2,
+            )
+            EksodaButton(
+                onClick = onSyncNow,
+                text = stringResource(R.string.sync_now),
+                isLoading = status.syncing,
+            )
         }
     }
 }
@@ -316,6 +363,7 @@ internal fun syncErrorRes(code: String?): Int = when (code) {
     "permission_denied" -> R.string.sync_error_permission_denied
     "interrupted" -> R.string.sync_error_interrupted
     "merge_failed" -> R.string.sync_error_merge_failed
+    "damaged" -> R.string.sync_error_damaged
     else -> R.string.sync_error_unknown
 }
 
@@ -373,6 +421,7 @@ private fun SyncScreenPreview() {
                 loading = false,
                 enabled = true,
                 hasKey = true,
+                status = SyncStatus(listening = true, phonesFound = 1),
                 peers = listOf(
                     SyncPeer("d1", "Pixel 8", now, now, now.minusSeconds(3_597)),
                     SyncPeer("d2", "Galaxy A55", now, null, null),

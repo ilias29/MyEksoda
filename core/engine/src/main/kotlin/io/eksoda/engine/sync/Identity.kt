@@ -39,8 +39,12 @@ internal class Entity(val spec: TableSpec, val id: String, val members: List<Mem
             spec.localColumns.associateWith { local?.source?.get(it) }
     }
 
+    /**
+     * Without the id: copies are renamed to the kept id, so a tie must be decided the same way
+     * before and after (a phone merges the other's already merged data).
+     */
     private fun content(member: Member): String =
-        (member.row - spec.localColumns).toSortedMap().toString()
+        (member.row - spec.localColumns - SyncSchema.ID).toSortedMap().toString()
 }
 
 /** Groups of ids that name the same thing. */

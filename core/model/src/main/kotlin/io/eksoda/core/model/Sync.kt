@@ -41,6 +41,15 @@ public enum class SyncResult(public val code: String) {
     FAILED("failed"),
 }
 
+/** What household sync is doing now, while the app is open. */
+public data class SyncStatus(
+    /** This phone is reachable by the household's phones on this network. */
+    val listening: Boolean = false,
+    /** The household's phones found on this network now. */
+    val phonesFound: Int = 0,
+    val syncing: Boolean = false,
+)
+
 /** Scanning another phone's household code. */
 public sealed interface SyncJoinResult {
     /** This phone is now of [phoneName]'s household. */

@@ -13,19 +13,23 @@ import assertk.assertions.isFalse
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import io.eksoda.core.data.sync.SyncControl
 import io.eksoda.core.data.sync.SyncDevice
 import io.eksoda.core.database.EksodaDatabase
 import io.eksoda.core.database.entity.SyncPeerEntity
 import io.eksoda.core.model.SyncJoinResult
+import io.eksoda.core.model.SyncStatus
 import io.eksoda.engine.sync.HouseholdKey
 import io.eksoda.engine.sync.PairingCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -48,6 +52,7 @@ class SyncRepositoryTest {
     private lateinit var scope: CoroutineScope
     private lateinit var repository: SyncRepositoryImpl
     private val device = FakeDevice("this-phone")
+    private val control = FakeControl()
     private val clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC)
     private val dispatcher = UnconfinedTestDispatcher()
 
@@ -65,6 +70,7 @@ class SyncRepositoryTest {
             preferences,
             database.syncDao(),
             device,
+            control,
             clock,
             dispatcher,
         )
@@ -94,6 +100,7 @@ class SyncRepositoryTest {
         assertThat(code?.key?.toList()).isEqualTo(device.key()?.toList())
         assertThat(code?.deviceId).isEqualTo("this-phone")
         assertThat(code?.deviceName).isEqualTo("Test phone")
+        assertThat(code?.address).isEqualTo("192.168.1.30:5000")
     }
 
     @Test
@@ -113,6 +120,7 @@ class SyncRepositoryTest {
         assertThat(database.syncDao().peer("their-phone")?.lastAddress)
             .isEqualTo("192.168.1.20:4000")
         assertThat(repository.enabled.first()).isTrue()
+        assertThat(control.syncs).isEqualTo(1)
     }
 
     @Test
@@ -148,6 +156,21 @@ class SyncRepositoryTest {
     }
 
     private fun peer(id: String) = SyncPeerEntity(id, id, pairedAt = 1, null, null, null)
+
+    private class FakeControl : SyncControl {
+        var syncs = 0
+        override val status: Flow<SyncStatus> = flowOf(SyncStatus())
+
+        override suspend fun syncNow() {
+            syncs++
+        }
+
+        override fun syncSoon() {
+            syncs++
+        }
+
+        override fun address() = "192.168.1.30:5000"
+    }
 
     /** The Keystore is not there on Robolectric: the key is kept in memory. */
     private class FakeDevice(override val deviceId: String) : SyncDevice {

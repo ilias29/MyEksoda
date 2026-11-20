@@ -119,6 +119,19 @@ class SyncMergeTest {
     }
 
     @Test
+    fun `a tie is decided the same way when the other phone sends its merged data`() {
+        // Same version, different names: what a server merges and sends back must not flip.
+        val a = snapshot("household" to listOf(household("hA", "Σπίτι")))
+        val b = snapshot("household" to listOf(household("hB", "Home")))
+
+        val onServer = SyncMerge.merge(b, a)
+        val onClient = SyncMerge.merge(a, Snapshot(TEST_SCHEMA, onServer.tables).forPeer())
+
+        assertThat(onClient.synced()).isEqualTo(onServer.synced())
+        assertThat(onClient.row("household", "hA")["name"]).isEqualTo("Σπίτι")
+    }
+
+    @Test
     fun `products merged on one phone stay merged, and lines follow the product kept`() {
         // "a-old" sorts first: the kept id must still be the replacement's.
         val local = snapshot(

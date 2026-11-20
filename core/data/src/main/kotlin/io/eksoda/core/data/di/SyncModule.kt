@@ -7,7 +7,9 @@ import dagger.hilt.components.SingletonComponent
 import io.eksoda.core.data.repository.SyncRepository
 import io.eksoda.core.data.repository.SyncRepositoryImpl
 import io.eksoda.core.data.sync.KeystoreSyncDevice
+import io.eksoda.core.data.sync.SyncControl
 import io.eksoda.core.data.sync.SyncDevice
+import io.eksoda.core.data.sync.SyncRuntime
 
 /** Household sync (docs/design/household-sync.md). */
 @Module
@@ -18,4 +20,7 @@ interface SyncModule {
 
     @Binds
     fun bindSyncDevice(implementation: KeystoreSyncDevice): SyncDevice
+
+    @Binds
+    fun bindSyncControl(implementation: SyncRuntime): SyncControl
 }

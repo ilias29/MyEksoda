@@ -2,13 +2,14 @@ package io.eksoda.core.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.paging.Pager
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.eksoda.core.data.di.IoDispatcher
+import io.eksoda.core.data.sync.SyncControl
 import io.eksoda.core.data.sync.SyncDevice
+import io.eksoda.core.data.sync.SyncPreferences
 import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.database.entity.SyncEventEntity
 import io.eksoda.core.database.entity.SyncPeerEntity
@@ -17,6 +18,7 @@ import io.eksoda.core.model.SyncJoinResult
 import io.eksoda.core.model.SyncPeer
 import io.eksoda.core.model.SyncResult
 import io.eksoda.core.model.SyncStart
+import io.eksoda.core.model.SyncStatus
 import io.eksoda.engine.sync.PairingCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +63,12 @@ interface SyncRepository {
 
     /** When the last sync that went through finished; null before the first one. */
     val lastSuccess: Flow<Instant?>
+
+    /** Listening, phones found, syncing: while the app is open. */
+    val status: Flow<SyncStatus>
+
+    /** "Sync now": with every household phone it can reach; the outcome goes to the history. */
+    suspend fun syncNow()
 }
 
 @Singleton
@@ -68,21 +76,28 @@ class SyncRepositoryImpl @Inject constructor(
     private val preferences: DataStore<Preferences>,
     private val sync: SyncDao,
     private val device: SyncDevice,
+    private val control: SyncControl,
     private val clock: Clock,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : SyncRepository {
-    override val enabled: Flow<Boolean> = preferences.data.map { it[ENABLED_KEY] == true }
+    override val enabled: Flow<Boolean> =
+        preferences.data.map { it[SyncPreferences.ENABLED] == true }
 
     override suspend fun setEnabled(enabled: Boolean) {
         if (enabled) withContext(io) { device.keyOrCreate() }
-        preferences.edit { it[ENABLED_KEY] = enabled }
+        preferences.edit { it[SyncPreferences.ENABLED] = enabled }
     }
+
+    override val status: Flow<SyncStatus> get() = control.status
+
+    override suspend fun syncNow() = control.syncNow()
 
     override val hasHouseholdKey: Flow<Boolean> get() = device.hasKey
 
     override suspend fun pairingCode(): Result<String> = withContext(io) {
         runCatching {
-            PairingCode(device.keyOrCreate(), device.deviceId, device.deviceName).encode()
+            val key = device.keyOrCreate()
+            PairingCode(key, device.deviceId, device.deviceName, control.address()).encode()
         }
     }
 
@@ -110,7 +125,9 @@ class SyncRepositoryImpl @Inject constructor(
                         lastSuccessAt = known?.lastSuccessAt,
                     ),
                 )
-                preferences.edit { it[ENABLED_KEY] = true }
+                preferences.edit { it[SyncPreferences.ENABLED] = true }
+                // The first sync, through the address in the code if the phone is not found.
+                control.syncSoon()
                 SyncJoinResult.Joined(code.deviceName)
             }.getOrElse { SyncJoinResult.Failed }
         }
@@ -118,7 +135,7 @@ class SyncRepositoryImpl @Inject constructor(
 
     override suspend fun leave(): Result<Unit> = withContext(io) {
         runCatching {
-            preferences.edit { it[ENABLED_KEY] = false }
+            preferences.edit { it[SyncPreferences.ENABLED] = false }
             device.forgetKey()
             sync.deletePeers()
         }
@@ -156,7 +173,6 @@ class SyncRepositoryImpl @Inject constructor(
     )
 
     private companion object {
-        val ENABLED_KEY = booleanPreferencesKey("household_sync_enabled")
         const val PAGE_SIZE = 30
     }
 }

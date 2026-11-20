@@ -54,4 +54,13 @@
     <string name="sync_error_interrupted">The sync was interrupted.</string>
     <string name="sync_error_merge_failed">The received data could not be saved. Nothing changed.</string>
     <string name="sync_error_unknown">The sync failed.</string>
+    <string name="sync_error_damaged">The other phone\'s data could not be read. Nothing changed.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_searching">Looking on the network…</string>
+    <string name="sync_status_none">No other phone of the household on this network. The phones need to be on the same Wi-Fi, with Eksoda open.</string>
+    <plurals name="sync_status_found">
+        <item quantity="one">%1$d phone of the household on this network.</item>
+        <item quantity="other">%1$d phones of the household on this network.</item>
+    </plurals>
 </resources>

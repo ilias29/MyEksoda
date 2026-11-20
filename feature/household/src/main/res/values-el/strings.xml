@@ -54,4 +54,13 @@
     <string name="sync_error_interrupted">Ο συγχρονισμός διακόπηκε.</string>
     <string name="sync_error_merge_failed">Τα δεδομένα που ήρθαν δεν αποθηκεύτηκαν. Τίποτα δεν άλλαξε.</string>
     <string name="sync_error_unknown">Ο συγχρονισμός απέτυχε.</string>
+    <string name="sync_error_damaged">Τα δεδομένα του άλλου κινητού δεν διαβάζονται. Τίποτα δεν άλλαξε.</string>
+    <string name="sync_now">Συγχρονισμός τώρα</string>
+    <string name="sync_status_syncing">Συγχρονισμός…</string>
+    <string name="sync_status_searching">Αναζήτηση στο δίκτυο…</string>
+    <string name="sync_status_none">Δεν βρέθηκε άλλο κινητό του νοικοκυριού σε αυτό το δίκτυο. Τα κινητά πρέπει να είναι στο ίδιο Wi-Fi, με το Eksoda ανοιχτό.</string>
+    <plurals name="sync_status_found">
+        <item quantity="one">Βρέθηκε %1$d κινητό του νοικοκυριού σε αυτό το δίκτυο.</item>
+        <item quantity="other">Βρέθηκαν %1$d κινητά του νοικοκυριού σε αυτό το δίκτυο.</item>
+    </plurals>
 </resources>

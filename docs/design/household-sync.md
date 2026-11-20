@@ -30,8 +30,8 @@ the same Wi-Fi. No server, no account, no internet traffic.
   `noBackupFilesDir/sync.key` (core:data `sync/SyncDevice.kt`, `KeystoreSyncDevice`). Each
   install also gets a random **device id** (`sync.device`); its name is the device model.
 - On the Sync screen, "Add a phone" shows a QR code (`PairingCode`:
-  `eksoda-pair:1?k=<key>&d=<device id>&n=<name>&a=<host:port>`; the address is added in
-  phase 4). The dialog's window is secure (`SecureFlagPolicy.SecureOn`: no screenshots, hidden
+  `eksoda-pair:1?k=<key>&d=<device id>&n=<name>&a=<host:port>`; the address while the
+  phone listens). The dialog's window is secure (`SecureFlagPolicy.SecureOn`: no screenshots, hidden
   in recent apps) and the code is held only while it is open. Drawn with zxing core (pure
   Java, offline), since zxing-cpp's Android library only reads.
 - The new phone scans it ("Join a household": its own camera scanner in feature:household,
@@ -44,33 +44,48 @@ the same Wi-Fi. No server, no account, no internet traffic.
   on this phone and turns sync off. The data and the history stay. Turning the switch off does
   **not** forget the pairing: turning it on again resumes.
 
-### Discovery and triggers
+### Discovery and triggers (built: core:data `sync/SyncRuntime`, `SyncDiscovery`)
 
-- While the app is in the foreground and sync is on: listen on a TCP port and announce
-  `_eksoda._tcp` with `NsdManager` (platform, no Google Play services). Discover the others.
-  Stop both when the app goes to the background (`ProcessLifecycleOwner`) or the switch goes off.
-- **Automatic:** when a paired phone is found and the last successful sync with it is older
-  than 15 minutes, sync with it.
-- **Manual:** "Sync now" on the screen syncs with every paired phone that can be reached (found
-  by NSD, else its last known address).
+- While the app is in the foreground, sync is on and the phone holds a key: listen on a TCP
+  port (any free one) and announce `_eksoda._tcp` with `NsdManager` (platform, no Google Play
+  services), with the device id and the household tag (`HouseholdKey.tag`, an HMAC that says
+  nothing of the key) as attributes, so other households' phones are skipped without
+  connecting. Discover the others. Stop all of it when the app goes to the background
+  (`ProcessLifecycleOwner`), the switch goes off, or the key goes. Started from
+  `EksodaApplication` (off the main thread).
+- **Automatic:** when a household phone is found, the phone with the smaller device id starts
+  a sync, unless the two synced in the last 15 minutes.
+- **Manual:** "Sync now" on the screen syncs with every household phone found by NSD, else
+  with each paired phone's last known address; with none, the history says no phone was
+  found.
+- **After joining:** the first sync starts at once, through the address in the code if the
+  phone is not found by NSD. The "Add a phone" code carries this phone's local IPv4 address
+  and port while it listens.
+- One session at a time (`SyncRunner`), 5 s to connect, 30 s without data ends it.
 - Only private addresses are used, outgoing and incoming: 10/8, 172.16/12, 192.168/16,
   169.254/16, fc00::/7, fe80::/10. Anything else is refused before connecting and on accept.
 
-### Protocol (one TCP connection, both directions)
+### Protocol (one TCP connection, built: core:engine `SyncSession`)
 
-1. Each side sends `Hello {protocol, deviceId, deviceName, schemaVersion, nonce}`.
-   A session key is derived with HKDF-SHA256 from the household key and both nonces. Every
-   later frame is `length (uint32 BE) | AES-256-GCM(session key, counter nonce)`. A phone
-   without the key fails the first frame (`not_paired`). A different `schemaVersion` stops
-   the sync (`schema_mismatch`: update the app on both phones).
-2. Each side sends its **snapshot** (core:engine `SnapshotCodec`): gzip of JSON lines, one
-   per row of the synced tables (below), values as stored. Without `receipt.source_url`,
-   without `import_job` (`Snapshot.forPeer`).
-3. Each side merges what it received in one `WriteCoordinator` transaction and replies
-   `Done {inserted, updated, deleted}`. Both write an entry in the sync history.
+Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
+
+1. Each side sends a hello `{protocol, device_id, device_name, schema, nonce (32 bytes)}`,
+   sealed with AES-256-GCM under the household key (random 12-byte nonce, the role as
+   additional data, so a hello cannot be sent back as the other's). A phone that cannot open
+   the client's hello answers with an empty frame: both stop with `not_paired`. A different
+   protocol or schema stops both with `schema_mismatch` (update the app on both phones).
+2. The session key is HKDF-SHA256 of the household key with both nonces. Every later frame is
+   sealed with it; each direction numbers its frames from 0 and the number is the GCM nonce,
+   so a frame repeated, dropped or reordered does not open (`damaged`).
+3. The client sends its **snapshot** (core:engine `SnapshotCodec`: gzip of JSON lines, values
+   as stored, without `receipt.source_url` and `import_job`: `Snapshot.forPeer`). The server
+   merges it in one transaction, then sends its own snapshot, which now holds the client's
+   data too (or an error frame with its reason, e.g. `merge_failed`). The client merges that.
+   Both phones end with the same data, and each writes an entry in its history (the server
+   only once the client proved it holds the key: strangers leave no trace).
 
 The whole snapshot is sent every time. For a family this should be a few MB compressed
-(not measured yet: needs a real household's data, phase 4). Sending only rows changed since
+(not measured yet: needs a real household's data on two phones). Sending only rows changed since
 the last sync with that phone is an optimization for later; the merge does not change.
 
 ### What syncs
@@ -157,14 +172,17 @@ on it counts as scanned here too.
   `tombstone.replaced_by` (written by `mergeProducts`).
 - **core:engine** `sync/`: done: `SyncSchema` (table rules), `Snapshot` and `SnapshotCodec`,
   `SyncMerge` (identities, winners, tombstones, `Liveness`), with tests for every rule above.
-  To come: frame and crypto (javax.crypto), handshake, private-address check.
+  Also done: `HouseholdKey`, `PairingCode`, `SyncCrypto` (HKDF, AES-GCM), `Frames` / `Hello`
+  / `SecureChannel`, `SyncSession` (the protocol) and `LocalNetwork` (the address rule).
 - **core:data** `sync/`: done: `SyncRepository` (enabled flag in DataStore, peers, history
   paging, last success), `SnapshotStore` (reads the snapshot, applies a merge: drops and
   renames children first, then writes only changed rows parents first, then repoints import
   jobs at the receipt kept or marks them `receipt_deleted`), `SyncMerger` (both under the
-  write lock). Robolectric test: two in-memory databases synced both ways. To come: status,
-  sync now, pair, join, leave, `SyncKeyStore`, NSD announce and discovery, socket listener
-  tied to the app's foreground state.
+  write lock). Robolectric test: two in-memory databases synced both ways. Also done:
+  `SyncDevice` (key and device id), pairing, join and leave; `SyncRunner` (sessions over TCP,
+  the history, paired phones; tested with two databases over a loopback socket),
+  `SyncDiscovery` (NSD) and `SyncRuntime` (listener tied to the app's foreground state,
+  automatic and manual sync, status), behind `SyncControl` for the repository.
 - **feature:settings:** the "Household sync" row in the Household card that opens the Sync
   screen ("Off", "On", or "On · last sync: <time>"). The switch itself is on the Sync screen.
 - **app:** `SyncDestination` and its route in `MainNavHost`. `MainTabs` does not change.
@@ -188,8 +206,8 @@ on it counts as scanned here too.
 2. **Done (2026-11-19).** Merge rules in core:engine with tests; snapshot reader and merge
    applier in core:data, tested with two databases; migration 7.
 3. **Done (2026-11-19).** Pairing: key store, device id, QR show and scan, leave.
-4. Transport and NSD: handshake, listener, discovery, automatic and manual sync, history
-   entries.
+4. **Done (2026-11-20).** Transport and NSD: handshake, listener, discovery, automatic and
+   manual sync, history entries. Not yet tried on two real phones.
 5. Synced receipts: the mark, URL actions hidden (the URL is already nullable).
 6. When moving to `targetSdk` 37: the local network permission.
 

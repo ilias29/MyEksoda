@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import androidx.room.Upsert
 import io.eksoda.core.database.entity.SyncEventEntity
 import io.eksoda.core.database.entity.SyncPeerEntity
@@ -18,6 +19,9 @@ interface SyncDao {
     @Query("SELECT * FROM sync_peer WHERE device_id = :deviceId")
     suspend fun peer(deviceId: String): SyncPeerEntity?
 
+    @Query("SELECT * FROM sync_peer")
+    suspend fun peerList(): List<SyncPeerEntity>
+
     @Upsert
     suspend fun upsertPeer(peer: SyncPeerEntity)
 
@@ -31,6 +35,16 @@ interface SyncDao {
 
     @Insert
     suspend fun insertEvent(event: SyncEventEntity)
+
+    @Update
+    suspend fun updateEvent(event: SyncEventEntity)
+
+    /** Keeps the newest [keep] entries of the history. */
+    @Query(
+        """DELETE FROM sync_event WHERE id NOT IN
+           (SELECT id FROM sync_event ORDER BY started_at DESC, id DESC LIMIT :keep)""",
+    )
+    suspend fun pruneEvents(keep: Int)
 
     /** When the last sync that went through finished; null before the first one. */
     @Query("SELECT MAX(finished_at) FROM sync_event WHERE result = 'done'")

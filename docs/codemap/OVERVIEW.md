@@ -11,7 +11,8 @@ line range. Keep this file current when a change adds a module, a pipeline step 
 
 Your receipts never leave the phone: no account, no analytics, no crash reporting.
 The only network traffic is HTTPS GETs to the receipt providers (Impact, Entersoft, AADE,
-Epsilon Digital).
+Epsilon Digital), and, only when the user turns household sync on, encrypted sessions with
+the household's phones on the local network (private addresses, never the internet).
 Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false`,
 `dataExtractionRules`); the user's own encrypted export is the only backup.
 
@@ -194,6 +195,14 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   `PairingCode`. feature:household draws it with zxing core (`HouseholdCodeDialog`, a
   secure window) and reads it with its own zxing-cpp scanner (`JoinScanner`). The code holds
   the key: never in saved state, a destination, a log or `toString()`.
+- **Household sync connection:** core:engine `SyncSession` is the protocol (hellos sealed
+  with the household key, then a per-session key; the client sends its snapshot, the server
+  merges and answers with its own) over `Frames`; `LocalNetwork.isLocal` is the address rule.
+  core:data `sync/SyncRunner` runs one session at a time over a TCP socket and writes the
+  history and paired phones; `SyncDiscovery` is NSD (`_eksoda._tcp`, device id and household
+  tag); `SyncRuntime` (started by `EksodaApplication`) listens and discovers only while the
+  app is in the foreground, sync is on and a key is held, and syncs automatically or on
+  "Sync now". The repository reaches it through `SyncControl`.
 - **Backup** (`core:data/backup/`): `BackupFile.kt` writes `EKSODABK` | header length (uint32
   BE) | header JSON (format, app version, created at, PBKDF2-HMAC-SHA256 600k iterations +
   16-byte salt, 12-byte nonce) | AES-256-GCM ciphertext; the header is the GCM additional data

@@ -4,14 +4,12 @@ import android.database.SQLException
 import io.eksoda.core.data.db.WriteCoordinator
 import io.eksoda.core.database.EksodaDatabase
 import io.eksoda.engine.sync.Snapshot
+import io.eksoda.engine.sync.SyncCounts
 import io.eksoda.engine.sync.SyncException
 import io.eksoda.engine.sync.SyncMerge
 import java.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/** What a merge changed on this phone, for the sync history. */
-data class SyncCounts(val inserted: Int, val updated: Int, val deleted: Int)
 
 /**
  * Household sync on this phone's database: the snapshot it sends, and the merge of the one it
@@ -24,6 +22,9 @@ class SyncMerger @Inject constructor(
     private val coordinator: WriteCoordinator,
     private val clock: Clock,
 ) {
+    /** The schema version both phones must share. */
+    val schema: Int get() = database.openHelper.readableDatabase.version
+
     /** This phone's data as another phone receives it: no receipt links. */
     suspend fun snapshotForPeer(): Snapshot =
         coordinator.write { SnapshotStore.read(database.openHelper.writableDatabase) }.forPeer()

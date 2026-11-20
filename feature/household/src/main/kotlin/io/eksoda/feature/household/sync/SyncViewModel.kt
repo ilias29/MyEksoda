@@ -9,6 +9,7 @@ import io.eksoda.core.data.repository.SyncRepository
 import io.eksoda.core.model.SyncEvent
 import io.eksoda.core.model.SyncJoinResult
 import io.eksoda.core.model.SyncPeer
+import io.eksoda.core.model.SyncStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,8 @@ data class SyncUiState(
     /** This phone holds a household key: it can add phones, and leave. */
     val hasKey: Boolean = false,
     val peers: List<SyncPeer> = emptyList(),
+    /** Listening, phones found, syncing: while the screen is open. */
+    val status: SyncStatus = SyncStatus(),
     val dialog: SyncDialog = SyncDialog.None,
     /** The camera is reading another phone's household code. */
     val scanning: Boolean = false,
@@ -51,6 +54,8 @@ sealed interface SyncDialog {
 
 sealed interface SyncScreenEvent {
     data class EnabledChanged(val enabled: Boolean) : SyncScreenEvent
+
+    data object SyncNowClicked : SyncScreenEvent
 
     data object AddPhoneClicked : SyncScreenEvent
 
@@ -99,12 +104,19 @@ class SyncViewModel @Inject constructor(private val sync: SyncRepository) : View
     val effects: Flow<SyncEffect> = _effects.receiveAsFlow()
 
     val state: StateFlow<SyncUiState> =
-        combine(sync.enabled, sync.hasHouseholdKey, sync.peers, local) { enabled, key, peers, ui ->
+        combine(
+            sync.enabled,
+            sync.hasHouseholdKey,
+            sync.peers,
+            sync.status,
+            local,
+        ) { enabled, key, peers, status, ui ->
             SyncUiState(
                 loading = false,
                 enabled = enabled,
                 hasKey = key,
                 peers = peers,
+                status = status,
                 dialog = ui.dialog,
                 scanning = ui.scanning,
             )
@@ -117,6 +129,9 @@ class SyncViewModel @Inject constructor(private val sync: SyncRepository) : View
         when (event) {
             is SyncScreenEvent.EnabledChanged ->
                 viewModelScope.launch { sync.setEnabled(event.enabled) }
+
+            // The outcome shows in the history.
+            SyncScreenEvent.SyncNowClicked -> viewModelScope.launch { sync.syncNow() }
 
             SyncScreenEvent.AddPhoneClicked -> viewModelScope.launch {
                 sync.pairingCode()
