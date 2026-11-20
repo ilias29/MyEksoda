@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -103,8 +104,10 @@ class SyncRuntime @Inject constructor(
      * history says so.
      */
     override suspend fun syncNow() = withContext(io) {
+        // Switched off meanwhile (or left the household after joining): no socket at all.
+        if (preferences.data.first()[SyncPreferences.ENABLED] != true) return@withContext
         val discovered = found.value
-        val elsewhere = sync.peerList()
+        val elsewhere = runCatching { sync.peerList() }.getOrDefault(emptyList())
             .filter { it.deviceId !in discovered }
             .mapNotNull { peer -> peer.lastAddress?.let { PeerAddress.parse(peer.deviceId, it) } }
         val targets = discovered.values + elsewhere

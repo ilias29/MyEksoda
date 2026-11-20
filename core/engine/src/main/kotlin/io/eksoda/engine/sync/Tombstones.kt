@@ -35,7 +35,11 @@ internal class Tombstones(rows: List<Row>) {
                 id = latest.id,
                 deletedAt = latest.deletedAt,
                 naturalKey = same.mapNotNull { it.naturalKey }.maxOrNull(),
-                replacedBy = latest.replacedBy,
+                // A later plain deletion (another phone dropped the product as unused) must not
+                // lose where a merge sent it: the latest replacement stays.
+                replacedBy = same.filter { it.replacedBy != null }
+                    .maxWithOrNull(compareBy({ it.deletedAt }, { it.replacedBy }))
+                    ?.replacedBy,
             )
         }
         .sortedWith(compareBy({ it.entity }, { it.id }))

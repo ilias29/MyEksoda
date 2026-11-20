@@ -192,7 +192,11 @@ private fun CameraPreview(onCode: (String) -> Unit) {
                     if (!active) return@addListener
                     preview.surfaceProvider = previewView.surfaceProvider
                     analysis.setAnalyzer(executor) { image ->
-                        val text = image.use { reader.read(it) }.firstNotNullOfOrNull { it.text }
+                        // A frame the reader cannot take is skipped: an exception here would end
+                        // the analyzer thread, and the app with it. The frame is closed either way.
+                        val text = image.use { frame -> runCatching { reader.read(frame) } }
+                            .getOrNull()
+                            ?.firstNotNullOfOrNull { it.text }
                         if (text != null) {
                             ContextCompat.getMainExecutor(context).execute { currentOnCode(text) }
                         }

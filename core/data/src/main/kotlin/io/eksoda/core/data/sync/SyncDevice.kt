@@ -75,7 +75,11 @@ class KeystoreSyncDevice @Inject constructor(@ApplicationContext context: Contex
         if (!keyFile.exists()) return null
         return try {
             val bytes = keyFile.readBytes()
-            val wrapping = existingWrappingKey() ?: return null
+            val wrapping = existingWrappingKey() ?: run {
+                // The Keystore lost the wrapping key: this key cannot be read ever again.
+                forgetKey()
+                return null
+            }
             val nonce = GCMParameterSpec(TAG_BITS, bytes, 0, NONCE_BYTES)
             Cipher.getInstance(TRANSFORMATION).run {
                 init(Cipher.DECRYPT_MODE, wrapping, nonce)

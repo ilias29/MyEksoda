@@ -15,6 +15,7 @@ import io.eksoda.engine.sync.SyncPeerInfo
 import io.eksoda.engine.sync.SyncSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -105,9 +106,9 @@ class SyncRunner @Inject constructor(
      * Syncs with the phone at [target]. An automatic sync is tried at most every
      * [AUTO_INTERVAL_MILLIS] per phone, and skipped when the two synced within that time.
      */
-    suspend fun connect(target: PeerAddress, startedBy: SyncStart) = withContext(io) {
+    suspend fun connect(target: PeerAddress, startedBy: SyncStart) = guarded {
         val automatic = startedBy == SyncStart.AUTO
-        if (automatic && !autoDue(target.deviceId)) return@withContext
+        if (automatic && !autoDue(target.deviceId)) return@guarded
         lock.withLock {
             val key = currentKey() ?: return@withLock
             val known = target.deviceId?.let { sync.peer(it) }
@@ -123,10 +124,10 @@ class SyncRunner @Inject constructor(
      * Answers a phone that connected to this one; closes [socket]. Until it proves it holds
      * the key it has [HANDSHAKE_DEADLINE_MILLIS], a small hello and no lock.
      */
-    suspend fun serve(socket: Socket) = withContext(io) {
+    suspend fun serve(socket: Socket) = guarded {
         socket.use { _ ->
-            if (!policy.allows(socket.inetAddress)) return@withContext
-            val key = currentKey() ?: return@withContext
+            if (!policy.allows(socket.inetAddress)) return@guarded
+            val key = currentKey() ?: return@guarded
             socket.soTimeout = HANDSHAKE_TIMEOUT
             var event: SyncEventEntity? = null
             var peer: SyncPeerInfo? = null
@@ -163,14 +164,30 @@ class SyncRunner @Inject constructor(
     }
 
     /** "Sync now" with no household phone to try: the history says so. */
-    suspend fun nobodyToSync() = withContext(io) {
+    suspend fun nobodyToSync() = guarded {
         val event = started(SyncStart.USER, null, null)
         finished(event, null, Result.failure(SyncException(PEER_UNREACHABLE)), address = null)
     }
 
     /** Entries a killed app left running end as interrupted (at app start). */
-    suspend fun closeStaleEntries() = withContext(io) {
+    suspend fun closeStaleEntries() = guarded {
         sync.failRunning(SyncException.INTERRUPTED, clock.millis())
+    }
+
+    /**
+     * The entry points never throw (but cancellation): a sync's own failures are in its
+     * history entry, and one that could not even be written there (the database failed) must
+     * not crash the app or stop the listener. Such an entry is closed at the next start.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun guarded(block: suspend CoroutineScope.() -> Unit) = withContext(io) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (ignored: Exception) {
+            running.value = false
+        }
     }
 
     private suspend fun open(
@@ -225,8 +242,8 @@ class SyncRunner @Inject constructor(
             updated = 0,
             deleted = 0,
         ).also {
-            running.value = true
             sync.insertEvent(it)
+            running.value = true
         }
 
     /**

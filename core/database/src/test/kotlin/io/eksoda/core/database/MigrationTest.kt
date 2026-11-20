@@ -110,6 +110,45 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun `the first release upgrades to the current schema in one go`() {
+        // 0.1.1 shipped schema 4: its users go through every migration at once.
+        helper.createDatabase(NAME, 4).use { db ->
+            db.execSQL(
+                """INSERT INTO household (id, name, default_currency, timezone, created_at,
+                   updated_at) VALUES ('h1', 'Σπίτι', 'EUR', 'Europe/Athens', 1, 1)""",
+            )
+            db.execSQL(
+                """INSERT INTO merchant (id, country_code, vat_number, legal_name, display_name,
+                   normalized_display_name, display_name_set_by_user, activity_description,
+                   tax_office, gemi_number, street, street_number, city, postal_code,
+                   details_as_of, created_at, updated_at) VALUES ('m1', 'GR', '094014201', 'A',
+                   'A', 'a', 0, '', '', '', '', '', '', '', NULL, 1, 1)""",
+            )
+            db.receipt("r1", mark = "1", url = "'https://a.invalid/1'")
+            db.execSQL(
+                """INSERT INTO receipt_item (id, receipt_id, line_number, line_type, description,
+                   normalized_description, gross_amount_minor, match_status, user_note,
+                   created_at, updated_at) VALUES ('i1', 'r1', 1, 'other', 'X', 'x', 100,
+                   'not_a_product', '', 1, 1)""",
+            )
+            db.execSQL("INSERT INTO tombstone (entity, id, deleted_at) VALUES ('receipt', 'r0', 1)")
+        }
+
+        helper.runMigrationsAndValidate(NAME, 7, true).use { db ->
+            assertThat(db.count("household")).isEqualTo(1)
+            assertThat(db.count("receipt")).isEqualTo(1)
+            assertThat(db.count("receipt_item")).isEqualTo(1)
+            assertThat(db.count("tombstone")).isEqualTo(1)
+            assertThat(db.count("budget")).isEqualTo(0)
+            assertThat(db.count("sync_event")).isEqualTo(0)
+            db.query("SELECT source_url FROM receipt").use { row ->
+                assertThat(row.moveToFirst()).isTrue()
+                assertThat(row.getString(0)).isEqualTo("https://a.invalid/1")
+            }
+        }
+    }
+
     /** [url] is SQL: a quoted string or NULL. */
     private fun SupportSQLiteDatabase.receipt(id: String, mark: String, url: String) = execSQL(
         """INSERT INTO receipt (id, merchant_id, store_id, provider_code, parser_version,

@@ -89,6 +89,28 @@ class SyncDeletionTest {
     }
 
     @Test
+    fun `a later plain deletion does not lose where a merged product went`() {
+        val local = snapshot(
+            "tombstone" to listOf(tombstone("product", "p-old", deletedAt = 20)),
+        )
+        val remote = snapshot(
+            "product" to listOf(product("p-new", "Milk")),
+            "tombstone" to listOf(
+                tombstone("product", "p-old", deletedAt = 10, replacedBy = "p-new"),
+            ),
+            "receipt" to listOf(receipt("r1", mark = "1")),
+            "receipt_item" to listOf(item("i1", receipt = "r1", line = 1, product = "p-old")),
+        )
+
+        val merged = SyncMerge.merge(local, remote)
+
+        assertThat(merged.tables.getValue("tombstone"))
+            .containsExactly(tombstone("product", "p-old", 20, replacedBy = "p-new"))
+        assertThat(merged.row("receipt_item", "i1")["product_id"]).isEqualTo("p-new")
+        assertThat(merged.ids("product")).containsExactly("p-new")
+    }
+
+    @Test
     fun `tombstones of the same row keep the latest deletion and any unique key`() {
         val local = snapshot("tombstone" to listOf(tombstone("receipt", "r1", deletedAt = 3)))
         val remote = snapshot(
