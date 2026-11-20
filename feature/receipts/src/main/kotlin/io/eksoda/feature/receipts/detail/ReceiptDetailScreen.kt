@@ -149,7 +149,11 @@ fun ReceiptDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
-                actions = { if (loaded != null) OverflowMenu { dialog = it } },
+                actions = {
+                    if (loaded != null) {
+                        OverflowMenu(hasLink = loaded.detail.hasLink) { dialog = it }
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -187,20 +191,23 @@ fun ReceiptDetailScreen(
 }
 
 @Composable
-private fun OverflowMenu(onDialog: (DetailDialog) -> Unit) {
+private fun OverflowMenu(hasLink: Boolean, onDialog: (DetailDialog) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Default.MoreVert, stringResource(R.string.detail_more))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.detail_open_original)) },
-                onClick = {
-                    open = false
-                    onDialog(DetailDialog.OPEN_ORIGINAL)
-                },
-            )
+            // A receipt from another phone has no link here: nothing to open.
+            if (hasLink) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.detail_open_original)) },
+                    onClick = {
+                        open = false
+                        onDialog(DetailDialog.OPEN_ORIGINAL)
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.detail_delete)) },
                 onClick = {
@@ -225,6 +232,9 @@ private fun DetailContent(
         item { DetailHeader(detail) }
         if (receipt.cancelled) {
             item { Notice(stringResource(R.string.detail_cancelled), attention = true) }
+        }
+        if (!detail.hasLink) {
+            item { Notice(stringResource(R.string.detail_synced)) }
         }
         item { WarningsCard(detail.warnings) }
         item { SectionHeading(stringResource(R.string.detail_items)) }

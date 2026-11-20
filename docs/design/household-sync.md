@@ -169,10 +169,10 @@ OVERVIEW.md and `docs/design/ui-redesign.md`.
 
 ### Synced receipts
 
-A receipt with no `source_url` came from another phone. The receipt row and detail show a
-"synced from another phone" mark, and actions that need the URL are hidden. If this phone
-later scans the same receipt, the import finds it as a duplicate and stores its URL: from then
-on it counts as scanned here too.
+A receipt with no `source_url` came from another phone. Built (0.3.0): its detail says so
+(`ReceiptDetail.hasLink`, the link itself never in the model) and has no "Open original".
+Not built yet: a mark on the receipt list row, and storing the URL when this phone later
+scans the same receipt (the import finds it as a duplicate and today keeps no URL).
 
 ## Changes by module
 
@@ -220,7 +220,8 @@ on it counts as scanned here too.
 3. **Done (2026-11-19).** Pairing: key store, device id, QR show and scan, leave.
 4. **Done (2026-11-20).** Transport and NSD: handshake, listener, discovery, automatic and
    manual sync, history entries. Not yet tried on two real phones.
-5. Synced receipts: the mark, URL actions hidden (the URL is already nullable).
+5. Synced receipts. **Partly done (0.3.0):** the detail note, "Open original" hidden without a
+   link. Left: the list row mark, the URL stored on a later scan of the same receipt.
 6. When moving to `targetSdk` 37: the local network permission.
 
 ## Open points

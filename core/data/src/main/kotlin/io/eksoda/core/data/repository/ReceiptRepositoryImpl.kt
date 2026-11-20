@@ -236,6 +236,7 @@ class ReceiptRepositoryImpl @Inject constructor(
             cancellationMark = receipt.cancellationMark,
             providerCode = receipt.providerCode,
             parserVersion = receipt.parserVersion,
+            hasLink = receipt.sourceUrl != null,
         )
     }
 

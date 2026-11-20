@@ -73,6 +73,7 @@
     <string name="detail_date_time">%1$s, %2$s</string>
     <string name="detail_date_approximate_time">%1$s, ~%2$s</string>
     <string name="detail_cancelled">Αυτή η απόδειξη ακυρώθηκε από το κατάστημα.</string>
+    <string name="detail_synced">Ήρθε με συγχρονισμό από άλλο κινητό του νοικοκυριού. Ο σύνδεσμός της μένει στο κινητό που τη σάρωσε.</string>
     <string name="detail_totals_only">Αυτό το είδος απόδειξης έχει μόνο σύνολα, χωρίς λίστα ειδών.</string>
     <string name="detail_items">Είδη</string>
     <string name="detail_show_more">Εμφάνιση όλων των προειδοποιήσεων</string>

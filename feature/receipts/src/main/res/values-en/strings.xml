@@ -76,6 +76,7 @@
     <string name="detail_date_time">%1$s, %2$s</string>
     <string name="detail_date_approximate_time">%1$s, ~%2$s</string>
     <string name="detail_cancelled">This receipt was cancelled by the shop.</string>
+    <string name="detail_synced">Synced from another phone of the household. Its link stays on the phone that scanned it.</string>
     <string name="detail_totals_only">This receipt type has totals only, no item list.</string>
     <string name="detail_items">Items</string>
     <string name="detail_show_more">Show all warnings</string>
