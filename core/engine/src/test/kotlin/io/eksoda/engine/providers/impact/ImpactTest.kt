@@ -68,13 +68,33 @@ class ImpactTest {
     }
 
     @Test
-    fun `a negative line discount is not read but reported as an unknown field`() {
-        val page = discounted.replace(discountCell, discountCell.replace("7,38", "-7,38"))
-        val receipt = parseHtml(page, discountedIdentity)
-        val line = receipt.lines.single { it.lineNumber == 7 }
-        assertThat(line.discount).isNull()
-        assertThat(line.grossBeforeDiscount).isNull()
-        assertThat(receipt.unknownFields["commercial.line.Amount"]).isEqualTo("-7,38")
+    fun `a line discount that is not an amount in euros is reported, and the import goes on`() {
+        // Negative, a percentage, text: a layout not seen yet. Zero: no discount.
+        val cases = listOf("-7,38" to "-7,38", "50%" to "50%", "-" to "-", "0,00" to null)
+        for ((printed, drift) in cases) {
+            val page = discounted.replace(discountCell, discountCell.replace("7,38", printed))
+            val receipt = parseHtml(page, discountedIdentity)
+            val line = receipt.lines.single { it.lineNumber == 7 }
+            assertThat(line.discount, name = printed).isNull()
+            assertThat(line.grossBeforeDiscount, name = printed).isNull()
+            assertThat(receipt.unknownFields["commercial.line.Amount"], name = printed)
+                .isEqualTo(drift)
+        }
+    }
+
+    @Test
+    fun `a zero discount total is no discount, and an unreadable one is reported`() {
+        val total = "<td class=\"value\">7,38</td>"
+        assertThat(discounted).contains(total)
+        fun printing(value: String) =
+            parseHtml(discounted.replace(total, total.replace("7,38", value)), discountedIdentity)
+        val zero = printing("0,00")
+        assertThat(zero.totals.discount).isNull()
+        assertThat(zero.unknownFields).isEmpty()
+        val text = printing("n/a")
+        assertThat(text.totals.discount).isNull()
+        assertThat(text.unknownFields)
+            .isEqualTo(mapOf("commercial.summary.TotalAllowances" to "n/a"))
     }
 
     @Test

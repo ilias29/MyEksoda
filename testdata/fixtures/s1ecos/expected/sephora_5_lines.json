@@ -454,7 +454,7 @@
   "totals": {
     "deductions": "0.00",
     "digital_fee": "0.00",
-    "discount": "0.00",
+    "discount": null,
     "fees": "0.00",
     "gross": "135.90",
     "gross_before_discount": null,

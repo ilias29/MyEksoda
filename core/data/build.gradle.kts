@@ -20,6 +20,14 @@ dependencies {
     implementation(libs.room.ktx)
     // Backup manifest and rows (backup/), built as JSON trees without the compiler plugin.
     implementation(libs.kotlinx.serialization.json)
+    // Runs ImportWorker in the import pipeline tests.
+    testImplementation(libs.androidx.work.testing)
+}
+
+tasks.withType<Test>().configureEach {
+    // The import pipeline tests serve this repository's receipt fixtures, testdata/fixtures/.
+    systemProperty("eksoda.testdata", rootDir.resolve("testdata").absolutePath)
+    inputs.dir(rootDir.resolve("testdata")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 kover {

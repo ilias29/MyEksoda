@@ -150,6 +150,28 @@ private class Builder(
         num(required(mapping, key, where), where)
             ?: throw FormatChanged("missing required field $where")
 
+    /**
+     * A discount in euros, or null: zero is no discount. A value that is not a positive amount
+     * in euros (a percentage, text, a negative number) is a layout not seen yet: it is reported
+     * under [key] in the unknown fields (format drift) and not read, so the import still works.
+     */
+    fun discount(text: String?, key: String): BigDecimal? {
+        if (text.isNullOrBlank()) return null
+        val value = if ('%' in text) null else amountOrNull(text, key)
+        if (value == null || value.signum() < 0) {
+            c.unknown[key] = text
+            return null
+        }
+        return value.takeIf { it.signum() > 0 }
+    }
+
+    /** [num], with a value that is not a number as null. */
+    private fun amountOrNull(text: String, where: String): BigDecimal? = try {
+        num(text, where)
+    } catch (_: FormatChanged) {
+        null
+    }
+
     /** Both views must agree whenever both provide a value. */
     fun agree(a: String?, b: String?, what: String) {
         if (a != null && b != null &&
@@ -344,14 +366,9 @@ private class Builder(
         // The line discount in euros, VAT included (column "Έκπτ. 1", observed 2026-11-21; fixture
         // mymarket_7_lines_discount line 7: 1.918 × 7.69 = 14.75, 7.38 off, 7.37 paid). The page
         // prints no value before the discount: it is the total plus the discount, and validation
-        // checks it against quantity × unit price (R5) and the discount total (R17).
-        val printedDiscount = num(c[Labels.LINE_DISCOUNT], where)
-        // A negative one is a layout not seen yet: reported as format drift, not read.
-        val discount = printedDiscount?.takeIf { it.signum() >= 0 }
-        if (printedDiscount != null && discount == null) {
-            this.c.unknown["commercial.line.${Labels.LINE_DISCOUNT}"] =
-                c[Labels.LINE_DISCOUNT].orEmpty()
-        }
+        // checks it against quantity × unit price (R5) and the discount total (R17); R13 holds
+        // by construction.
+        val discount = discount(c[Labels.LINE_DISCOUNT], "commercial.line.${Labels.LINE_DISCOUNT}")
         val lineNumber = t["line_number"]?.ifEmpty { null } ?: index.toString()
         if (!lineNumber.pyIsDigit()) throw FormatChanged("$where: line number '$lineNumber'")
         val raw = LinkedHashMap<String, String>()
@@ -407,7 +424,7 @@ private class Builder(
             digitalFee = num(s["digital_fee"], "summary"),
             deductions = num(s["deductions"], "summary"),
             // "Σύνολο Εκπτώσεων" (commercial view only).
-            discount = num(c.summary["TotalAllowances"], "summary"),
+            discount = discount(c.summary["TotalAllowances"], "commercial.summary.TotalAllowances"),
         )
     }
 
