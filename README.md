@@ -73,80 +73,82 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 
 ### Getting a receipt
 
-The phone fetches the receipt from the company that issued it and reads it itself. Nothing
-passes through a server of ours, because there is none.
+Your phone gets the receipt straight from the company that issued it and reads it itself.
+Nothing passes through a server of ours, because there is none.
 
 ```mermaid
 flowchart LR
-    A["Scan the QR code<br/>or share the link"] --> B["Recognize the provider<br/>unknown links are refused"]
-    B --> C["Import in the background<br/>retries on its own"]
-    C --> D["Download the e-receipt<br/>from the provider only, HTTPS"]
-    D --> E["Read and check it<br/>on the phone"]
-    E --> F["Match the shop, products,<br/>categories and prices"]
-    F --> G[("Encrypted database<br/>on the phone")]
+    A["You scan the QR code<br/>on the receipt"] --> B["The phone downloads<br/>the receipt from the<br/>company that issued it"]
+    B --> C["It reads every line:<br/>shop, products,<br/>prices, discounts"]
+    C --> D["Each product and shop<br/>gets a category"]
+    D --> E[("Saved on your phone,<br/>encrypted")]
+    E --> F["Spending, budgets and<br/>price history update"]
 ```
+
+No signal? The receipt waits and is fetched as soon as the phone is back online.
 
 ### Joining a household
 
-Done once per phone. Every phone that holds the household key is a member, and any member can
-add the next phone.
+Done once for each phone. The QR code is the household's secret: whoever scans it joins, so show
+it only to your own family. Any phone in the household can add the next one.
 
 ```mermaid
 sequenceDiagram
     actor You
-    participant A as Phone in the household
-    participant N as New phone
-    You->>A: Settings → Household sync → turn it on
-    Note over A: Creates the household key<br/>(the first phone only),<br/>wrapped by the Keystore
-    You->>A: Add a phone
-    A-->>You: A QR code with the household key and the phone's<br/>local address (screenshots blocked)
-    You->>N: Settings → Household sync → turn it on → Join a household
-    N->>A: Scan the code on its screen
-    Note over N: Stores the key<br/>and pairs that phone
-    N->>A: The first sync starts at once
-    Note over A,N: Both phones now hold<br/>the data of both.<br/>Nothing is replaced,<br/>only merged.
+    participant A as A phone in the household
+    participant N as The new phone
+    You->>A: Turn on Household sync
+    You->>A: Tap "Add a phone"
+    A-->>You: Shows a QR code
+    You->>N: Turn on Household sync, tap "Join a household"
+    N->>A: Scans the QR code
+    Note over A,N: The phones are now paired
+    N->>A: First sync, right away
+    Note over A,N: Both phones now have everything<br/>that was on either of them
 ```
 
-**Leave household sync** forgets the key and the paired phones on that phone. Its data and its
-sync history stay. Turning the switch off only pauses sync: turning it on again resumes it.
+Nothing is replaced when a phone joins: what was already on it is added to the household's.
+**Leave household sync** stops syncing on that phone; its receipts stay on it. Turning the
+switch off only pauses sync.
 
 ### Syncing receipts between phones
 
-While the app is open and sync is on, phones on the same Wi-Fi find each other and sync on
-their own (each pair at most every 15 minutes), or when you tap **Sync now**.
+Phones sync when they are on the same Wi-Fi with the app open: on their own when they find
+each other, or when you tap **Sync now**. Nothing goes over the internet.
 
 ```mermaid
 sequenceDiagram
     participant A as Phone A
     participant B as Phone B
-    Note over A,B: Each phone announces itself<br/>on the Wi-Fi (NSD) with a household<br/>tag that reveals nothing of the key:<br/>other households are ignored
-    A->>B: Hello, sealed with the household key
-    alt B is in another household or busy with another sync
-        B-->>A: Refused, nothing is exchanged
+    Note over A,B: Both on the same Wi-Fi, app open
+    A->>B: Are you in my household?
+    alt Another household's phone
+        B-->>A: No, nothing is shared
     else Same household
-        B->>A: Hello, sealed with the household key
-        Note over A,B: A key for this session only,<br/>from both hellos (HKDF-SHA256).<br/>Everything after this is<br/>encrypted with it (AES-256-GCM).
-        A->>B: All of A's data, without receipt links
-        B->>B: Merge it in (one transaction)
-        B->>A: All of B's data, A's included now
-        A->>A: Merge it in
-        Note over A,B: Both phones hold the same data.<br/>Each adds the sync to its history:<br/>when, which phone, what changed.
+        B->>A: Yes
+        Note over A,B: From here on, everything is encrypted
+        A->>B: Here is everything I have
+        Note over B: Combines it with its own
+        B->>A: Here is everything, yours included
+        Note over A: Combines it with its own
+        Note over A,B: Both phones now have the same receipts.<br/>The sync appears in each one's sync history.
     end
 ```
 
-How two copies become one:
+When both phones have something, they agree on one version:
 
-- **The same receipt scanned on both phones** is recognized (by its official mark or issuer
-  and number) and kept once. The same goes for shops, stores, products and categories.
-- **An edit on both phones:** the later edit wins.
-- **A deletion** wins over an older copy, so a deleted receipt does not come back from the
-  other phone.
-- **Receipt links stay on the phone that scanned them.** A receipt from another phone says so
-  and has no "Open original".
-- Syncing in any order, with any phone, gives every phone the same result.
+```mermaid
+flowchart LR
+    S["During a sync"] --> A["Only one phone<br/>has a receipt"] --> A2["It is copied<br/>to the other"]
+    S --> B["Both scanned the<br/>same receipt"] --> B2["It is kept once"]
+    S --> C["Both changed<br/>the same thing"] --> C2["The later<br/>change is kept"]
+    S --> D["One phone<br/>deleted it"] --> D2["It is deleted<br/>on both"]
+```
 
-The details (protocol, merge rules, limits) are in
-[`docs/design/household-sync.md`](docs/design/household-sync.md).
+The same goes for products, shops, categories, budgets and household settings. The receipt's
+link stays on the phone that scanned it: on the other phones the receipt says it was synced.
+
+The technical details are in [`docs/design/household-sync.md`](docs/design/household-sync.md).
 
 ## 📲 Install
 
