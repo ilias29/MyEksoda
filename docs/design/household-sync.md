@@ -73,6 +73,19 @@ the same Wi-Fi. No server, no account, no internet traffic.
 - Only private addresses are used, outgoing and incoming: 10/8, 172.16/12, 192.168/16,
   169.254/16, fc00::/7, fe80::/10. Anything else is refused before connecting and on accept.
 
+```mermaid
+flowchart TD
+    START(["App start"]) --> COND
+    COND{"In the foreground,<br/>sync on, a household key,<br/>on Wi-Fi or Ethernet?"}
+    COND -- no --> IDLE["No socket, no announcement"]
+    IDLE -. "a condition changes" .-> COND
+    COND -- yes --> LISTEN["Listen on that network's private IPv4,<br/>announce _eksoda._tcp with d and h,<br/>discover the phones with the same h"]
+    LISTEN --> TRIGGER{"What starts a sync"}
+    TRIGGER -- "a phone appeared, this id is<br/>the smaller, no try in 15 min" --> AUTO["Sync with that phone"]
+    TRIGGER -- "Sync now" --> ALL["Sync with every phone found<br/>and every paired phone<br/>at its last address"]
+    TRIGGER -- "just joined" --> FIRST["Sync with the phone that<br/>showed the code, through<br/>its address if not found"]
+```
+
 ### Protocol (one TCP connection, built: core:engine `SyncSession`)
 
 Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
@@ -96,6 +109,33 @@ Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
    only once the client proved it holds the key: strangers leave no trace; its entry says the
    other phone started it).
 
+```mermaid
+sequenceDiagram
+    participant C as Client (connects)
+    participant S as Server (listens)
+    C->>S: hello {protocol, device id, name, schema, nonce}<br/>AES-256-GCM, household key, role as additional data
+    alt S cannot open it
+        S-->>C: empty frame, both stop: not_paired (S records nothing)
+    else S is in another session
+        S-->>C: one-byte frame, both stop: busy
+    else Same household, S free
+        S->>C: hello (S's own)
+        opt protocol or schema differs
+            Note over C,S: both stop: schema_mismatch (both record it)
+        end
+        Note over C,S: session key = HKDF-SHA256(household key, both nonces)<br/>frames numbered from 0 per direction, the number is the GCM nonce
+        C->>S: snapshot: gzip JSON lines, no source_url, no import_job
+        S->>S: merge in one transaction
+        alt merge fails
+            S-->>C: error frame (merge_failed)
+        else merged
+            S->>C: snapshot after the merge (holds C's data too)
+            C->>C: merge in one transaction
+        end
+        Note over C,S: each writes its history entry (S's says the other phone started it)
+    end
+```
+
 The whole snapshot is sent every time. For a family this should be a few MB compressed
 (not measured yet: needs a real household's data on two phones). Sending only rows changed since
 the last sync with that phone is an optimization for later; the merge does not change.
@@ -113,6 +153,24 @@ the last sync with that phone is an optimization for later; the merge does not c
 Merging depends only on the two row sets, never on the order of syncs, and running it twice
 changes nothing. So any phone can sync with any other, in any order, and all phones converge.
 The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, remote)`.
+
+Tables are resolved parents first, so a child's pointers are already repointed when its own
+copies are grouped; deletions are settled last, over all tables at once (`Liveness`).
+
+```mermaid
+flowchart TD
+    ROWS["A table's rows from both phones<br/>(the remote's local columns dropped)"] --> FK["Repoint foreign keys<br/>to the parents' kept ids"]
+    FK --> GROUP["Group copies of one thing (union-find):<br/>same id, same unique key,<br/>product tombstones with replaced_by,<br/>two mappings of one shop line"]
+    GROUP --> KEEP["Keep the smallest id that still has a row"]
+    KEEP --> WIN["Winner: later updated_at,<br/>on a tie the larger content<br/>(local columns and id left out)"]
+    WIN --> TOMB{"A tombstone by id or unique key<br/>with deleted_at >= updated_at?"}
+    TOMB -- no --> ALIVE["Alive"]
+    TOMB -- yes --> MARK["Marked deleted"]
+    MARK --> LIVE{"Liveness: an alive row points<br/>at it through RESTRICT?"}
+    LIVE -- yes --> ALIVE
+    LIVE -- no --> GONE["Deleted: CASCADE children go too,<br/>SET NULL pointers cleared"]
+    ALIVE --> OUT["Written back, receipts keep<br/>this phone's own source_url"]
+```
 
 - **Same id:** the row with the later `updated_at` wins; on a tie, the larger row content
   (local columns left out), so both phones pick the same copy. Rows are whole: a concurrent
