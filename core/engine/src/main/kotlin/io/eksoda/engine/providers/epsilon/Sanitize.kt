@@ -14,7 +14,8 @@ import io.eksoda.engine.url.parseSubmittedUrl
 //
 // Replaced in place (shape-preserving fakes): the authentication code, payment transaction and
 // terminal ids, provider signatures, ECR tokens, free-text payment info and line comments, the
-// counterpart (buyer), and the document id wherever a receipt link shows it. The merchant's
+// counterpart (buyer), the myDATA QR token, and the document id wherever a receipt link shows
+// it. The merchant's
 // VAT number, UID and MARK are business data and stay.
 
 public val FAKE_HEX_ID: String = "0".repeat(32)
@@ -37,6 +38,10 @@ private val LINK_PATTERNS = listOf(
     Regex("""documentId=($UUID)""", RegexOption.IGNORE_CASE) to FAKE_UUID,
 )
 
+/** The token in the myDATA QR address (qrCodeUrl) identifies the receipt at AADE. */
+private val MYDATA_QR_TOKEN = Regex("""TimologioQR/QRInfo\?q=([^<\s&"]+)""")
+internal const val MYDATA_QR_REDACTED = "REDACTED"
+
 public fun sanitizeXml(rawXml: String): SanitizeResult {
     val document = parseXml(rawXml)
     val secrets = Secrets()
@@ -51,6 +56,7 @@ public fun sanitizeXml(rawXml: String): SanitizeResult {
     for ((pattern, fake) in LINK_PATTERNS) {
         secrets.replacePattern(pattern, { fake }, "url_document_id")
     }
+    secrets.replacePattern(MYDATA_QR_TOKEN, { MYDATA_QR_REDACTED }, "mydata_qr_token")
     return finish(document, secrets)
 }
 

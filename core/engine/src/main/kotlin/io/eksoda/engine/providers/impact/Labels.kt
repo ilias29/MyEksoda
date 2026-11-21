@@ -21,7 +21,8 @@ internal object Labels {
             "Code", "Description1", "Quantity", "MeasurementUnit", "UnitPrice",
             "NetTotal", "VatCategory", "VATTotal", "Total",
         ),
-        "payment" to setOf("PaymentMethodType", "Amount"),
+        // The tip is read from the tax view.
+        "payment" to setOf("PaymentMethodType", "Amount", "TipAmount"),
         "summary" to setOf("CurrencyCode", "TotalNetAmount", "TotalVATAmount", "TotalGrossValue"),
         "certification" to setOf("Mark", "Uid", "ServiceSupplier"),
     )

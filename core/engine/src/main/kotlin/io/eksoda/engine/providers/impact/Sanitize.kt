@@ -58,7 +58,8 @@ public fun sanitizeHtml(rawHtml: String): SanitizeResult {
 
     stripActiveContent(document)
     document.select(".qrcode-container").forEach { it.empty() }
-    document.select("a[href*=mydatapi.aade.gr]").attr("href", MYDATA_QR_REDACTED)
+    // Any element: some pages link it from a <fluent-anchor>, not an <a>.
+    document.select("[href*=mydatapi.aade.gr]").attr("href", MYDATA_QR_REDACTED)
     for (pattern in GUID_PATTERNS) secrets.replacePattern(pattern, { FAKE_GUID }, "url_access_guid")
     return finish(document, secrets)
 }

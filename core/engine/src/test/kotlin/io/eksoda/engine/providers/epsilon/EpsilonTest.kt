@@ -149,6 +149,19 @@ class EpsilonTest {
     }
 
     @Test
+    fun `the shared host takes the issuer name from the XML`() {
+        val fuel = fixtureDir.resolve("fuel_3rd_1_line.xml").readText()
+        val shared = identity("https://epsilondigital-3rd.epsilonnet.gr/fd/$FAKE_HEX_ID:97")
+        assertThat(shared.providerCode).isEqualTo(PROVIDER_CODE)
+        val receipt = parseDocument(fuel, shared)
+        assertThat(receipt.issuer.legalName).isEqualTo("R203-ΚΟΖΑΝΗ")
+        assertThat(receipt.lines.single().unit).isEqualTo(io.eksoda.engine.mydata.Unit.L)
+        // No tenant entry names its issuers: without the XML name the receipt is refused.
+        val unnamed = fuel.replace("<name>R203-ΚΟΖΑΝΗ</name>", "")
+        assertFailure { parseDocument(unnamed, shared) }.isInstanceOf<FormatChanged>()
+    }
+
+    @Test
     fun `lines that do not add up to the summary are refused`() {
         val wrong = fixture.replace("<netValue>5.96<", "<netValue>9.96<")
         assertFailure { parse(wrong) }.isInstanceOf<InconsistentSource>()
@@ -187,6 +200,15 @@ class EpsilonTest {
         assertThat(result.replaced["counterpart"]).isEqualTo(1)
         // The sanitized XML is still the same receipt.
         assertThat(parse(result.html).identity.mark).isEqualTo("400016074087707")
+    }
+
+    @Test
+    fun `sanitizing redacts the myDATA QR token`() {
+        val fuel = fixtureDir.resolve("fuel_3rd_1_line.xml").readText()
+        val raw = fuel.replace("QRInfo?q=REDACTED", "QRInfo?q=FakeQrTokenAbc%2b123")
+        val result = sanitizeXml(raw)
+        assertThat(result.html).doesNotContain("FakeQrTokenAbc")
+        assertThat(result.replaced["mydata_qr_token"]).isEqualTo(1)
     }
 
     @Test

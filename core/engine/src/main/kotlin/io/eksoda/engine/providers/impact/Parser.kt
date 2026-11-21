@@ -163,7 +163,17 @@ private class Builder(
     fun identity(): Identity {
         val uid = required(t.identifiers, "uid", "tax.uid").uppercase(Locale.ROOT)
         agree(c.certification["Uid"].orEmpty().uppercase(Locale.ROOT).ifEmpty { null }, uid, "UID")
-        if (uid != url.uid) throw InconsistentSource("the page UID differs from the URL")
+        val pageUrl = t.identifiers["url"]?.ifEmpty { null }
+        if (pageUrl != null &&
+            pageUrl.trimEnd('/').uppercase(Locale.ROOT) != url.canonicalUrl.uppercase(Locale.ROOT)
+        ) {
+            throw InconsistentSource("the receipt URL printed on the page differs")
+        }
+        // The link's 40-hex id is usually the myDATA UID (METRO), but some issuers use an id of
+        // their own (observed 2026-11-20, VAT 801810254). Then the page must print this link.
+        if (uid != url.uid && pageUrl == null) {
+            throw InconsistentSource("the page UID differs from the URL")
+        }
 
         val taxVat = required(t.issuer, "vat", "tax.issuer.vat")
         var commercialVat = c.issuer["Vat"].orEmpty().uppercase(Locale.ROOT)
@@ -178,12 +188,6 @@ private class Builder(
         val country = t.issuer["country"]
         if (!country.isNullOrEmpty() && country.uppercase(Locale.ROOT) != url.issuerCountry) {
             throw InconsistentSource("the page issuer country differs from the URL")
-        }
-        val pageUrl = t.identifiers["url"]
-        if (!pageUrl.isNullOrEmpty() &&
-            pageUrl.trimEnd('/').uppercase(Locale.ROOT) != url.canonicalUrl.uppercase(Locale.ROOT)
-        ) {
-            throw InconsistentSource("the receipt URL printed on the page differs")
         }
 
         val failure =

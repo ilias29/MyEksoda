@@ -6,7 +6,8 @@ import java.util.Locale
 
 // Epsilon Digital (Epsilon Net) receipt URL recognition.
 //
-// Every merchant has its own host, e.g. epsilondigital-sklavenitis.epsilonnet.gr. The receipt's
+// A big merchant has its own host, e.g. epsilondigital-sklavenitis.epsilonnet.gr; smaller ones
+// share epsilondigital-3rd.epsilonnet.gr (a fuel station, observed 2026-11-20). The receipt's
 // QR code links to /fd/{document id}:{number}, which redirects to the viewer
 // /DocViewer/{document UUID}. The viewer is behind a Cloudflare Turnstile check, so the app
 // reads the receipt's detailed myDATA XML instead (fetchDocument in Sanitize.kt).
@@ -29,7 +30,13 @@ public val TENANTS: List<Tenant> = listOf(
     ),
 )
 
-public val HOSTS: Set<String> = TENANTS.map { it.host }.toSet()
+/**
+ * Hosts shared by many merchants. Their XML names the issuer (`issuer/name`), so they need no
+ * tenant entry; a receipt without that name is refused.
+ */
+public val SHARED_HOSTS: Set<String> = setOf("epsilondigital-3rd.epsilonnet.gr")
+
+public val HOSTS: Set<String> = TENANTS.map { it.host }.toSet() + SHARED_HOSTS
 
 public fun tenant(host: String): Tenant? = TENANTS.firstOrNull { it.host == host }
 
