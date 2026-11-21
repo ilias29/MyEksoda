@@ -62,6 +62,7 @@ import io.eksoda.core.model.MonthPace
 import io.eksoda.core.model.Receipt
 import io.eksoda.core.model.SpendingBucketKind
 import io.eksoda.core.ui.component.EmptyState
+import io.eksoda.core.ui.component.FromOtherPhoneMark
 import io.eksoda.core.ui.component.HeroMoney
 import io.eksoda.core.ui.component.MoneyText
 import io.eksoda.core.ui.text.appLocale
@@ -493,12 +494,19 @@ private fun RecentCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Text(
-                        receipt.merchant.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            receipt.merchant.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (receipt.fromOtherPhone) FromOtherPhoneMark()
+                    }
                     Text(
                         monoNumbers(subtitle),
                         style = MaterialTheme.typography.bodySmall,

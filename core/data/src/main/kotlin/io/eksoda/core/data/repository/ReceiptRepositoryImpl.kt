@@ -185,6 +185,7 @@ class ReceiptRepositoryImpl @Inject constructor(
         itemCount = itemCount,
         needsReview = needsReview,
         hasWarnings = hasWarnings,
+        fromOtherPhone = receipt.sourceUrl == null,
     ).toModel(zone)
 
     private fun ReceiptListRow.toModel(zone: ZoneId): Receipt = Receipt(
@@ -208,6 +209,7 @@ class ReceiptRepositoryImpl @Inject constructor(
         excludedFromAnalytics = excludedFromAnalytics,
         needsReview = needsReview,
         hasWarnings = hasWarnings,
+        fromOtherPhone = fromOtherPhone,
     )
 
     private fun ReceiptRow.toDetail(items: List<ReceiptItemRow>, zone: ZoneId): ReceiptDetail {

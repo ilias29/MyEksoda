@@ -43,6 +43,8 @@
     <string name="bucket_other_adjustments">Other adjustments</string>
     <string name="bucket_unallocated">Receipts without items</string>
 
+    <string name="from_other_phone">From another phone of the household</string>
+
     <string name="day_today">Today</string>
     <string name="day_yesterday">Yesterday</string>
 

@@ -39,7 +39,7 @@ data class ReceiptKeys(
 /**
  * A receipt as the list shows it: only the columns a row needs. The list never loads
  * `source_data`, `validation_warnings` or the `source_url` credential, so pages stay
- * small and the link is not held in list memory.
+ * small and the link is not held in list memory; only whether there is one.
  */
 data class ReceiptListRow(
     val id: String,
@@ -60,6 +60,8 @@ data class ReceiptListRow(
     @ColumnInfo(name = "item_count") val itemCount: Int,
     @ColumnInfo(name = "needs_review") val needsReview: Boolean,
     @ColumnInfo(name = "has_warnings") val hasWarnings: Boolean,
+    /** No link on this phone: the receipt came from another phone by household sync. */
+    @ColumnInfo(name = "from_other_phone") val fromOtherPhone: Boolean,
 )
 
 /** A line with its product's name and category slug. */
@@ -221,6 +223,7 @@ interface ReceiptDao {
             receipt.currency AS currency, receipt.gross_total_minor AS gross_total_minor,
             receipt.payment_method AS payment_method, receipt.document_kind AS document_kind,
             receipt.status AS status, receipt.excluded_from_analytics AS excluded_from_analytics,
+            (receipt.source_url IS NULL) AS from_other_phone,
             $ROW_EXTRAS"""
     }
 }

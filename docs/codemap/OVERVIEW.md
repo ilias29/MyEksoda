@@ -10,8 +10,8 @@ line range. Keep this file current when a change adds a module, a pipeline step 
 ## What the app promises
 
 Your receipts never leave the phone: no account, no analytics, no crash reporting.
-The only network traffic is HTTPS GETs to the receipt providers (Impact, Entersoft, AADE,
-Epsilon Digital), and, only when the user turns household sync on, encrypted sessions with
+The only network traffic is HTTPS GETs to the receipt providers (Impact, s1ecos, Entersoft,
+AADE, Epsilon Digital), and, only when the user turns household sync on, encrypted sessions with
 the household's phones on the local network (private addresses, never the internet).
 Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false`,
 `dataExtractionRules`); the user's own encrypted export is the only backup.
@@ -82,7 +82,7 @@ Engine entry point: `core/engine/.../engine/Engine.kt`: `resolve(rawUrl): Resolv
 sealed `ReceiptException` (`ReceiptException.kt`) with `code`, retry policy and
 `publicMessage` (never shown; UI maps `code` with `importErrorRes`).
 
-Providers: `engine/providers/{impact,entersoft,aadefhm,epsilon}/` each with `Urls.kt`
+Providers: `engine/providers/{impact,s1ecos,entersoft,aadefhm,epsilon}/` each with `Urls.kt`
 (recognize), `Parser.kt` (layouts → `CanonicalReceipt`), `Sanitize.kt`; Impact also
 `Labels.kt`, `Views.kt`. Shared: `Base.kt` (`Provider`, `Layout`, `UrlIdentity`,
 `maskUrl`), `Registry.kt` (`REGISTRY`), `Html.kt` (`textOf`, Jsoup), `Sanitizing.kt`.
@@ -95,6 +95,11 @@ Cloudflare Turnstile check) but from the receipt's detailed myDATA XML
 (`SHARED_HOSTS`) carry the issuer name in the XML.
 Impact: the link's 40-hex id is usually the myDATA UID but not always; when it differs, the
 page's tax view must print the link itself.
+s1ecos (`einvoice.s1ecos.gr`) serves Impact's pages under its own host: its own provider code and
+parser version, read by Impact's layout (`impact/Parser.kt` `Site`: code, version, printed-link
+rule; `parsePage`) and Impact's sanitizer. Its QR link is `/v/<prefix><VAT>-<number>-<40-hex
+authentication code>-<GUID>` (`s1ecos/Urls.kt`); the page prints the `/p/` form, which must have
+the same issuer and access GUID (`printsLink`). Neither 40-hex id is the myDATA UID.
 Fixtures: `testdata/fixtures/<provider>/` (sample page + expected JSON), edited with the parser.
 `EpsilonTest` compares its fixture with the golden JSON and, on a difference, writes the
 actual output to `core/engine/build/golden/` for review.
@@ -150,7 +155,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   `Pager` in the repository).
 - Dynamic list SQL: `repository/ReceiptQuery.kt` builds `SimpleSQLiteQuery` with bound
   args on top of `ReceiptDao.LIST_SELECT` (the `ReceiptListRow` projection: never
-  `source_data` or the URL); `ROW_SELECT` (`receipt.*`) is for one receipt (detail). Search
+  `source_data` or the URL, only `from_other_phone`, whether it is null: synced receipts carry
+  `core:ui` `FromOtherPhoneMark` in the list and on Home); `ROW_SELECT` (`receipt.*`) is for one receipt (detail). Search
   is `instr(normalized_col, :key) > 0` on `normalizeText(query)`. Orderings end with the id in
   the same direction, matching the `(issued_at, id)` and `(gross_total_minor, id)` indexes.
 - Database key (`db/KeyManager.kt`, the only code touching keys): 32 random bytes, wrapped by an
