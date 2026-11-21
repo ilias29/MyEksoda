@@ -75,7 +75,9 @@ class ImportPipelineTest {
         assertThat(chicken.totalPrice.amount.toPlainString()).isEqualTo("7.37")
         assertThat(chicken.matchStatus).isEqualTo(MatchStatus.MATCHED)
         assertThat(chicken.productName).isNotNull()
-        assertThat(app.count("SELECT discount_amount_minor FROM receipt_item WHERE line_number = 7"))
+        assertThat(
+            app.count("SELECT discount_amount_minor FROM receipt_item WHERE line_number = 7"),
+        )
             .isEqualTo(738)
         assertThat(app.count("SELECT discount_total_minor FROM receipt")).isEqualTo(738)
     }
@@ -110,7 +112,8 @@ class ImportPipelineTest {
     @Test
     fun `an Entersoft receipt is read from the document its page frames`() = runTest {
         app.fetcher.serveEntersoft(LIDL)
-        val detail = checkNotNull(app.repository.getReceipt(app.receiptOf(app.import(LIDL))).first())
+        val detail =
+            checkNotNull(app.repository.getReceipt(app.receiptOf(app.import(LIDL))).first())
         assertThat(detail.providerCode).isEqualTo("entersoft")
         assertThat(detail.items.size).isEqualTo(21)
         assertThat(detail.warnings).isEmpty()
@@ -154,6 +157,7 @@ class ImportPipelineTest {
         assertThat(app.jobs.get(jobId)?.status).isEqualTo(ImportService.STATUS_PENDING)
         // Only a failed job can be retried.
         assertThat(app.repository.retryImport(jobId).exceptionOrNull())
+            .isNotNull()
             .isInstanceOf<IllegalStateException>()
         // Scanning the link again while it waits does not add a job.
         assertThat(app.service.submit(Fixtures.url(MYMARKET)))

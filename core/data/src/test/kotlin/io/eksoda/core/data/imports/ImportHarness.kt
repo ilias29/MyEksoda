@@ -187,11 +187,10 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     suspend fun receiptOf(jobId: String): String = checkNotNull(jobs.get(jobId)?.receiptId)
 
     /** One number from the database (a count, a sum). */
-    fun count(sql: String): Long =
-        database.openHelper.readableDatabase.query(sql).use { cursor ->
-            cursor.moveToFirst()
-            cursor.getLong(0)
-        }
+    fun count(sql: String): Long = database.openHelper.readableDatabase.query(sql).use { cursor ->
+        cursor.moveToFirst()
+        cursor.getLong(0)
+    }
 
     override fun close() {
         scope.cancel()
