@@ -1,0 +1,1 @@
+{"url": "https://einvoice.s1ecos.gr/v/EL094395700-000000000-0000000000000000000000000000000000000000-00000000000000000000000000000000", "description": "s1ecos page for a /v/ link whose access GUID matches no document (HTTP 200)", "expect": {"error": "receipt_not_found"}}

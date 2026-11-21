@@ -43,6 +43,8 @@
     <string name="bucket_other_adjustments">Λοιπές διορθώσεις</string>
     <string name="bucket_unallocated">Αποδείξεις χωρίς είδη</string>
 
+    <string name="from_other_phone">Από άλλο κινητό του νοικοκυριού</string>
+
     <string name="day_today">Σήμερα</string>
     <string name="day_yesterday">Χθες</string>
 

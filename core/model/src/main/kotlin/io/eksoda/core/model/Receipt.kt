@@ -20,6 +20,11 @@ public data class Receipt(
     val excludedFromAnalytics: Boolean,
     val needsReview: Boolean,
     val hasWarnings: Boolean,
+    /**
+     * The receipt came from another phone by household sync (this phone has no link for it).
+     * The lists mark it; the detail explains it.
+     */
+    val fromOtherPhone: Boolean = false,
 )
 
 public data class Merchant(val id: String, val name: String)

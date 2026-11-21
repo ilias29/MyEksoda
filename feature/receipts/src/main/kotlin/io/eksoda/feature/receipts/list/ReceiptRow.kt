@@ -30,6 +30,7 @@ import io.eksoda.core.model.DocumentKind
 import io.eksoda.core.model.Money
 import io.eksoda.core.model.PaymentMethod
 import io.eksoda.core.model.Receipt
+import io.eksoda.core.ui.component.FromOtherPhoneMark
 import io.eksoda.core.ui.component.MoneyText
 import io.eksoda.core.ui.motion.SharedKeys
 import io.eksoda.core.ui.motion.sharedBoundsIfAvailable
@@ -58,15 +59,23 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit) {
     ) {
         MerchantAvatar(receipt.merchant.id, receipt.merchant.name)
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = receipt.merchant.name,
-                style = typography.bodyLarge,
-                color = colors.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.sharedBoundsIfAvailable(SharedKeys.receiptMerchant(receipt.id)),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = receipt.merchant.name,
+                    style = typography.bodyLarge,
+                    color = colors.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .sharedBoundsIfAvailable(SharedKeys.receiptMerchant(receipt.id)),
+                )
+                if (receipt.fromOtherPhone) FromOtherPhoneMark()
+            }
             Text(
                 text = summaryLine(receipt),
                 style = typography.bodyMedium,
