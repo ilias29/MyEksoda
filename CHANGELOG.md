@@ -3,19 +3,31 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
-## 0.3.1
+## 0.3.1 - More receipts import
+
+A small update for receipts that some shops' e-receipt pages kept from importing. Install it
+over 0.3.0 as usual: your data stays, and household sync keeps working between 0.3.0 and
+0.3.1.
 
 ### Fixed
 
 - **Impact receipts that said "The receipt page has conflicting information"** now import.
-  Some shops put an id of their own in the receipt link instead of the receipt's official one;
-  the app now accepts such a receipt when its page names the scanned link as its own
-  ([#6](https://github.com/tsaklidis/MyEksoda/issues/6)). A receipt that failed this way is
-  tried again automatically after the update.
-- **Epsilon Digital receipts from smaller shops** (links on `epsilondigital-3rd.epsilonnet.gr`,
-  such as fuel stations) are now supported. The shop's name is shown as the receipt prints it;
-  you can rename the shop in the app. Scan these receipts again: the earlier attempt was
-  refused before anything was saved.
+  Some shops put an id of their own in the receipt link instead of the receipt's official one.
+  The app now accepts such a receipt when its page names the scanned link as its own
+  ([#6](https://github.com/tsaklidis/MyEksoda/issues/6)). Receipts that failed this way are
+  tried again automatically after the update, so there is no need to scan them again.
+- **Epsilon Digital receipts from smaller shops**, such as fuel stations (links on
+  `epsilondigital-3rd.epsilonnet.gr`), are now supported. The shop's name is shown as the
+  receipt prints it, which may be the station's label (for example "R203-ΚΟΖΑΝΗ"); you can
+  rename the shop in the app. Scan these receipts again: the earlier attempt was refused before
+  anything was saved.
+
+### Improved
+
+- **Payments on Impact receipts are checked more carefully.** The amount and the tip must
+  match in both parts of the receipt page; a page whose payment details disagree is refused
+  instead of being saved with the wrong amount. The receipt shows the payment method as
+  printed (for example "EPAY A80").
 
 ## 0.3.0
 
