@@ -7,9 +7,9 @@ GRADLE := ./gradlew
 DETEKT := detektDebug detektDebugUnitTest :core:engine:detektMain :core:engine:detektTest :core:model:detektMain :core:model:detektTest
 
 .PHONY: build test lint coverage no-telemetry check install install_rc format clean codemap \
-	release_key new_release
+	release_key bump publish
 
-# Version part new_release bumps: patch (0.1.0 -> 0.1.1), minor (-> 0.2.0) or major (-> 1.0.0).
+# Version part bump raises: patch (0.1.0 -> 0.1.1), minor (-> 0.2.0) or major (-> 1.0.0).
 BUMP ?= patch
 
 build:  ## Debug APK
@@ -49,8 +49,11 @@ codemap:  ## Regenerate docs/codemap/SYMBOLS.md (declaration index)
 release_key:  ## Once: create the release signing key in ~/.eksoda (then back it up)
 	bash scripts/release_key.sh
 
-new_release:  ## Check, bump the version (BUMP=patch|minor|major), build eksoda-<version>.apk in the root
-	bash scripts/new_release.sh $(BUMP)
+bump:  ## On a PR branch: bump the version (BUMP=patch|minor|major), add its CHANGELOG.md section
+	bash scripts/bump_version.sh $(BUMP)
+
+publish:  ## After merging to master: check, build the signed APK, tag and create the GitHub release
+	bash scripts/publish_release.sh
 
 clean:
 	$(GRADLE) clean

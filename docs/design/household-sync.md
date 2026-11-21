@@ -1,8 +1,9 @@
-# Household sync (design, not built yet)
+# Household sync (design; built in 0.3.0)
 
 Phones of the same household (for example four family members) share one set of receipts,
 products, categories, budgets and household settings by syncing directly with each other on
-the same Wi-Fi. No server, no account, no internet traffic.
+the same Wi-Fi. No server, no account, no internet traffic. For the overview in pictures, see
+[How it works](../../README.md#%EF%B8%8F-how-it-works) in the README.
 
 ## Decisions (owner, 2026-11-19)
 
