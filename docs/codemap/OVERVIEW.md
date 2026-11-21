@@ -297,4 +297,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 - OkHttp only in `core:engine` (configuration fails elsewhere). No Firebase/ML Kit/GMS
   (`:app:checkNoTelemetry`).
 - Tests: JUnit 5 + AssertK in `core:engine` (fixtures in `testdata/fixtures/`); JUnit 4 +
-  Robolectric in Android modules (in-memory Room).
+  Robolectric in Android modules (in-memory Room). Every change ships with tests for its new
+  paths, warning and error paths included. Coverage: `core:engine` ≥ 90% lines (Kover, in
+  `make check`); on pull requests Codecov (`codecov.yml`) requires 90% of the changed lines
+  covered and lets the total drop at most 0.5%. Check a file with
+  `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`).
