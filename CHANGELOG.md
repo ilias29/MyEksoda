@@ -3,6 +3,25 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.2 - One more receipt site, and synced receipts at a glance
+
+A small update: receipts from one more e-receipt site now import, and the lists show which
+receipts came from another phone of the household. Install it over 0.3.1 as usual: your data
+stays, and household sync keeps working between 0.3.1 and 0.3.2.
+
+### New
+
+- **Receipts on `einvoice.s1ecos.gr`** now import, for example Sephora's. Scan the receipt's
+  QR code as usual; the link printed on the receipt's page works too. Scan these receipts
+  again: the earlier attempt was refused before anything was saved.
+
+### Improved
+
+- **Receipts from another phone are marked in the lists.** With household sync on, a receipt
+  that another phone of the household scanned shows a small ⇄ mark next to the shop's name,
+  in Receipts and in Home's recent receipts, so you can tell before opening it. Inside the
+  receipt, the note about where it came from stays as it was.
+
 ## 0.3.1 - More receipts import
 
 A small update for receipts that some shops' e-receipt pages kept from importing. Install it
