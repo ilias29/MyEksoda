@@ -341,6 +341,17 @@ private class Builder(
         }
 
         val unitPrice = num(c["UnitPrice"], where)
+        // The line discount in euros, VAT included (column "Έκπτ. 1", observed 2026-11-21; fixture
+        // mymarket_7_lines_discount line 7: 1.918 × 7.69 = 14.75, 7.38 off, 7.37 paid). The page
+        // prints no value before the discount: it is the total plus the discount, and validation
+        // checks it against quantity × unit price (R5) and the discount total (R17).
+        val printedDiscount = num(c[Labels.LINE_DISCOUNT], where)
+        // A negative one is a layout not seen yet: reported as format drift, not read.
+        val discount = printedDiscount?.takeIf { it.signum() >= 0 }
+        if (printedDiscount != null && discount == null) {
+            this.c.unknown["commercial.line.${Labels.LINE_DISCOUNT}"] =
+                c[Labels.LINE_DISCOUNT].orEmpty()
+        }
         val lineNumber = t["line_number"]?.ifEmpty { null } ?: index.toString()
         if (!lineNumber.pyIsDigit()) throw FormatChanged("$where: line number '$lineNumber'")
         val raw = LinkedHashMap<String, String>()
@@ -357,6 +368,8 @@ private class Builder(
             unitPrice = unitPrice,
             // Impact prints VAT-inclusive unit prices (0.622 kg × 7.21 = 4.48 gross).
             unitPriceBasis = if (unitPrice != null) PriceBasis.GROSS else PriceBasis.UNKNOWN,
+            grossBeforeDiscount = discount?.let { gross + it },
+            discount = discount,
             net = net,
             vatCategoryCode = category,
             vatRate = rate,
@@ -393,6 +406,8 @@ private class Builder(
             stampDuty = num(s["stamp_duty"], "summary"),
             digitalFee = num(s["digital_fee"], "summary"),
             deductions = num(s["deductions"], "summary"),
+            // "Σύνολο Εκπτώσεων" (commercial view only).
+            discount = num(c.summary["TotalAllowances"], "summary"),
         )
     }
 

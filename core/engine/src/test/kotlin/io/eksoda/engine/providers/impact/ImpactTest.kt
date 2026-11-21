@@ -3,12 +3,16 @@ package io.eksoda.engine.providers.impact
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.contains
+import assertk.assertions.containsExactly
 import assertk.assertions.doesNotContain
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNull
 import io.eksoda.engine.InconsistentSource
 import io.eksoda.engine.TestData
 import io.eksoda.engine.providers.REGISTRY
+import io.eksoda.engine.validation.validate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -17,12 +21,61 @@ import org.junit.jupiter.api.Test
 class ImpactTest {
     private val directory = TestData.fixtures.resolve("impact")
 
+    /** The identity of the link in fixture [name]'s meta file. */
+    private fun identityOf(name: String) = REGISTRY.resolveUrl(
+        Json.parseToJsonElement(directory.resolve("$name.meta.json").readText())
+            .jsonObject.getValue("url").jsonPrimitive.content,
+    ).second
+
     /** A receipt whose link id (2755C3…) is not its myDATA UID (7E7DCA…). */
     private val ownId = directory.resolve("kogimou_3_lines.html").readText()
-    private val ownIdUrl = Json.parseToJsonElement(
-        directory.resolve("kogimou_3_lines.meta.json").readText(),
-    ).jsonObject.getValue("url").jsonPrimitive.content
-    private val identity = REGISTRY.resolveUrl(ownIdUrl).second
+    private val identity = identityOf("kogimou_3_lines")
+
+    /** Line 7 is 1.918 kg × 7.69 = 14.75 with 7.38 off (50%), paid 7.37. */
+    private val discounted = directory.resolve("mymarket_7_lines_discount.html").readText()
+    private val discountedIdentity = identityOf("mymarket_7_lines_discount")
+
+    /** Line 7's discount cell. */
+    private val discountCell = "<span class=\"value\"> 7,38 </span> </span> </span></td>"
+
+    @Test
+    fun `a line discount is read, and the value before it is the total plus the discount`() {
+        val receipt = parseHtml(discounted, discountedIdentity)
+        val line = receipt.lines.single { it.lineNumber == 7 }
+        assertThat(line.discount?.toPlainString()).isEqualTo("7.38")
+        assertThat(line.grossBeforeDiscount?.toPlainString()).isEqualTo("14.75")
+        assertThat(line.gross.toPlainString()).isEqualTo("7.37")
+        // A line without a discount prints an empty cell.
+        assertThat(receipt.lines.first().discount).isNull()
+        assertThat(receipt.lines.first().grossBeforeDiscount).isNull()
+        assertThat(receipt.totals.discount?.toPlainString()).isEqualTo("7.38")
+        // Quantity × unit price now meets the value before the discount.
+        assertThat(validate(receipt)).isEmpty()
+    }
+
+    @Test
+    fun `a line discount that explains neither the unit price nor the total is a warning`() {
+        assertThat(discounted).contains(discountCell)
+        val page = discounted.replace(discountCell, discountCell.replace("7,38", "3,00"))
+        val issues = validate(parseHtml(page, discountedIdentity))
+        assertThat(issues.map { listOf(it.code, it.lineNumber, it.expected, it.actual) })
+            .containsExactly(
+                // 14.75 before the discount, but 7.37 + 3.00 = 10.37.
+                listOf("unit_price_mismatch", 7, "14.75", "10.37"),
+                // The summary still prints 7.38 off.
+                listOf("line_discounts_mismatch", null, "3.00", "7.38"),
+            )
+    }
+
+    @Test
+    fun `a negative line discount is not read but reported as an unknown field`() {
+        val page = discounted.replace(discountCell, discountCell.replace("7,38", "-7,38"))
+        val receipt = parseHtml(page, discountedIdentity)
+        val line = receipt.lines.single { it.lineNumber == 7 }
+        assertThat(line.discount).isNull()
+        assertThat(line.grossBeforeDiscount).isNull()
+        assertThat(receipt.unknownFields["commercial.line.Amount"]).isEqualTo("-7,38")
+    }
 
     @Test
     fun `a link id that is not the UID is accepted when the page prints that link`() {

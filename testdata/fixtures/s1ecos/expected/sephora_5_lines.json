@@ -412,6 +412,7 @@
       },
       "summary": {
         "CurrencyCode": "EUR",
+        "TotalAllowances": "0,00",
         "TotalGrossValue": "135,90",
         "TotalNetAmount": "109,60",
         "TotalVATAmount": "26,30"
@@ -453,7 +454,7 @@
   "totals": {
     "deductions": "0.00",
     "digital_fee": "0.00",
-    "discount": null,
+    "discount": "0.00",
     "fees": "0.00",
     "gross": "135.90",
     "gross_before_discount": null,
@@ -466,8 +467,7 @@
   "unknown_fields": {
     "commercial.header.EliseCore-Issuer-Ysn": "4560",
     "commercial.line.AllowancesPercentage": "",
-    "commercial.line.AllowancesTotal": "",
-    "commercial.summary.TotalAllowances": "0,00"
+    "commercial.line.AllowancesTotal": ""
   },
   "vat_breakdown": [
     {

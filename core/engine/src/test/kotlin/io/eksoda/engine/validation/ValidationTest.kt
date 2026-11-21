@@ -119,6 +119,20 @@ class ValidationTest {
     }
 
     @Test
+    fun `line discounts are compared with the discount total only when lines carry them`() {
+        val base = receipt(lines, vat = "1.82")
+        val withTotal = base.copy(totals = base.totals.copy(discount = d("1.00")))
+        // A receipt-level discount: no line carries one.
+        assertThat(codes(withTotal)).isEmpty()
+        val discounted = lines.map { it.copy(discount = d("0.20")) }
+        assertThat(codes(withTotal.copy(lines = discounted))).isEmpty()
+        val short = discounted.map { it.copy(discount = d("0.10")) }
+        val issues = validate(withTotal.copy(lines = short))
+        assertThat(issues.map { Triple(it.code, it.expected, it.actual) })
+            .containsExactly(Triple("line_discounts_mismatch", "0.50", "1.00"))
+    }
+
+    @Test
     fun `a breakdown VAT beyond what rounding explains is flagged`() {
         val issues = validate(receipt(emptyList(), vat = "1.79"))
         assertThat(issues.map { Triple(it.code, it.expected, it.actual) })
