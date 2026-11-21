@@ -198,9 +198,19 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     }
 
     companion object {
-        const val NOW = 1_763_700_000_000L
+        /** 2026-11-22T10:00Z: the day after the newest fixture (2026-11-21). */
+        const val NOW = 1_795_341_600_000L
+
+        /** METRO, 2026-11-21, 21.10. */
         const val MYMARKET = "impact/mymarket_7_lines_discount"
+
+        /** METRO, 2026-11-07, 9.15. */
         const val METRO_SAMPLE = "impact/sample_el"
+
+        /** A grill house, 2026-11-20, 22.90. */
+        const val KOGIMOU = "impact/kogimou_3_lines"
+
+        /** LIDL (Entersoft), 2026-07-13, 75.48. */
         const val LIDL = "entersoft/lidl_21_lines"
     }
 }
