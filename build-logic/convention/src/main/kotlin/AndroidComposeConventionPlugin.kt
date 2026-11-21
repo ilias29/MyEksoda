@@ -17,7 +17,7 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
             // core:model types are immutable: rows skip redrawing when their data is equal.
             extensions.configure<ComposeCompilerGradlePluginExtension> {
                 stabilityConfigurationFiles.add(
-                    rootProject.layout.projectDirectory.file("compose-stability.conf"),
+                    rootProject.layout.projectDirectory.file("config/compose/stability.conf"),
                 )
             }
             dependencies {

@@ -253,7 +253,7 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 - **Look: `docs/design/ui-redesign.md`** (color meanings, type, charts). Colors from
   `MaterialTheme.colorScheme` or `EksodaTheme.colors`, never a hex in a screen. Cards are
   `SectionCard`, small labels `OverlineText`, figures `StatRow`.
-- **Compose stability:** `compose-stability.conf` (root, applied by `eksoda.android.compose`)
+- **Compose stability:** `config/compose/stability.conf` (applied by `eksoda.android.compose`)
   marks every `core:model` type stable, so list rows skip redrawing when their data is equal.
   Keep `core:model` immutable (no `var`, no mutable collections). List rows are plain
   `Row`s, not `ListItem` (see `ReceiptRow`).

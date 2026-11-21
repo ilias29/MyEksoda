@@ -14,7 +14,7 @@ Eksoda is a standalone, privacy-first Android household expense app built around
   <tr>
     <td align="center"><img src="docs/screenshots/home.png" width="200" alt="Home"><br><sub>Home</sub></td>
     <td align="center"><img src="docs/screenshots/stats.png" width="200" alt="Stats"><br><sub>Stats</sub></td>
-    <td align="center"><img src="docs/screenshots/stats1.png" width="200" alt="Stats detail"><br><sub>Stats detail</sub></td>
+    <td align="center"><img src="docs/screenshots/stats-detail.png" width="200" alt="Stats detail"><br><sub>Stats detail</sub></td>
     <td align="center"><img src="docs/screenshots/insights.png" width="200" alt="Insights"><br><sub>Insights</sub></td>
   </tr>
 </table>
@@ -56,7 +56,7 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 
 **Your data**
 - **Encrypted backups** you can export and restore, and open on a computer with
-  [`decrypt_bu.py`](decrypt_bu.py).
+  [`tools/decrypt_backup.py`](tools/decrypt_backup.py).
 - **Greek and English.**
 
 ## 🔒 Privacy First
@@ -69,7 +69,7 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 - **Encrypted:** everything is stored encrypted on the phone, and backups are protected by a
   passphrase you choose.
 - **Never locked in:** a backup can be opened on a computer with
-  [`decrypt_bu.py`](decrypt_bu.py), without the app.
+  [`tools/decrypt_backup.py`](tools/decrypt_backup.py), without the app.
 
 The technical details are under [Security details](#security-details).
 
@@ -147,13 +147,13 @@ Every merge to master is a release:
    `v<version>` and creates the GitHub release with the changelog section and the checksums as
    its notes. It needs `gh` logged in with an account that can push to the repository.
 
-## 📦 Backup Recovery (`decrypt_bu.py`)
+## 📦 Backup Recovery (`tools/decrypt_backup.py`)
 
 If you have an Eksoda backup file (`.eksoda`) and cannot access the Android app, you can decrypt and inspect your backup data independently using the Python recovery script:
 
 ```bash
 pip install cryptography
-python3 decrypt_bu.py your_backup.eksoda [output_archive.zip]
+python3 tools/decrypt_backup.py your_backup.eksoda [output_archive.zip]
 ```
 
 ## Documentation
