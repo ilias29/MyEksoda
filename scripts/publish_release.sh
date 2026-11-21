@@ -11,7 +11,9 @@
 # 4. Tags master v<version>, pushes the tag, and creates the GitHub release: the changelog
 #    section and the checksums as its notes, the APK attached.
 #
-# After a failure, run it again: a tag already on this commit is reused. Nothing is committed.
+# It runs on master and returns to the branch it was started from, also after a failure or a No.
+# After a failure, run it again: a tag already on this commit is reused, and a release an earlier
+# run left as a draft or without its APK is finished. Nothing is committed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -43,6 +45,17 @@ DIRTY="$(git status --porcelain | grep -vE '^\?\? eksoda-[^/]*\.apk$' || true)"
 [[ -z "$DIRTY" ]] || fail "the working tree has changes; commit or stash them first:
 $DIRTY"
 
+START_BRANCH="$(git branch --show-current)"
+NOTES_FILE=""
+cleanup() {
+    [[ -z "$NOTES_FILE" ]] || rm -f "$NOTES_FILE"
+    if [[ -n "$START_BRANCH" && "$START_BRANCH" != "master" &&
+        "$(git branch --show-current)" == "master" ]]; then
+        git switch --quiet "$START_BRANCH" && echo "publish: back on $START_BRANCH" >&2
+    fi
+}
+trap cleanup EXIT
+
 git switch --quiet master
 git pull --quiet --ff-only origin master
 git fetch --quiet --tags origin
@@ -62,9 +75,14 @@ NAME="$(property versionName "$VERSION_FILE")"
 TAG="v$NAME"
 OUTPUT="eksoda-$NAME.apk"
 
-if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-    fail "$TAG is already published. The next release needs its version bumped in a pull \
+# A release an interrupted run left behind (a draft, or without the APK) is finished, not refused.
+RESUME=""
+if RELEASE_STATE="$(gh release view "$TAG" --repo "$REPO" --json isDraft,assets \
+    --jq "\"\(.isDraft) \(any(.assets[]; .name == \"$OUTPUT\"))\"" 2>/dev/null)"; then
+    [[ "$RELEASE_STATE" != "false true" ]] ||
+        fail "$TAG is already published. The next release needs its version bumped in a pull \
 request first: make bump BUMP=patch|minor|major"
+    RESUME=1
 fi
 
 # The last release: the highest X.Y.Z among the tags (older ones are named v.X.Y.Z).
@@ -101,6 +119,7 @@ TITLE="Release $TAG${HEADING#"## $NAME"}"
 echo "publish: $TITLE"
 echo "  versionCode $CODE, from master at $(git log -1 --format='%h %s')"
 echo "  on $REPO, after ${LAST_TAG:-no earlier release}"
+[[ -z "$RESUME" ]] || echo "  finishing the release an earlier run left unfinished"
 read -r -p "Build and publish it? [y/N] " ANSWER
 [[ "$ANSWER" =~ ^[Yy]$ ]] || fail "nothing published"
 
@@ -132,7 +151,6 @@ FILE_SHA256="$(shasum -a 256 "$OUTPUT" | cut -d ' ' -f 1)"
 # --- 4. Tag and release ------------------------------------------------------------------------
 
 NOTES_FILE="$(mktemp)"
-trap 'rm -f "$NOTES_FILE"' EXIT
 {
     printf '%s\n\n---\n\n' "$NOTES"
     echo "\`$OUTPUT\`, version $NAME ($CODE)"
@@ -143,8 +161,14 @@ trap 'rm -f "$NOTES_FILE"' EXIT
 
 git rev-parse --quiet --verify "refs/tags/$TAG" >/dev/null || git tag -a "$TAG" -m "Release $NAME"
 git push --quiet origin "refs/tags/$TAG"
-gh release create "$TAG" "$OUTPUT" --repo "$REPO" --verify-tag --title "$TITLE" \
-    --notes-file "$NOTES_FILE"
+if [[ -n "$RESUME" ]]; then
+    gh release upload "$TAG" "$OUTPUT" --repo "$REPO" --clobber
+    gh release edit "$TAG" --repo "$REPO" --title "$TITLE" --notes-file "$NOTES_FILE" \
+        --draft=false
+else
+    gh release create "$TAG" "$OUTPUT" --repo "$REPO" --verify-tag --title "$TITLE" \
+        --notes-file "$NOTES_FILE"
+fi
 
 echo
 echo "Published $TITLE: $OUTPUT"

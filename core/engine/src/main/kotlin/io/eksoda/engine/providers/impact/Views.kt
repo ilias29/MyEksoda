@@ -71,6 +71,12 @@ private fun rows(container: Element?): List<StrMap> {
     }
 }
 
+/** Whether a payment row named [name] begins a new payment after [current]. */
+private fun startsPayment(current: StrMap?, name: String): Boolean = when {
+    current == null || name in current -> true
+    else -> name == "PaymentMethodType" && "Amount" in current
+}
+
 internal fun extractCommercial(invoice: Element): CommercialView {
     val view = CommercialView()
 
@@ -106,9 +112,11 @@ internal fun extractCommercial(invoice: Element): CommercialView {
 
     view.vatBreakdown = rows(invoice.selectFirst(".section-taxes"))
 
-    // Payment rows are <tr class="field field-X"><td class="value">; a method row starts a new payment.
+    // Payment rows are <tr class="field field-X"><td class="value">. A field the current payment
+    // already has, or a method row after its amount, starts the next payment; rows printed before
+    // the method (the tip, order 0) belong to the payment that follows them.
     for ((name, value) in fields(invoice.selectFirst(".section-paymentanalysis"), "tr.field")) {
-        if (name == "PaymentMethodType" || view.payments.isEmpty()) view.payments += strMap()
+        if (startsPayment(view.payments.lastOrNull(), name)) view.payments += strMap()
         view.payments.last()[name] = value
         view.noteUnknown("payment", name, value)
     }

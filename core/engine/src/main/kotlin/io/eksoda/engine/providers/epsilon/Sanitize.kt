@@ -8,6 +8,7 @@ import io.eksoda.engine.providers.SanitizeResult
 import io.eksoda.engine.providers.Secrets
 import io.eksoda.engine.providers.UrlIdentity
 import io.eksoda.engine.providers.finish
+import io.eksoda.engine.providers.redactMydataQr
 import io.eksoda.engine.url.parseSubmittedUrl
 
 // Removes personal data from a saved Epsilon Digital myDATA XML.
@@ -38,10 +39,6 @@ private val LINK_PATTERNS = listOf(
     Regex("""documentId=($UUID)""", RegexOption.IGNORE_CASE) to FAKE_UUID,
 )
 
-/** The token in the myDATA QR address (qrCodeUrl) identifies the receipt at AADE. */
-private val MYDATA_QR_TOKEN = Regex("""TimologioQR/QRInfo\?q=([^<\s&"]+)""")
-internal const val MYDATA_QR_REDACTED = "REDACTED"
-
 public fun sanitizeXml(rawXml: String): SanitizeResult {
     val document = parseXml(rawXml)
     val secrets = Secrets()
@@ -56,7 +53,7 @@ public fun sanitizeXml(rawXml: String): SanitizeResult {
     for ((pattern, fake) in LINK_PATTERNS) {
         secrets.replacePattern(pattern, { fake }, "url_document_id")
     }
-    secrets.replacePattern(MYDATA_QR_TOKEN, { MYDATA_QR_REDACTED }, "mydata_qr_token")
+    secrets.redactMydataQr()
     return finish(document, secrets)
 }
 

@@ -2,6 +2,7 @@ package io.eksoda.engine.providers.impact
 
 import io.eksoda.engine.FormatChanged
 import io.eksoda.engine.InconsistentSource
+import io.eksoda.engine.InvalidUrl
 import io.eksoda.engine.ReceiptNotFound
 import io.eksoda.engine.canonical.Address
 import io.eksoda.engine.canonical.Branch
@@ -34,6 +35,7 @@ import io.eksoda.engine.text.parseLocalDatetime
 import io.eksoda.engine.text.pyIsAlpha
 import io.eksoda.engine.text.pyIsDigit
 import io.eksoda.engine.text.pyStrip
+import io.eksoda.engine.url.parseSubmittedUrl
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -164,9 +166,9 @@ private class Builder(
         val uid = required(t.identifiers, "uid", "tax.uid").uppercase(Locale.ROOT)
         agree(c.certification["Uid"].orEmpty().uppercase(Locale.ROOT).ifEmpty { null }, uid, "UID")
         val pageUrl = t.identifiers["url"]?.ifEmpty { null }
-        if (pageUrl != null &&
-            pageUrl.trimEnd('/').uppercase(Locale.ROOT) != url.canonicalUrl.uppercase(Locale.ROOT)
-        ) {
+        // Canonicalized the way the submitted link was (host case, port 443, a trailing slash,
+        // hex case); a printed link that does not resolve is another receipt's.
+        if (pageUrl != null && printedCanonicalUrl(pageUrl) != url.canonicalUrl) {
             throw InconsistentSource("the receipt URL printed on the page differs")
         }
         // The link's 40-hex id is usually the myDATA UID (METRO), but some issuers use an id of
@@ -399,6 +401,11 @@ private class Builder(
             return t.payments.zip(commercialRows).map { (row, commercial) ->
                 val paid = requiredNum(row, "amount", "payment amount")
                 agree(num(commercial["Amount"], "payment"), paid, "payment amount")
+                agree(
+                    num(commercial["TipAmount"], "payment tip"),
+                    num(row["tip"], "payment tip"),
+                    "payment tip",
+                )
                 // A missing or zero tip ("0,00") becomes "0".
                 val tip =
                     num(row["tip"], "payment tip")?.takeIf { it.signum() != 0 } ?: BigDecimal("0")
@@ -416,6 +423,8 @@ private class Builder(
                 amount = requiredNum(row, "Amount", "payment amount"),
                 method = labelPaymentMethod(row["PaymentMethodType"]),
                 methodLabel = row["PaymentMethodType"]?.ifEmpty { null },
+                tip = num(row["TipAmount"], "payment tip")?.takeIf { it.signum() != 0 }
+                    ?: BigDecimal("0"),
             )
         }
     }
@@ -451,6 +460,16 @@ private class Builder(
             )
         }
     }
+}
+
+/** The canonical form of a link printed on the page, or null if it is not an Impact link. */
+private fun printedCanonicalUrl(printed: String): String? = try {
+    recognize(parseSubmittedUrl(printed))?.canonicalUrl
+} catch (_: InvalidUrl) {
+    null
+} catch (_: IllegalArgumentException) {
+    // urlsplit's malformed bracketed host.
+    null
 }
 
 private fun json(values: Map<String, String>): JsonObject = JsonObject(

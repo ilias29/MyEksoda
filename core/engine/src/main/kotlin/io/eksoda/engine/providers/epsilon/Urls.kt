@@ -17,8 +17,9 @@ internal const val UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 private val UUID_GROUPS = listOf(8, 4, 4, 4, 12)
 
 /**
- * A merchant host. The myDATA XML carries the issuer's VAT number but not its name, so each
- * host lists its issuer; a receipt from another VAT number on that host is refused.
+ * A merchant host. Its myDATA XML carries the issuer's VAT number but not its name, so each
+ * host lists its issuer. The name is used only for that VAT number: a receipt from another one
+ * needs a name in its XML (`issuer/name`), or it is refused.
  */
 public data class Tenant(val host: String, val vatNumber: String, val legalName: String)
 
