@@ -9,7 +9,7 @@ Requirements:
     pip install cryptography
 
 Usage:
-    python3 decrypt_bu.py backup.eksoda [output.json]
+    python3 tools/decrypt_backup.py backup.eksoda [output_archive.zip]
 """
 
 import base64
@@ -129,7 +129,7 @@ def decrypt_backup(input_path: str, output_path: str, passphrase: str):
 def main():
     print_banner()
     if len(sys.argv) < 2:
-        print("Usage: python3 decrypt_bu.py <backup_file.eksoda> [output_archive.zip]")
+        print("Usage: python3 tools/decrypt_backup.py <backup_file.eksoda> [output_archive.zip]")
         sys.exit(1)
 
     input_path = sys.argv[1]
