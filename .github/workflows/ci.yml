@@ -4,7 +4,7 @@
 # build unless -Plive is passed, and CI never passes it.
 #
 # The only secret is CODECOV_TOKEN, for the coverage upload. CI builds only the debug APK: release
-# APKs are built locally (`make new_release`) with the release key, which never leaves the
+# APKs are built and published locally (`make publish`) with the release key, which never leaves the
 # maintainer's machine.
 name: CI
 

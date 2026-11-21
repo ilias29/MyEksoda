@@ -11,8 +11,8 @@ import io.eksoda.engine.providers.UrlIdentity
 import io.eksoda.engine.providers.childCells
 import io.eksoda.engine.providers.fakeLike
 import io.eksoda.engine.providers.finish
-import io.eksoda.engine.providers.impact.MYDATA_QR_REDACTED
 import io.eksoda.engine.providers.keyOf
+import io.eksoda.engine.providers.redactMydataQr
 import io.eksoda.engine.providers.stripActiveContent
 import io.eksoda.engine.providers.textOf
 import io.eksoda.engine.url.parseSubmittedUrl
@@ -57,9 +57,9 @@ public fun sanitizeHtml(rawHtml: String): SanitizeResult {
         secrets.replaceAttribute(element, "data-download-token", "download_token")
     }
     document.select("img[src*=CreateBarcode]").attr("src", "/api/CreateBarcode?barcode=REDACTED")
-    document.select("a[href*=mydatapi.aade.gr]").attr("href", MYDATA_QR_REDACTED)
     stripActiveContent(document)
 
+    secrets.redactMydataQr()
     secrets.replacePattern(LINK_ID, { FAKE_UUID }, "url_access_token")
     secrets.replacePattern(LINK_TOKEN, ::fakeToken, "url_access_token")
     secrets.replacePattern(PARAM_ID, { FAKE_UUID }, "url_access_token")

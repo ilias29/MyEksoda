@@ -99,6 +99,20 @@ public class Secrets {
     public fun counts(): Map<String, Int> = originals.values.groupingBy { it }.eachCount()
 }
 
+/** The token of a myDATA QR address (`…/TimologioQR/QRInfo?q=<token>`) identifies the receipt. */
+private val MYDATA_QR_TOKEN = Regex("""TimologioQR/QRInfo\?q=([^\s<>&"']+)""")
+
+/** What a myDATA QR token is replaced with. */
+internal const val MYDATA_QR_TOKEN_REDACTED = "REDACTED"
+
+/**
+ * Redacts the token of every myDATA QR address in the page, whichever element or attribute
+ * holds it (applied and verified in [finish]).
+ */
+internal fun Secrets.redactMydataQr() {
+    replacePattern(MYDATA_QR_TOKEN, { MYDATA_QR_TOKEN_REDACTED }, "mydata_qr_token")
+}
+
 /** Removes scripts, styles, external links and hidden form values. */
 public fun stripActiveContent(document: Document) {
     document.select("script, style, noscript, link").remove()

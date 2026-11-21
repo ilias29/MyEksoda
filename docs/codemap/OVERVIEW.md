@@ -17,9 +17,8 @@ Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false
 `dataExtractionRules`); the user's own encrypted export is the only backup.
 
 Not built yet: backup reminder, restore from onboarding, app lock, hide content
-(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile),
-household sync between phones on the same Wi-Fi beyond its screen and switch (design and
-phases: `docs/design/household-sync.md`).
+(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile). What is
+left of household sync is under "Not built yet" in `docs/design/household-sync.md`.
 
 ## Modules and dependency rules
 
@@ -87,11 +86,15 @@ Providers: `engine/providers/{impact,entersoft,aadefhm,epsilon}/` each with `Url
 (recognize), `Parser.kt` (layouts → `CanonicalReceipt`), `Sanitize.kt`; Impact also
 `Labels.kt`, `Views.kt`. Shared: `Base.kt` (`Provider`, `Layout`, `UrlIdentity`,
 `maskUrl`), `Registry.kt` (`REGISTRY`), `Html.kt` (`textOf`, Jsoup), `Sanitizing.kt`.
-Epsilon Digital (one host per merchant, `epsilondigital-<merchant>.epsilonnet.gr`) is not
-read from its viewer page (behind a Cloudflare Turnstile check) but from the receipt's detailed
-myDATA XML (`/filedocument/GetInvoiceDocDetailed/<uuid>`, Jsoup XML parser). The XML has no
-merchant name or time of day: names come from `TENANTS` in `epsilon/Urls.kt` (a new merchant
-host is one entry there), the time is the date only.
+Epsilon Digital (a host per big merchant, `epsilondigital-<merchant>.epsilonnet.gr`, and the
+shared `epsilondigital-3rd` host for smaller ones) is not read from its viewer page (behind a
+Cloudflare Turnstile check) but from the receipt's detailed myDATA XML
+(`/filedocument/GetInvoiceDocDetailed/<uuid>`, Jsoup XML parser). The XML has no time of day
+(the time is the date only) and, on merchant hosts, no merchant name: names come from
+`TENANTS` in `epsilon/Urls.kt` (a new merchant host is one entry there). Shared hosts
+(`SHARED_HOSTS`) carry the issuer name in the XML.
+Impact: the link's 40-hex id is usually the myDATA UID but not always; when it differs, the
+page's tax view must print the link itself.
 Fixtures: `testdata/fixtures/<provider>/` (sample page + expected JSON), edited with the parser.
 `EpsilonTest` compares its fixture with the golden JSON and, on a difference, writes the
 actual output to `core/engine/build/golden/` for review.

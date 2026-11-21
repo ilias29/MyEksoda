@@ -8,13 +8,15 @@ import io.eksoda.engine.providers.SanitizeResult
 import io.eksoda.engine.providers.Secrets
 import io.eksoda.engine.providers.UrlIdentity
 import io.eksoda.engine.providers.finish
+import io.eksoda.engine.providers.redactMydataQr
 import io.eksoda.engine.url.parseSubmittedUrl
 
 // Removes personal data from a saved Epsilon Digital myDATA XML.
 //
 // Replaced in place (shape-preserving fakes): the authentication code, payment transaction and
 // terminal ids, provider signatures, ECR tokens, free-text payment info and line comments, the
-// counterpart (buyer), and the document id wherever a receipt link shows it. The merchant's
+// counterpart (buyer), the myDATA QR token, and the document id wherever a receipt link shows
+// it. The merchant's
 // VAT number, UID and MARK are business data and stay.
 
 public val FAKE_HEX_ID: String = "0".repeat(32)
@@ -51,6 +53,7 @@ public fun sanitizeXml(rawXml: String): SanitizeResult {
     for ((pattern, fake) in LINK_PATTERNS) {
         secrets.replacePattern(pattern, { fake }, "url_document_id")
     }
+    secrets.redactMydataQr()
     return finish(document, secrets)
 }
 

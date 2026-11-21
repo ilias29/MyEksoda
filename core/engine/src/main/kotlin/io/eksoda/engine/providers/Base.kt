@@ -29,6 +29,7 @@ public data class UrlIdentity(
     /** Known before fetching only for some providers. */
     val issuerCountry: String? = null,
     val issuerVat: String? = null,
+    /** The document id in the link: usually, not always, the myDATA UID (Impact). */
     val uid: String? = null,
 ) {
     val urlFingerprint: String get() = fingerprint(canonicalUrl)

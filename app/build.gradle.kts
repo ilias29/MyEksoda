@@ -13,7 +13,7 @@ fun loadProperties(file: File): Properties? =
     providers.fileContents(layout.projectDirectory.file(file.absolutePath)).asText.orNull
         ?.let { text -> Properties().apply { load(text.reader()) } }
 
-/** The app version, which `make new_release` bumps. */
+/** The app version, which `make bump` raises. */
 val appVersion: Properties =
     checkNotNull(loadProperties(rootProject.file("version.properties"))) {
         "version.properties is missing"
@@ -57,7 +57,7 @@ android {
             // R8 and reproducible builds are not set up yet.
             isMinifyEnabled = false
             // The release key when this machine has it. Without it, the debug key, for local
-            // installs only: `make new_release` refuses to publish such an APK.
+            // installs only: `make publish` refuses to publish such an APK.
             signingConfig =
                 signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(

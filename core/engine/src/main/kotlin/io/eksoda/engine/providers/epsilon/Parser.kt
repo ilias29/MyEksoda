@@ -48,9 +48,10 @@ import org.jsoup.nodes.Document as XmlDocument
 //
 // The XML is the receipt the merchant transmitted to AADE (myDATA InvoicesDoc v1) with the
 // item descriptions added. It has official codes and per-line net and VAT amounts, but no line
-// totals, unit prices, merchant name or time of day. So a line's gross is its net plus VAT and
-// taxes, the merchant name comes from the host's tenant entry (Urls.kt), and the issue time is
-// the date only. Σ line net and Σ line VAT must match the summary (fatal: a partial document).
+// totals, unit prices or time of day, and on a merchant's own host no merchant name. So a
+// line's gross is its net plus VAT and taxes, the merchant name comes from the XML on shared
+// hosts and from the host's tenant entry (Urls.kt) otherwise, and the issue time is the date
+// only. Σ line net and Σ line VAT must match the summary (fatal: a partial document).
 //
 // Never read: the authentication code, payment transaction and terminal ids, provider
 // signatures, ECR tokens, free-text comments and the counterpart (the buyer).
@@ -233,7 +234,8 @@ private class Builder(private val invoice: Element, private val url: UrlIdentity
 
     fun issuer(issuer: Element?): Party {
         val vat = required(issuer, "vatNumber", "issuer VAT")
-        // Greek issuers send no name to myDATA; the host's tenant entry names them.
+        // A name in the XML wins (shared hosts send one). Merchant hosts send none: their tenant
+        // entry names the issuer, for its own VAT number only.
         val tenant = tenant(link.host)?.takeIf { it.vatNumber == vat }
         val name = issuer?.value("name") ?: tenant?.legalName
             ?: throw FormatChanged("no merchant name known for issuer VAT $vat on ${link.host}")

@@ -1,29 +1,16 @@
-# Household sync (design, not built yet)
+# Household sync
 
 Phones of the same household (for example four family members) share one set of receipts,
 products, categories, budgets and household settings by syncing directly with each other on
-the same Wi-Fi. No server, no account, no internet traffic.
+the same Wi-Fi. No server, no account, no internet traffic. For the overview in pictures, see
+[How it works](../../README.md#-how-it-works) in the README.
 
-## Decisions (owner, 2026-11-19)
-
-1. **Off by default.** A switch turns it on and off. While it is off the app opens no socket
-   and announces nothing on the network.
-2. **Everything lives on one dedicated screen, not a tab.** The Sync screen holds the on/off
-   switch, the sync history (an audit log: when, with which phone, done or failed and why,
-   what changed), the paired phones, the "Sync now" button, pairing and leaving. Nothing about
-   sync appears anywhere else, except the one row in Settings that opens the screen and the
-   synced mark on receipts (decision 4). The bottom bar does not change.
-3. **Receipt URLs stay on the phone that scanned them.** They are never sent to another phone.
-   A receipt received by sync has no URL on that phone.
-4. **A synced receipt is marked as such**, not with who added it: "synced from another phone"
-   on the row and in the detail. No member names or attribution are stored.
-5. **Sync runs only while the app is open.** No foreground service, no background work.
-6. **Household settings are shared:** name, annual income, budgets, e-payment target,
-   categories, merchant names and default categories, products and mappings.
+Sync is off by default and runs only while the app is open: no foreground service, no
+background work. Receipt URLs never leave the phone that scanned them.
 
 ## How it works
 
-### Pairing (once per phone, built)
+### Pairing (once per phone)
 
 - The first phone to turn sync on creates a **household sync key** (`HouseholdKey.create`,
   32 random bytes), wrapped with an Android Keystore key under its own alias, in
@@ -44,8 +31,9 @@ the same Wi-Fi. No server, no account, no internet traffic.
   on this phone and turns sync off. The data and the history stay. Turning the switch off does
   **not** forget the pairing: turning it on again resumes.
 
-### Discovery and triggers (built: core:data `sync/SyncRuntime`, `SyncDiscovery`)
+### Discovery and triggers (core:data `sync/SyncRuntime`, `SyncDiscovery`)
 
+- While sync is off the app opens no socket and announces nothing on the network.
 - While the app is in the foreground, sync is on, the phone holds a key and it is on Wi-Fi or
   Ethernet: listen on a TCP port (any free one) bound to that network's private IPv4 address
   only (never mobile data, whose carrier addresses can look private too) and announce `_eksoda._tcp` with `NsdManager` (platform, no Google Play
@@ -71,9 +59,10 @@ the same Wi-Fi. No server, no account, no internet traffic.
   silence or 15 s in all end the connection, and it holds no lock; after that, 120 s of
   silence (the other phone may be merging a large household).
 - Only private addresses are used, outgoing and incoming: 10/8, 172.16/12, 192.168/16,
-  169.254/16, fc00::/7, fe80::/10. Anything else is refused before connecting and on accept.
+  169.254/16, fc00::/7, fe80::/10 (core:engine `LocalNetwork`). Anything else is refused
+  before connecting and on accept.
 
-### Protocol (one TCP connection, built: core:engine `SyncSession`)
+### Protocol (one TCP connection, core:engine `SyncSession`)
 
 Frames are `length (uint32 BE) | bytes`. The phone that connects is the client.
 
@@ -102,17 +91,22 @@ the last sync with that phone is an optimization for later; the merge does not c
 
 ### What syncs
 
+Everything the household shares: its name, annual income, budgets and e-payment target,
+categories, merchant names and default categories, products and mappings, receipts and lines.
+
 | Table | Syncs | Note |
 |---|---|---|
 | household, category, budget, merchant, store, product, merchant_product_mapping, receipt, receipt_item, tombstone | yes | `receipt.source_url` is left out |
 | import_job | no | local queue, holds the URL |
-| sync_peer, sync_event (new) | no | local; also left out of the backup file |
+| sync_peer, sync_event | no | local; also left out of the backup file (`BackupArchive.LOCAL_TABLES`) |
 
-### Merge rules (core:engine `sync/`, built)
+### Merge rules (core:engine `sync/`)
 
 Merging depends only on the two row sets, never on the order of syncs, and running it twice
 changes nothing. So any phone can sync with any other, in any order, and all phones converge.
-The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, remote)`.
+The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, remote)`;
+core:data `SnapshotStore` reads the snapshot and applies the result, and `SyncMerger` runs
+both under the write lock.
 
 - **Same id:** the row with the later `updated_at` wins; on a tie, the larger row content
   (local columns left out), so both phones pick the same copy. Rows are whole: a concurrent
@@ -147,6 +141,7 @@ The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, re
   product kept, instead of the merged product coming back.
 - **Receipt URL:** when a receipt row from another phone wins, the local `source_url` (if
   this phone has one) is kept.
+- Import jobs are repointed at the receipt kept, or marked `receipt_deleted`.
 - Analytics, budgets and Home simply see the merged rows; nothing else changes.
 
 ### The Sync screen (feature:household)
@@ -154,7 +149,9 @@ The table rules are `SyncSchema.TABLES`; the merge is `SyncMerge.merge(local, re
 A full screen with its own destination (`SyncDestination` in `app/ui/Destinations.kt`,
 wired in `MainNavHost`), opened from a "Household sync" row in Settings whose subtitle says
 "Off" or "On · last synced <time>". Back returns to Settings. Follows the UI pattern in
-OVERVIEW.md and `docs/design/ui-redesign.md`.
+OVERVIEW.md and `docs/design/ui-redesign.md`. Nothing about sync appears anywhere else, except
+that Settings row and the note on synced receipts; it is not a tab, and the bottom bar does
+not change.
 
 - **Switch** at the top (on/off, default off). While off, the screen shows a one-line
   explanation and the history stays readable; phones, Sync now and pairing are hidden.
@@ -169,38 +166,9 @@ OVERVIEW.md and `docs/design/ui-redesign.md`.
 
 ### Synced receipts
 
-A receipt with no `source_url` came from another phone. Built (0.3.0): its detail says so
-(`ReceiptDetail.hasLink`, the link itself never in the model) and has no "Open original".
-Not built yet: a mark on the receipt list row, and storing the URL when this phone later
-scans the same receipt (the import finds it as a duplicate and today keeps no URL).
-
-## Changes by module
-
-- **core:database:** version 6 (done): `sync_peer` (device id, name, paired at, last address,
-  last seen, last success) and `sync_event` (id, peer device id and name, `started_by`
-  auto/user, started, finished, result, error code, counts), `SyncDao`; both in
-  `BackupArchive.LOCAL_TABLES` (not exported, untouched by a restore). Version 7 (done):
-  `receipt.source_url` nullable, `tombstone.natural_key` (written by `deleteReceipt`) and
-  `tombstone.replaced_by` (written by `mergeProducts`).
-- **core:engine** `sync/`: done: `SyncSchema` (table rules), `Snapshot` and `SnapshotCodec`,
-  `SyncMerge` (identities, winners, tombstones, `Liveness`), with tests for every rule above.
-  Also done: `HouseholdKey`, `PairingCode`, `SyncCrypto` (HKDF, AES-GCM), `Frames` / `Hello`
-  / `SecureChannel`, `SyncSession` (the protocol) and `LocalNetwork` (the address rule).
-- **core:data** `sync/`: done: `SyncRepository` (enabled flag in DataStore, peers, history
-  paging, last success), `SnapshotStore` (reads the snapshot, applies a merge: drops and
-  renames children first, then writes only changed rows parents first, then repoints import
-  jobs at the receipt kept or marks them `receipt_deleted`), `SyncMerger` (both under the
-  write lock). Robolectric test: two in-memory databases synced both ways. Also done:
-  `SyncDevice` (key and device id), pairing, join and leave; `SyncRunner` (sessions over TCP,
-  the history, paired phones; tested with two databases over a loopback socket),
-  `SyncDiscovery` (NSD) and `SyncRuntime` (listener tied to the app's foreground state,
-  automatic and manual sync, status), behind `SyncControl` for the repository.
-- **feature:settings:** the "Household sync" row in the Household card that opens the Sync
-  screen ("Off", "On", or "On · last sync: <time>"). The switch itself is on the Sync screen.
-- **app:** `SyncDestination` and its route in `MainNavHost`. `MainTabs` does not change.
-- **feature:receipts:** the synced mark; no URL actions without a URL.
-- **docs:** OVERVIEW.md (module, tables, the local network exception to "network only to
-  provider hosts"), CLAUDE.md ground rules, `NoTelemetryCheck` if it inspects sockets.
+A receipt with no `source_url` came from another phone. Its detail says it was synced from
+another phone (`ReceiptDetail.hasLink`, the link itself never in the model) and has no "Open
+original". It says only that, not who added it: no member names or attribution are stored.
 
 ## Platform notes
 
@@ -211,18 +179,14 @@ scans the same receipt (the import finds it as a duplicate and today keeps no UR
 - Guest networks and some routers block traffic between devices, and some block mDNS. The
   screen must make "not found" clear instead of failing silently.
 
-## Phases
+## Not built yet
 
-1. **Done (2026-11-19).** Sync screen (switch, paired phones, history) and its Settings row,
-   `sync_peer` / `sync_event` tables, migration 6.
-2. **Done (2026-11-19).** Merge rules in core:engine with tests; snapshot reader and merge
-   applier in core:data, tested with two databases; migration 7.
-3. **Done (2026-11-19).** Pairing: key store, device id, QR show and scan, leave.
-4. **Done (2026-11-20).** Transport and NSD: handshake, listener, discovery, automatic and
-   manual sync, history entries. Not yet tried on two real phones.
-5. Synced receipts. **Partly done (0.3.0):** the detail note, "Open original" hidden without a
-   link. Left: the list row mark, the URL stored on a later scan of the same receipt.
-6. When moving to `targetSdk` 37: the local network permission.
+- **Synced receipts:** a mark on the receipt list row, and storing the URL when this phone
+  later scans a receipt it already has from sync (the import finds it as a duplicate and today
+  keeps no URL).
+- **The local network permission,** when moving to `targetSdk` 37 (Platform notes).
+- **A test on two real phones** with a real household's data (also to measure the snapshot
+  size).
 
 ## Open points
 

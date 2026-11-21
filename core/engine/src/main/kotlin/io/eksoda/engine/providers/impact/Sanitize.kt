@@ -5,6 +5,7 @@ import io.eksoda.engine.providers.SanitizeResult
 import io.eksoda.engine.providers.Secrets
 import io.eksoda.engine.providers.childCells
 import io.eksoda.engine.providers.finish
+import io.eksoda.engine.providers.redactMydataQr
 import io.eksoda.engine.providers.stripActiveContent
 import io.eksoda.engine.providers.textOf
 
@@ -16,8 +17,6 @@ import io.eksoda.engine.providers.textOf
 // code (it encodes the URL) and the myDATA QR token. The result is verified by [finish].
 
 public val FAKE_GUID: String = "0".repeat(32)
-internal const val MYDATA_QR_REDACTED =
-    "https://mydatapi.aade.gr/myDATA/TimologioQR/QRInfo" + "?q=REDACTED"
 private val GUID_PATTERNS = listOf(
     // Receipt links.
     Regex("""/p/[A-Z]{2}\d{9}/[0-9A-F]{40}/([0-9A-F]{32})""", RegexOption.IGNORE_CASE),
@@ -58,7 +57,8 @@ public fun sanitizeHtml(rawHtml: String): SanitizeResult {
 
     stripActiveContent(document)
     document.select(".qrcode-container").forEach { it.empty() }
-    document.select("a[href*=mydatapi.aade.gr]").attr("href", MYDATA_QR_REDACTED)
+    // Wherever it is: some pages link it from a <fluent-anchor>, not an <a>.
+    secrets.redactMydataQr()
     for (pattern in GUID_PATTERNS) secrets.replacePattern(pattern, { FAKE_GUID }, "url_access_guid")
     return finish(document, secrets)
 }

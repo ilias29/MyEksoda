@@ -2,6 +2,7 @@ package io.eksoda.engine.providers.impact
 
 import io.eksoda.engine.FormatChanged
 import io.eksoda.engine.InconsistentSource
+import io.eksoda.engine.InvalidUrl
 import io.eksoda.engine.ReceiptNotFound
 import io.eksoda.engine.canonical.Address
 import io.eksoda.engine.canonical.Branch
@@ -34,6 +35,7 @@ import io.eksoda.engine.text.parseLocalDatetime
 import io.eksoda.engine.text.pyIsAlpha
 import io.eksoda.engine.text.pyIsDigit
 import io.eksoda.engine.text.pyStrip
+import io.eksoda.engine.url.parseSubmittedUrl
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -163,7 +165,17 @@ private class Builder(
     fun identity(): Identity {
         val uid = required(t.identifiers, "uid", "tax.uid").uppercase(Locale.ROOT)
         agree(c.certification["Uid"].orEmpty().uppercase(Locale.ROOT).ifEmpty { null }, uid, "UID")
-        if (uid != url.uid) throw InconsistentSource("the page UID differs from the URL")
+        val pageUrl = t.identifiers["url"]?.ifEmpty { null }
+        // Canonicalized the way the submitted link was (host case, port 443, a trailing slash,
+        // hex case); a printed link that does not resolve is another receipt's.
+        if (pageUrl != null && printedCanonicalUrl(pageUrl) != url.canonicalUrl) {
+            throw InconsistentSource("the receipt URL printed on the page differs")
+        }
+        // The link's 40-hex id is usually the myDATA UID (METRO), but some issuers use an id of
+        // their own (observed 2026-11-20, VAT 801810254). Then the page must print this link.
+        if (uid != url.uid && pageUrl == null) {
+            throw InconsistentSource("the page UID differs from the URL")
+        }
 
         val taxVat = required(t.issuer, "vat", "tax.issuer.vat")
         var commercialVat = c.issuer["Vat"].orEmpty().uppercase(Locale.ROOT)
@@ -178,12 +190,6 @@ private class Builder(
         val country = t.issuer["country"]
         if (!country.isNullOrEmpty() && country.uppercase(Locale.ROOT) != url.issuerCountry) {
             throw InconsistentSource("the page issuer country differs from the URL")
-        }
-        val pageUrl = t.identifiers["url"]
-        if (!pageUrl.isNullOrEmpty() &&
-            pageUrl.trimEnd('/').uppercase(Locale.ROOT) != url.canonicalUrl.uppercase(Locale.ROOT)
-        ) {
-            throw InconsistentSource("the receipt URL printed on the page differs")
         }
 
         val failure =
@@ -395,6 +401,11 @@ private class Builder(
             return t.payments.zip(commercialRows).map { (row, commercial) ->
                 val paid = requiredNum(row, "amount", "payment amount")
                 agree(num(commercial["Amount"], "payment"), paid, "payment amount")
+                agree(
+                    num(commercial["TipAmount"], "payment tip"),
+                    num(row["tip"], "payment tip"),
+                    "payment tip",
+                )
                 // A missing or zero tip ("0,00") becomes "0".
                 val tip =
                     num(row["tip"], "payment tip")?.takeIf { it.signum() != 0 } ?: BigDecimal("0")
@@ -412,6 +423,8 @@ private class Builder(
                 amount = requiredNum(row, "Amount", "payment amount"),
                 method = labelPaymentMethod(row["PaymentMethodType"]),
                 methodLabel = row["PaymentMethodType"]?.ifEmpty { null },
+                tip = num(row["TipAmount"], "payment tip")?.takeIf { it.signum() != 0 }
+                    ?: BigDecimal("0"),
             )
         }
     }
@@ -447,6 +460,16 @@ private class Builder(
             )
         }
     }
+}
+
+/** The canonical form of a link printed on the page, or null if it is not an Impact link. */
+private fun printedCanonicalUrl(printed: String): String? = try {
+    recognize(parseSubmittedUrl(printed))?.canonicalUrl
+} catch (_: InvalidUrl) {
+    null
+} catch (_: IllegalArgumentException) {
+    // urlsplit's malformed bracketed host.
+    null
 }
 
 private fun json(values: Map<String, String>): JsonObject = JsonObject(
