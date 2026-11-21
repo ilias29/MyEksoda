@@ -52,6 +52,9 @@ import org.jsoup.nodes.Document as HtmlDocument
 // the tax (myDATA) view; unit price, unit label, VAT %, names, addresses and the time of day come
 // from the commercial view. Any disagreement fails the import (InconsistentSource); a missing
 // required field fails it as FormatChanged.
+//
+// Other hosts serve the same pages under their own name (s1ecos); each is a [Site] of its own,
+// with its provider code, parser version and the rule for the link the page prints.
 
 public const val PARSER_VERSION: String = "impact/1"
 private val SOURCE_TZ: ZoneId = ZoneId.of("Europe/Athens")
@@ -67,38 +70,60 @@ private val DATE_ORDER = mapOf(
     (Culture.EN to "tax") to DateOrder.MDY,
 )
 
+/** A host serving these receipt pages. */
+internal class Site(
+    val providerCode: String,
+    val parserVersion: String,
+    /** Whether `printed`, the link in the page's tax view, is the receipt of the submitted link. */
+    val printsLink: (printed: String, submitted: UrlIdentity) -> Boolean,
+)
+
+private val IMPACT_SITE = Site(PROVIDER_CODE, PARSER_VERSION) { printed, submitted ->
+    printedCanonicalUrl(printed) == submitted.canonicalUrl
+}
+
 internal enum class PageKind { RECEIPT, NOT_FOUND, UNKNOWN }
 
 internal fun classifyPage(document: HtmlDocument): PageKind = when {
     document.selectFirst("div.invoice") != null &&
         document.selectFirst("div.InvoicesDocDetailed") != null -> PageKind.RECEIPT
 
-    Labels.NOT_FOUND_MARKER in document.text() -> PageKind.NOT_FOUND
+    document.text().let { text -> Labels.NOT_FOUND_MARKERS.any { it in text } } ->
+        PageKind.NOT_FOUND
 
     else -> PageKind.UNKNOWN
 }
 
 /** The page as observed 2026-11-13: commercial view + myDATA tax view. */
-internal object ImpactLayoutV1 : Layout {
-    override val name: String = PARSER_VERSION
+internal class ImpactLayoutV1(private val site: Site) : Layout {
+    override val name: String = site.parserVersion
 
     override fun matches(document: HtmlDocument): Boolean =
         classifyPage(document) == PageKind.RECEIPT
 
     override fun parse(document: HtmlDocument, identity: UrlIdentity): CanonicalReceipt {
         val invoice = checkNotNull(document.selectFirst("div.invoice"))
-        val code = invoice.attr("data-culture")
+        // s1ecos pages have only `lang` (observed 2026-11-21).
+        val code = invoice.attr("data-culture").ifEmpty { invoice.attr("lang") }
         val culture = Culture.fromCode(code) ?: throw FormatChanged("unknown page culture '$code'")
         val commercial = extractCommercial(invoice)
         val tax = extractTaxView(checkNotNull(document.selectFirst("div.InvoicesDocDetailed")))
-        return Builder(commercial, tax, culture, identity).build()
+        return Builder(site, commercial, tax, culture, identity).build()
     }
 }
 
 /** Newest first. A changed page format gets a new layout; old ones stay for old fixtures. */
-public val LAYOUTS: List<Layout> = listOf(ImpactLayoutV1)
+public val LAYOUTS: List<Layout> = listOf(ImpactLayoutV1(IMPACT_SITE))
 
-public fun parseHtml(html: String, identity: UrlIdentity): CanonicalReceipt {
+public fun parseHtml(html: String, identity: UrlIdentity): CanonicalReceipt =
+    parsePage(html, identity, LAYOUTS)
+
+/** Parses a page of any [Site] with that site's [layouts]. */
+internal fun parsePage(
+    html: String,
+    identity: UrlIdentity,
+    layouts: List<Layout>,
+): CanonicalReceipt {
     val document = io.eksoda.engine.providers.parseHtml(html)
     // Only the not-found page is decided here; recognizing receipt structure is each layout's job
     // (matches()), so a new layout can handle a changed page.
@@ -107,10 +132,11 @@ public fun parseHtml(html: String, identity: UrlIdentity): CanonicalReceipt {
     ) {
         throw ReceiptNotFound("the provider shows its document-not-found page")
     }
-    return parseWithLayouts(document, identity, LAYOUTS)
+    return parseWithLayouts(document, identity, layouts)
 }
 
 private class Builder(
+    private val site: Site,
     private val c: CommercialView,
     private val t: TaxView,
     private val culture: Culture,
@@ -145,8 +171,8 @@ private class Builder(
         val document = document()
         val lines = lines()
         return CanonicalReceipt(
-            providerCode = PROVIDER_CODE,
-            parserVersion = PARSER_VERSION,
+            providerCode = site.providerCode,
+            parserVersion = site.parserVersion,
             culture = culture.code,
             sourceUrl = url.canonicalUrl,
             issuer = issuer(),
@@ -168,7 +194,7 @@ private class Builder(
         val pageUrl = t.identifiers["url"]?.ifEmpty { null }
         // Canonicalized the way the submitted link was (host case, port 443, a trailing slash,
         // hex case); a printed link that does not resolve is another receipt's.
-        if (pageUrl != null && printedCanonicalUrl(pageUrl) != url.canonicalUrl) {
+        if (pageUrl != null && !site.printsLink(pageUrl, url)) {
             throw InconsistentSource("the receipt URL printed on the page differs")
         }
         // The link's 40-hex id is usually the myDATA UID (METRO), but some issuers use an id of
@@ -288,7 +314,7 @@ private class Builder(
         val net = requiredNum(t, "net", "$where net")
         val vat = requiredNum(t, "vat", "$where VAT")
         val gross = requiredNum(c, "Total", "$where total")
-        agree(num(c["NetTotal"], where), net, "$where net")
+        agree(num(c["NetTotal"] ?: c[Labels.LINE_NET_TOTAL_ELISE], where), net, "$where net")
         agree(num(c["VATTotal"], where), vat, "$where VAT")
 
         val taxQuantity = num(t["quantity"], where)

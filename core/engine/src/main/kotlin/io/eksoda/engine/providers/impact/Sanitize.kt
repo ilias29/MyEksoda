@@ -13,15 +13,24 @@ import io.eksoda.engine.providers.textOf
 //
 // Replaced in place (shape-preserving fakes): buyer/counterparty values, payment transaction
 // ids, POS terminal id, payment and provider signatures, and the URL access GUID (→ 32 zeros)
-// wherever a receipt link or the not-found message shows it. Removed: scripts, styles, the QR
-// code (it encodes the URL) and the myDATA QR token. The result is verified by [finish].
+// and provider authentication code (→ 40 zeros) wherever a receipt link or the not-found
+// message shows them. Removed: scripts, styles, the QR code (it encodes the URL) and the myDATA
+// QR token. The result is verified by [finish]. The s1ecos provider shares this sanitizer.
 
 public val FAKE_GUID: String = "0".repeat(32)
+public val FAKE_AUTHENTICATION: String = "0".repeat(40)
 private val GUID_PATTERNS = listOf(
     // Receipt links.
     Regex("""/p/[A-Z]{2}\d{9}/[0-9A-F]{40}/([0-9A-F]{32})""", RegexOption.IGNORE_CASE),
+    // s1ecos QR links: /v/{prefix}{VAT}-{number}-{authentication code}-{GUID}.
+    Regex("""/v/[A-Z]{2}\d{9}-\d+-[0-9A-F]{40}-([0-9A-F]{32})""", RegexOption.IGNORE_CASE),
     // The not-found message.
     Regex("""Guid\s+([0-9A-F]{32})""", RegexOption.IGNORE_CASE),
+)
+private val AUTHENTICATION_PATTERNS = listOf(
+    Regex("""/v/[A-Z]{2}\d{9}-\d+-([0-9A-F]{40})-""", RegexOption.IGNORE_CASE),
+    // The not-found message of a /v/ link.
+    Regex("""AuthenticationCode\s+([0-9A-F]{40})""", RegexOption.IGNORE_CASE),
 )
 
 public fun sanitizeHtml(rawHtml: String): SanitizeResult {
@@ -60,6 +69,9 @@ public fun sanitizeHtml(rawHtml: String): SanitizeResult {
     // Wherever it is: some pages link it from a <fluent-anchor>, not an <a>.
     secrets.redactMydataQr()
     for (pattern in GUID_PATTERNS) secrets.replacePattern(pattern, { FAKE_GUID }, "url_access_guid")
+    for (pattern in AUTHENTICATION_PATTERNS) {
+        secrets.replacePattern(pattern, { FAKE_AUTHENTICATION }, "payment_or_signature")
+    }
     return finish(document, secrets)
 }
 

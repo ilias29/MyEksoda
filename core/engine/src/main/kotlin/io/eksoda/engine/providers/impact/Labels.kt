@@ -19,13 +19,16 @@ internal object Labels {
         "identity" to setOf("InvoiceType", "IssuerFormatedInvoiceSeriesNumber", "DateIssued"),
         "line" to setOf(
             "Code", "Description1", "Quantity", "MeasurementUnit", "UnitPrice",
-            "NetTotal", "VatCategory", "VATTotal", "Total",
+            "NetTotal", LINE_NET_TOTAL_ELISE, "VatCategory", "VATTotal", "Total",
         ),
         // The tip is checked against the tax view's (read from here only without one).
         "payment" to setOf("PaymentMethodType", "Amount", "TipAmount"),
         "summary" to setOf("CurrencyCode", "TotalNetAmount", "TotalVATAmount", "TotalGrossValue"),
         "certification" to setOf("Mark", "Uid", "ServiceSupplier"),
     )
+
+    /** The line net on white-label hosts (s1ecos, observed 2026-11-21); Impact's is `NetTotal`. */
+    const val LINE_NET_TOTAL_ELISE = "EliseCore-Details-NetTotal"
 
     /** Personal or secret values that are never read (the sanitizer replaces them). */
     val COMMERCIAL_DROP = setOf("TransactionId", "Authentication")
@@ -105,5 +108,6 @@ internal object Labels {
         "Συμβολοσειρά Αυθεντικοποίησης Παρόχου",
     )
 
-    const val NOT_FOUND_MARKER = "Document with UniqueId"
+    /** By document id (`/p/` links), or by authentication code (s1ecos `/v/` links). */
+    val NOT_FOUND_MARKERS = listOf("Document with UniqueId", "Document with AuthenticationCode")
 }
