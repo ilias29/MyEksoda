@@ -195,6 +195,7 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     override fun close() {
         scope.cancel()
         database.close()
+        WorkManagerTestInitHelper.closeWorkDatabase()
     }
 
     companion object {
