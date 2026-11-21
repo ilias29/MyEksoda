@@ -3,6 +3,20 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.1
+
+### Fixed
+
+- **Impact receipts that said "The receipt page has conflicting information"** now import.
+  Some shops put an id of their own in the receipt link instead of the receipt's official one;
+  the app now accepts such a receipt when its page names the scanned link as its own
+  ([#6](https://github.com/tsaklidis/MyEksoda/issues/6)). A receipt that failed this way is
+  tried again automatically after the update.
+- **Epsilon Digital receipts from smaller shops** (links on `epsilondigital-3rd.epsilonnet.gr`,
+  such as fuel stations) are now supported. The shop's name is shown as the receipt prints it;
+  you can rename the shop in the app. Scan these receipts again: the earlier attempt was
+  refused before anything was saved.
+
 ## 0.3.0
 
 ### New: household sync
