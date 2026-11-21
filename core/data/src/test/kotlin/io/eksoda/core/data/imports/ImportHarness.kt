@@ -28,8 +28,9 @@ import io.eksoda.engine.fetch.Fetcher
 import io.eksoda.engine.providers.REGISTRY
 import io.eksoda.engine.url.ParsedUrl
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -38,6 +39,7 @@ import java.io.File
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.Executors
 
 /** This repository's receipt fixtures, by "<provider>/<name>". */
 internal object Fixtures {
@@ -90,6 +92,12 @@ internal class FixtureFetcher : Fetcher {
  * [fetcher] in place of the network.
  */
 internal class ImportHarness(folder: File) : AutoCloseable {
+    /**
+     * The dispatcher the repositories compute on (the app injects Default): a real thread, since
+     * each test's runTest has its own scheduler.
+     */
+    val dispatcher: ExecutorCoroutineDispatcher =
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     val context: Context = ApplicationProvider.getApplicationContext()
     val clock: Clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC)
     val database: EksodaDatabase =
@@ -116,7 +124,7 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     )
     val service: ImportService
     val repository: ReceiptRepositoryImpl
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val scheduler: ImportScheduler
     private val zone = HouseholdZone(database.householdDao())
     private val notifier = ImportNotifier(
@@ -143,7 +151,7 @@ internal class ImportHarness(folder: File) : AutoCloseable {
             zone,
             NetworkMonitor(context),
             clock,
-            Dispatchers.Unconfined,
+            dispatcher,
         )
     }
 
@@ -196,6 +204,7 @@ internal class ImportHarness(folder: File) : AutoCloseable {
         scope.cancel()
         database.close()
         WorkManagerTestInitHelper.closeWorkDatabase()
+        dispatcher.close()
     }
 
     companion object {

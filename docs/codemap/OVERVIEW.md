@@ -298,7 +298,11 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   (`:app:checkNoTelemetry`).
 - Tests: JUnit 5 + AssertK in `core:engine` (fixtures in `testdata/fixtures/`); JUnit 4 +
   Robolectric in Android modules (in-memory Room). Every change ships with tests for its new
-  paths, warning and error paths included. Coverage: `core:engine` ≥ 90% lines (Kover, in
-  `make check`); on pull requests Codecov (`codecov.yml`) requires 90% of the changed lines
-  covered and lets the total drop at most 0.5%. Check a file with
-  `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`).
+  paths, warning and error paths included. Coverage (Kover, in `make check`): `core:engine`
+  ≥ 90% lines, `core:data` ≥ 60% (target 80%); on pull requests Codecov (`codecov.yml`)
+  requires 90% of the changed lines covered and lets the total drop at most 0.5%. Check a file
+  with `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`)
+  or `:core:data:koverXmlReportDebug` (`core/data/build/reports/kover/reportDebug.xml`).
+  `core:data` tests run the real import pipeline on the fixtures with `ImportHarness`
+  (in-memory Room seeded like the app, WorkManager test driver, a fetcher serving
+  `testdata/fixtures/`).

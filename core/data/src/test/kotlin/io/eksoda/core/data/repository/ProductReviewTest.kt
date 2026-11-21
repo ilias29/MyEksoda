@@ -17,7 +17,6 @@ import io.eksoda.core.model.CatalogError
 import io.eksoda.core.model.CatalogException
 import io.eksoda.core.model.LineType
 import io.eksoda.core.model.ProductDraft
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -54,7 +53,7 @@ class ProductReviewTest {
             app.clock,
         )
         products =
-            ProductRepositoryImpl(dao, service, app.coordinator, zone, Dispatchers.Unconfined)
+            ProductRepositoryImpl(dao, service, app.coordinator, zone, app.dispatcher)
         review = ReviewRepositoryImpl(dao, service, app.coordinator, zone)
     }
 

@@ -1,5 +1,5 @@
-# Coverage checks on pull requests (reports uploaded by .github/workflows/ci.yml; only
-# core:engine is measured so far, flag "engine").
+# Coverage checks on pull requests (reports uploaded by .github/workflows/ci.yml: core:engine,
+# flag "engine", and core:data, flag "data"; the feature modules are not measured yet).
 #
 # - patch:   at least 90% of the lines a pull request adds or changes must be covered by tests,
 #            so a new feature or fix ships with its tests.

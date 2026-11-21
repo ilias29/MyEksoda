@@ -13,7 +13,6 @@ import io.eksoda.core.data.imports.ImportHarness.Companion.METRO_SAMPLE
 import io.eksoda.core.data.imports.ImportHarness.Companion.MYMARKET
 import io.eksoda.core.model.Period
 import io.eksoda.core.model.SpendingBucketKind
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -57,7 +56,7 @@ class AnalyticsRepositoryTest {
             database.householdDao(),
             HouseholdZone(database.householdDao()),
             app.clock,
-            Dispatchers.Unconfined,
+            app.dispatcher,
         )
     }
 
