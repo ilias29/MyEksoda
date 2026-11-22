@@ -37,6 +37,7 @@ import io.eksoda.engine.text.pyIsAlpha
 import io.eksoda.engine.text.pyIsDigit
 import io.eksoda.engine.text.pyStrip
 import io.eksoda.engine.url.parseSubmittedUrl
+import io.eksoda.engine.validation.DISCOUNT_UNREADABLE
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -61,8 +62,8 @@ public const val PARSER_VERSION: String = "impact/1"
 private val SOURCE_TZ: ZoneId = ZoneId.of("Europe/Athens")
 
 /** A discount the page prints could not be read (once per receipt, whatever the count). */
-internal val DISCOUNT_UNREADABLE: Notice = Notice(
-    "discount_unreadable",
+internal val DISCOUNT_UNREADABLE_NOTICE: Notice = Notice(
+    DISCOUNT_UNREADABLE,
     "A discount on the receipt could not be read and was left out.",
 )
 
@@ -171,7 +172,7 @@ private class Builder(
         val value = if ('%' in text) null else amountOrNull(text, key)
         if (value == null || value.signum() < 0) {
             c.unknown[key] = text
-            notices += DISCOUNT_UNREADABLE
+            notices += DISCOUNT_UNREADABLE_NOTICE
             return null
         }
         return value.takeIf { it.signum() > 0 }

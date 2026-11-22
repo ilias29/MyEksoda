@@ -3,6 +3,25 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.3 - Discounts on receipts
+
+A small update: discounted items on receipts from `einvoice.impact.gr` (My Market, for example)
+now import with their discount. Install it over 0.3.2 as usual: your data stays, and household
+sync keeps working between 0.3.2 and 0.3.3.
+
+### Fixed
+
+- **Discounted items no longer show a unit price warning.** The discount column of these
+  receipts ("Έκπτ. 1") is now read, so an item at 30% or 50% off no longer shows "Η τιμή
+  μονάδας μιας γραμμής δεν ταιριάζει με το ποσό της". The receipt's total discount is read too. Receipts
+  imported before this version keep the warning: delete such a receipt and scan it again.
+
+### Improved
+
+- **A discount that cannot be read is shown as such.** If a receipt prints a discount in a way
+  Eksoda does not recognize yet, the receipt still imports, leaves that discount out, and says
+  so in its warnings.
+
 ## 0.3.2 - One more receipt site, and synced receipts at a glance
 
 A small update: receipts from one more e-receipt site now import, and the lists show which

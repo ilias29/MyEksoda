@@ -68,8 +68,10 @@ internal class FixtureFetcher : Fetcher {
     private val frames = mutableMapOf<String, ByteArray>()
     var failure: Exception? = null
 
-    fun serve(fixture: String) {
-        pages[Fixtures.canonicalUrl(fixture)] = Fixtures.page(fixture)
+    /** [fixture]'s page at its link, changed by [edit] (a page the parsers have not seen). */
+    fun serve(fixture: String, edit: (String) -> String = { it }) {
+        val page = edit(Fixtures.page(fixture).toString(Charsets.UTF_8))
+        pages[Fixtures.canonicalUrl(fixture)] = page.toByteArray(Charsets.UTF_8)
     }
 
     /** An Entersoft receipt: the shell page at its link, the receipt in the frame it points to. */

@@ -79,9 +79,15 @@ class ImpactTest {
             assertThat(line.grossBeforeDiscount, name = printed).isNull()
             assertThat(receipt.unknownFields["commercial.line.Amount"], name = printed)
                 .isEqualTo(drift)
-            // An unreadable discount is a warning, not a clean import.
-            val warned = "discount_unreadable" in validate(receipt).map { it.code }
-            assertThat(warned, name = printed).isEqualTo(drift != null)
+            // An unreadable discount is one warning: the unit price and the discount total it
+            // would throw off are not checked. Zero leaves the unit price unexplained.
+            val expected = if (drift != null) {
+                listOf("discount_unreadable" to null)
+            } else {
+                listOf("unit_price_mismatch" to 7)
+            }
+            assertThat(validate(receipt).map { it.code to it.lineNumber }, name = printed)
+                .isEqualTo(expected)
         }
     }
 

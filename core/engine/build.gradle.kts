@@ -1,3 +1,5 @@
+import io.eksoda.buildlogic.useTestData
+
 plugins {
     alias(libs.plugins.eksoda.jvm.library)
     alias(libs.plugins.kover)
@@ -14,8 +16,7 @@ dependencies {
 
 tasks.test {
     // Parser tests read this repository's receipt fixtures, testdata/fixtures/<provider>/.
-    systemProperty("eksoda.testdata", rootDir.resolve("testdata").absolutePath)
-    inputs.dir(rootDir.resolve("testdata")).withPathSensitivity(PathSensitivity.RELATIVE)
+    useTestData(rootDir.resolve("testdata"))
 }
 
 kover {

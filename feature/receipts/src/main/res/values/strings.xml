@@ -82,6 +82,7 @@
     <string name="warning_line_amount">Το ποσό μιας γραμμής δεν ταιριάζει με την ποσότητα και την τιμή της.</string>
     <string name="warning_unit_price">Η τιμή μονάδας μιας γραμμής δεν ταιριάζει με το ποσό της.</string>
     <string name="warning_discount">Μια έκπτωση δεν βγαίνει σωστά.</string>
+    <string name="warning_discount_unreadable">Μια έκπτωση της απόδειξης δεν διαβάστηκε, οπότε δεν υπολογίστηκε.</string>
     <string name="warning_vat_rate">Ο ΦΠΑ μιας γραμμής δεν ταιριάζει με τον συντελεστή της.</string>
     <string name="warning_total">Τα ποσά των γραμμών δεν βγάζουν το σύνολο της απόδειξης.</string>
     <string name="warning_total_discount">Οι εκπτώσεις δεν βγάζουν τη συνολική έκπτωση.</string>

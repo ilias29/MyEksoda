@@ -4,6 +4,8 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
 import io.eksoda.engine.canonical.Line
+import io.eksoda.engine.canonical.Notice
+import io.eksoda.engine.canonical.PriceBasis
 import org.junit.jupiter.api.Test
 
 /** VAT rounding (R6, R14) and discount totals (R17). Line and receipt rules: their own tests. */
@@ -73,6 +75,26 @@ class ValidationTest {
         val short = discounted.map { it.copy(discount = d("0.10")) }
         assertThat(found(withTotal.copy(lines = short)))
             .containsExactly(listOf("line_discounts_mismatch", null, "0.50", "1.00"))
+    }
+
+    @Test
+    fun `with a discount left unread, unit prices and the discount total are not checked`() {
+        // Line 1: 2 × 1.10 = 2.20 for a 2.03 line (its discount unread); line 2 carries 0.20 of
+        // the 1.00 discount total.
+        val lines = listOf(
+            FIVE_LINES[0].copy(
+                quantity = d("2"),
+                unitPrice = d("1.10"),
+                unitPriceBasis = PriceBasis.GROSS,
+            ),
+            FIVE_LINES[1].copy(discount = d("0.20")),
+        ) + FIVE_LINES.drop(2)
+        val receipt = CLEAN.copy(lines = lines, totals = CLEAN.totals.copy(discount = d("1.00")))
+        assertThat(codes(receipt))
+            .containsExactly("unit_price_mismatch", "line_discounts_mismatch")
+        val unread = Notice(DISCOUNT_UNREADABLE, "A discount could not be read.")
+        assertThat(codes(receipt.copy(notices = listOf(unread))))
+            .containsExactly(DISCOUNT_UNREADABLE)
     }
 
     @Test

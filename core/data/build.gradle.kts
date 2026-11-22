@@ -1,3 +1,5 @@
+import io.eksoda.buildlogic.useTestData
+
 plugins {
     alias(libs.plugins.eksoda.android.library)
     alias(libs.plugins.eksoda.hilt)
@@ -26,8 +28,7 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     // The import pipeline tests serve this repository's receipt fixtures, testdata/fixtures/.
-    systemProperty("eksoda.testdata", rootDir.resolve("testdata").absolutePath)
-    inputs.dir(rootDir.resolve("testdata")).withPathSensitivity(PathSensitivity.RELATIVE)
+    useTestData(rootDir.resolve("testdata"))
 }
 
 kover {

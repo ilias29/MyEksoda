@@ -172,7 +172,8 @@ private fun WarningLine(warning: ReceiptWarning) {
 private fun warningRes(code: String): Int = when (code) {
     "line_amount_mismatch" -> R.string.warning_line_amount
     "unit_price_mismatch" -> R.string.warning_unit_price
-    "discount_mismatch", "discount_unreadable" -> R.string.warning_discount
+    "discount_mismatch" -> R.string.warning_discount
+    "discount_unreadable" -> R.string.warning_discount_unreadable
     "vat_rate_mismatch" -> R.string.warning_vat_rate
     "total_mismatch", "receipt_amount_mismatch" -> R.string.warning_total
     "total_discount_mismatch", "line_discounts_mismatch" -> R.string.warning_total_discount
