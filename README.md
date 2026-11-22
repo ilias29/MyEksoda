@@ -14,9 +14,9 @@ Eksoda is a standalone, privacy-first Android household expense app built around
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/home.png" width="200" alt="Home"><br><sub>Home</sub></td>
-    <td align="center"><img src="docs/screenshots/stats.png" width="200" alt="Stats"><br><sub>Stats</sub></td>
-    <td align="center"><img src="docs/screenshots/stats-detail.png" width="200" alt="Stats detail"><br><sub>Stats detail</sub></td>
-    <td align="center"><img src="docs/screenshots/insights.png" width="200" alt="Insights"><br><sub>Insights</sub></td>
+    <td align="center"><img src="docs/screenshots/stats-detail.png" width="200" alt="Insights"><br><sub>Insights</sub></td>
+    <td align="center"><img src="docs/screenshots/insights.png" width="200" alt="Insights by category"><br><sub>By category</sub></td>
+    <td align="center"><img src="docs/screenshots/stats.png" width="200" alt="Insights by shop and monthly trend"><br><sub>By shop and month</sub></td>
   </tr>
 </table>
 
@@ -129,6 +129,7 @@ The project uses Gradle with convention plugins and a Makefile for quality check
 make check           # Runs lint, ktlint, typed detekt, tests, Kover coverage, and no-telemetry checks
 make test            # Runs unit tests
 make build           # Builds debug APK
+make install         # Installs the debug APK on the running emulator or device
 make codemap         # Regenerates documentation symbols map
 make install_rc      # Build the release APK and install it on one device (DEVICE=<serial> if several)
 make bump            # On a PR branch: bump the version (BUMP=patch|minor|major), add its changelog section
@@ -163,6 +164,7 @@ python3 tools/decrypt_backup.py your_backup.eksoda [output_archive.zip]
 |---|---|
 | [`docs/codemap/OVERVIEW.md`](docs/codemap/OVERVIEW.md) | Architecture, modules, import pipeline, data layer, backup, and rules |
 | [`docs/design/household-sync.md`](docs/design/household-sync.md) | Household sync: pairing, protocol, merge rules |
+| [`docs/design/ui-redesign.md`](docs/design/ui-redesign.md) | UI rules: colors, type, components, charts |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release |
 
 ## License

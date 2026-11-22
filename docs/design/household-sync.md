@@ -169,6 +169,8 @@ not change.
 A receipt with no `source_url` came from another phone. Its detail says it was synced from
 another phone (`ReceiptDetail.hasLink`, the link itself never in the model) and has no "Open
 original". It says only that, not who added it: no member names or attribution are stored.
+In the receipt list and in Home's recent receipts, such a receipt carries a small ⇄ mark next
+to the shop's name (`core:ui` `FromOtherPhoneMark`, from the list row's `from_other_phone`).
 
 ## Platform notes
 
@@ -181,9 +183,8 @@ original". It says only that, not who added it: no member names or attribution a
 
 ## Not built yet
 
-- **Synced receipts:** a mark on the receipt list row, and storing the URL when this phone
-  later scans a receipt it already has from sync (the import finds it as a duplicate and today
-  keeps no URL).
+- **Synced receipts:** storing the URL when this phone later scans a receipt it already has
+  from sync (the import finds it as a duplicate and today keeps no URL).
 - **The local network permission,** when moving to `targetSdk` 37 (Platform notes).
 - **A test on two real phones** with a real household's data (also to measure the snapshot
   size).
