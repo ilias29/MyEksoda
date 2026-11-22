@@ -17,7 +17,8 @@ Data is in a SQLCipher database; Android cloud backup is off (`allowBackup=false
 `dataExtractionRules`); the user's own encrypted export is the only backup.
 
 Not built yet: backup reminder, restore from onboarding, app lock, hide content
-(`FLAG_SECURE`), delete all data, light theme, release build (R8, baseline profile). What is
+(`FLAG_SECURE`), delete all data, light theme, R8 and a baseline profile for the release build
+(it is signed and published, but not minified). What is
 left of household sync is under "Not built yet" in `docs/design/household-sync.md`.
 
 ## Modules and dependency rules

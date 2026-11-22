@@ -46,7 +46,7 @@ required.
 
 ## 5. Screens
 
-Bottom bar: Home · Receipts · (Scan) · Insights · Products. Home stays short (one figure and
+Bottom bar: Home · Insights · (Scan) · Receipts · Products. Home stays short (one figure and
 what needs doing); details belong in Insights, which Home's cards open. Insights cards load and
 fail on their own.
 
