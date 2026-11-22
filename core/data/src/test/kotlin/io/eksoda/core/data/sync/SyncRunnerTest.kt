@@ -79,13 +79,15 @@ class SyncRunnerTest {
     }
 
     @Test
-    fun `an automatic sync with a phone synced a moment ago is skipped`() = runBlocking {
-        sync(client = a, server = b, startedBy = SyncStart.USER)
+    fun `an automatic sync with a phone synced a moment ago, or not known, is skipped`() =
+        runBlocking {
+            sync(client = a, server = b, startedBy = SyncStart.USER)
 
-        a.runner.connect(PeerAddress("phone-b", LOOPBACK, 1), SyncStart.AUTO)
+            a.runner.connect(PeerAddress("phone-b", LOOPBACK, 1), SyncStart.AUTO)
+            a.runner.connect(PeerAddress(null, LOOPBACK, 1), SyncStart.AUTO)
 
-        assertThat(a.events().size).isEqualTo(1)
-    }
+            assertThat(a.events().size).isEqualTo(1)
+        }
 
     @Test
     fun `a phone of another household is refused, and only the one that tried keeps an entry`() =
@@ -177,12 +179,6 @@ class SyncRunnerTest {
             }
         }
         assertThat(a.events().single().errorCode).isEqualTo("interrupted")
-    }
-
-    @Test
-    fun `an automatic sync needs to know which phone it is`() = runBlocking {
-        a.runner.connect(PeerAddress(null, LOOPBACK, 1), SyncStart.AUTO)
-        assertThat(a.events()).isEqualTo(emptyList<SyncEventEntity>())
     }
 
     /** [client] connects to [server] listening on loopback. */

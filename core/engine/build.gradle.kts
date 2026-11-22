@@ -22,8 +22,9 @@ tasks.test {
 kover {
     reports {
         verify {
+            // Just under where the tests are now (99.0% on 2026-11-22).
             rule("core:engine line coverage") {
-                minBound(90)
+                minBound(97)
             }
         }
     }
