@@ -16,8 +16,6 @@ import io.eksoda.engine.sync.HouseholdKey
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -128,18 +126,63 @@ class SyncRunnerTest {
     }
 
     @Test
-    fun `addresses are written and read back as stored`() {
-        val v4 = PeerAddress.parse("d", "192.168.1.20:41234")
-        val v6 = PeerAddress.parse("d", "[fe80::1]:41234")
-        val scoped = PeerAddress.parse("d", "[fe80::1%1]:41234")
+    fun `with the real address rule, loopback is neither dialed nor answered`() = runBlocking {
+        val strict = Phone("phone-s", "Strict", key, SyncAddressPolicy())
+        try {
+            strict.runner.connect(PeerAddress("phone-b", LOOPBACK, 1), SyncStart.USER)
+            assertThat(strict.events().single().errorCode).isEqualTo("peer_unreachable")
 
-        assertThat(v4?.text()).isEqualTo("192.168.1.20:41234")
-        assertThat(v6?.text()).isEqualTo("[fe80:0:0:0:0:0:0:1]:41234")
-        // A link-local address keeps its interface, or it cannot be dialed again.
-        assertThat(scoped?.text()).isEqualTo("[fe80:0:0:0:0:0:0:1%1]:41234")
-        assertThat(PeerAddress.parse("d", "phone.local:41234")).isNull()
-        assertThat(PeerAddress.parse("d", "192.168.1.20:99999")).isNull()
-        assertThat(PeerAddress.parse("d", "192.168.1.20")).isNull()
+            ServerSocket(0, 1, LOOPBACK).use { listening ->
+                coroutineScope {
+                    val serving = async(dispatcher) { strict.runner.serve(listening.accept()) }
+                    a.runner.connect(
+                        PeerAddress("phone-s", LOOPBACK, listening.localPort),
+                        SyncStart.USER,
+                    )
+                    serving.await()
+                }
+            }
+            // Refused before a word: only the phone that tried has an entry.
+            assertThat(strict.events().size).isEqualTo(1)
+            assertThat(a.events().single().result).isEqualTo("failed")
+        } finally {
+            strict.database.close()
+        }
+    }
+
+    @Test
+    fun `a phone without the household key neither dials nor answers`() = runBlocking {
+        val keyless = Phone("phone-k", "Keyless", key = null)
+        try {
+            keyless.runner.connect(PeerAddress("phone-b", LOOPBACK, 1), SyncStart.USER)
+            sync(client = a, server = keyless, startedBy = SyncStart.USER)
+            assertThat(keyless.events()).isEqualTo(emptyList<SyncEventEntity>())
+            assertThat(a.events().single().result).isEqualTo("failed")
+        } finally {
+            keyless.database.close()
+        }
+    }
+
+    @Test
+    fun `a connection that drops halfway is interrupted`() = runBlocking {
+        ServerSocket(0, 1, LOOPBACK).use { listening ->
+            coroutineScope {
+                // Answers the call and hangs up.
+                val hangUp = async(dispatcher) { listening.accept().close() }
+                a.runner.connect(
+                    PeerAddress("phone-b", LOOPBACK, listening.localPort),
+                    SyncStart.USER,
+                )
+                hangUp.await()
+            }
+        }
+        assertThat(a.events().single().errorCode).isEqualTo("interrupted")
+    }
+
+    @Test
+    fun `an automatic sync needs to know which phone it is`() = runBlocking {
+        a.runner.connect(PeerAddress(null, LOOPBACK, 1), SyncStart.AUTO)
+        assertThat(a.events()).isEqualTo(emptyList<SyncEventEntity>())
     }
 
     /** [client] connects to [server] listening on loopback. */
@@ -156,20 +199,23 @@ class SyncRunnerTest {
         }
     }
 
-    private inner class Phone(id: String, name: String, key: ByteArray) {
+    private inner class Phone(
+        id: String,
+        name: String,
+        key: ByteArray?,
+        policy: SyncAddressPolicy = ANY_ADDRESS,
+    ) {
         val database: EksodaDatabase = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             EksodaDatabase::class.java,
         ).allowMainThreadQueries().build()
         val db get() = database.openHelper.writableDatabase
-        val device = FixedDevice(id, name, key)
+        val device = FakeSyncDevice(id, name, key)
         val runner = SyncRunner(
             device = device,
             merger = SyncMerger(database, WriteCoordinator(database), clock),
             sync = database.syncDao(),
-            policy = object : SyncAddressPolicy() {
-                override fun allows(address: InetAddress) = true
-            },
+            policy = policy,
             clock = clock,
             io = dispatcher,
         )
@@ -204,26 +250,15 @@ class SyncRunnerTest {
         }
     }
 
-    private class FixedDevice(
-        override val deviceId: String,
-        override val deviceName: String,
-        private val key: ByteArray,
-    ) : SyncDevice {
-        override val keyVersion: StateFlow<Int?> = MutableStateFlow(1)
-
-        override fun key() = key.copyOf()
-
-        override fun keyOrCreate() = key.copyOf()
-
-        override fun replaceKey(key: ByteArray) = Unit
-
-        override fun forgetKey() = Unit
-    }
-
     private companion object {
         const val NOW = 1_763_300_000_000L
         const val THREADS = 4
         val LOOPBACK: InetAddress = InetAddress.getLoopbackAddress()
+
+        /** Lets loopback through, for two phones on this machine. */
+        val ANY_ADDRESS = object : SyncAddressPolicy() {
+            override fun allows(address: InetAddress) = true
+        }
         const val HOUSEHOLD = "INSERT INTO household (id, name, default_currency, timezone, " +
             "created_at, updated_at) VALUES ('ID', 'NAME', 'EUR', 'Europe/Athens', 1, 1)"
     }

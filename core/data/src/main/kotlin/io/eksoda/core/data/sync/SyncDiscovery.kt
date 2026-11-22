@@ -26,13 +26,31 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
+ * How the runtime finds this phone's network and the household's other phones (SyncDiscovery;
+ * tests use a fake).
+ */
+interface PeerDiscovery {
+    /**
+     * This phone's private IPv4 address on Wi-Fi or Ethernet, as the default network changes;
+     * null on mobile data or with no network.
+     */
+    fun localAddress(): Flow<Inet4Address?>
+
+    /** Announces this phone until cancelled. */
+    suspend fun announce(port: Int, deviceId: String, tag: String)
+
+    /** The household's other phones on this network now, by device id, until cancelled. */
+    fun peers(tag: String, selfId: String): Flow<Map<String, PeerAddress>>
+}
+
+/**
  * Finds the household's phones on the local network with NSD (mDNS / DNS-SD, part of Android,
  * no Google Play services). Each phone announces `_eksoda._tcp` with its device id and the
  * household tag (`HouseholdKey.tag`), so phones of other households are skipped without
  * connecting. Nothing here leaves the local network.
  */
 @Singleton
-class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
+class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) : PeerDiscovery {
     private val nsd: NsdManager? = context.getSystemService(NsdManager::class.java)
     private val connectivity: ConnectivityManager? =
         context.getSystemService(ConnectivityManager::class.java)
@@ -42,7 +60,7 @@ class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
      * null on mobile data or with no network. Sync listens only there: never on a carrier's
      * network, whose addresses can look private too.
      */
-    fun localAddress(): Flow<Inet4Address?> = callbackFlow {
+    override fun localAddress(): Flow<Inet4Address?> = callbackFlow {
         val manager = connectivity ?: run {
             send(null)
             awaitClose()
@@ -85,8 +103,7 @@ class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
             ?.firstOrNull(LocalNetwork::isLocal)
     }
 
-    /** Announces this phone until cancelled. */
-    suspend fun announce(port: Int, deviceId: String, tag: String) {
+    override suspend fun announce(port: Int, deviceId: String, tag: String) {
         val manager = nsd ?: return
         val info = NsdServiceInfo().apply {
             serviceName = "Eksoda-${deviceId.take(SHORT_ID)}"
@@ -109,8 +126,7 @@ class SyncDiscovery @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    /** The household's other phones on this network now, by device id, until cancelled. */
-    fun peers(tag: String, selfId: String): Flow<Map<String, PeerAddress>> = callbackFlow {
+    override fun peers(tag: String, selfId: String): Flow<Map<String, PeerAddress>> = callbackFlow {
         val manager = nsd ?: run {
             send(emptyMap())
             awaitClose()

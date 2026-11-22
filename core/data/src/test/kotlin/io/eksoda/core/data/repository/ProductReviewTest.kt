@@ -1,6 +1,5 @@
 package io.eksoda.core.data.repository
 
-import androidx.paging.testing.asSnapshot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import assertk.assertThat
 import assertk.assertions.isEqualTo
@@ -200,26 +199,6 @@ class ProductReviewTest {
         assertThat(prices.comparison.reason).isNotNull()
         val needsReview = "SELECT COUNT(*) FROM receipt_item WHERE match_status = 'needs_review'"
         assertThat(review.getReviewCount().first().toLong()).isEqualTo(app.count(needsReview))
-    }
-
-    @Test
-    fun `the review list shows each line to review with its receipt and merchant`() = runTest {
-        // A product line nobody has looked at yet.
-        val line = checkNotNull(lines()[3]).item
-        app.database.openHelper.writableDatabase.execSQL(
-            "UPDATE receipt_item SET match_status = 'needs_review' WHERE id = ?",
-            arrayOf(line.id),
-        )
-        val items = review.getReviewItems().asSnapshot()
-        assertThat(items.size.toLong()).isEqualTo(
-            app.count("SELECT COUNT(*) FROM receipt_item WHERE match_status = 'needs_review'"),
-        )
-        val item = items.first { it.id == line.id }
-        assertThat(item.receiptId).isEqualTo(receiptId)
-        assertThat(item.description).isEqualTo(line.description)
-        val amount = BigDecimal.valueOf(line.grossAmountMinor, 2)
-        assertThat(item.grossAmount.amount.compareTo(amount)).isEqualTo(0)
-        assertThat(item.merchantName.isNotEmpty()).isTrue()
     }
 }
 

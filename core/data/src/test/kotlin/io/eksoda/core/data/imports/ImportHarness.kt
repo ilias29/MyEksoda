@@ -169,7 +169,10 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     }
 
     /** One run of the import worker for [jobId], as WorkManager would start it. */
-    suspend fun runWorker(jobId: String): ListenableWorker.Result {
+    suspend fun runWorker(jobId: String): ListenableWorker.Result = worker(jobId).doWork()
+
+    /** The import worker for [jobId], as WorkManager would make it. */
+    fun worker(jobId: String): ImportWorker {
         val factory = object : WorkerFactory() {
             override fun createWorker(
                 appContext: Context,
@@ -189,11 +192,10 @@ internal class ImportHarness(folder: File) : AutoCloseable {
                 clock,
             )
         }
-        val worker = TestListenableWorkerBuilder<ImportWorker>(context)
+        return TestListenableWorkerBuilder<ImportWorker>(context)
             .setInputData(workDataOf(ImportWorker.KEY_JOB_ID to jobId))
             .setWorkerFactory(factory)
             .build()
-        return worker.doWork()
     }
 
     /** Scans [fixture]'s link and runs its import: the job id. */
@@ -212,6 +214,12 @@ internal class ImportHarness(folder: File) : AutoCloseable {
         cursor.moveToFirst()
         cursor.getLong(0)
     }
+
+    /** One text value from the database (the first row's first column), or null. */
+    fun text(sql: String, vararg args: Any): String? =
+        database.openHelper.readableDatabase.query(sql, args).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
 
     /** Every step runs; the first failure is thrown, the others are suppressed into it. */
     override fun close() {

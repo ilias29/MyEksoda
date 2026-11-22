@@ -1,6 +1,7 @@
 package io.eksoda.core.data.repository
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.paging.testing.asSnapshot
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -13,11 +14,14 @@ import assertk.assertions.isFalse
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import io.eksoda.core.data.sync.FakeSyncDevice
 import io.eksoda.core.data.sync.SyncControl
-import io.eksoda.core.data.sync.SyncDevice
 import io.eksoda.core.database.EksodaDatabase
+import io.eksoda.core.database.entity.SyncEventEntity
 import io.eksoda.core.database.entity.SyncPeerEntity
 import io.eksoda.core.model.SyncJoinResult
+import io.eksoda.core.model.SyncResult
+import io.eksoda.core.model.SyncStart
 import io.eksoda.core.model.SyncStatus
 import io.eksoda.engine.sync.HouseholdKey
 import io.eksoda.engine.sync.PairingCode
@@ -26,8 +30,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -51,7 +53,7 @@ class SyncRepositoryTest {
     private lateinit var database: EksodaDatabase
     private lateinit var scope: CoroutineScope
     private lateinit var repository: SyncRepositoryImpl
-    private val device = FakeDevice("this-phone")
+    private val device = FakeSyncDevice("this-phone", "Test phone", key = null)
     private val control = FakeControl()
     private val clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC)
     private val dispatcher = UnconfinedTestDispatcher()
@@ -155,6 +157,47 @@ class SyncRepositoryTest {
         assertThat(repository.enabled.first()).isFalse()
     }
 
+    @Test
+    fun `the status and sync now are the running sync's`() = runTest {
+        assertThat(repository.status.first()).isEqualTo(SyncStatus())
+        repository.syncNow()
+        assertThat(control.syncs).isEqualTo(1)
+    }
+
+    @Test
+    fun `the history lists every sync, newest first`() = runTest {
+        // Before the first sync there is no last success.
+        assertThat(repository.lastSuccess.first()).isNull()
+        val dao = database.syncDao()
+        dao.insertEvent(SyncEventEntity("e1", "p", "Pixel 8", "auto", 1, 2, "done", null, 3, 1, 0))
+        dao.insertEvent(
+            SyncEventEntity("e2", null, null, "user", 5, 6, "failed", "peer_unreachable", 0, 0, 0),
+        )
+        dao.insertEvent(
+            SyncEventEntity("e3", "p", "Pixel 8", "peer", 9, null, "running", null, 0, 0, 0),
+        )
+
+        val history = repository.getHistory().asSnapshot()
+        assertThat(history.map { it.id }).containsExactly("e3", "e2", "e1")
+        val (running, failed, done) = history
+        assertThat(listOf(running.startedBy, running.result, running.finishedAt))
+            .isEqualTo(listOf(SyncStart.PEER, SyncResult.RUNNING, null))
+        assertThat(listOf(failed.result, failed.errorCode, failed.peerName))
+            .isEqualTo(listOf(SyncResult.FAILED, "peer_unreachable", null))
+        assertThat(listOf(done.inserted, done.updated, done.deleted)).isEqualTo(listOf(3, 1, 0))
+        assertThat(done.finishedAt).isEqualTo(Instant.ofEpochMilli(2))
+        // The last sync that went through.
+        assertThat(repository.lastSuccess.first()).isEqualTo(Instant.ofEpochMilli(2))
+    }
+
+    @Test
+    fun `a paired phone shows when it was last seen and last synced`() = runTest {
+        database.syncDao().upsertPeer(SyncPeerEntity("p", "Pixel 8", 1, "192.168.1.20:4000", 5, 6))
+        val peer = repository.peers.first().single()
+        assertThat(listOf(peer.lastSeenAt, peer.lastSuccessAt))
+            .isEqualTo(listOf(Instant.ofEpochMilli(5), Instant.ofEpochMilli(6)))
+    }
+
     private fun peer(id: String) = SyncPeerEntity(id, id, pairedAt = 1, null, null, null)
 
     private class FakeControl : SyncControl {
@@ -170,28 +213,6 @@ class SyncRepositoryTest {
         }
 
         override fun address() = "192.168.1.30:5000"
-    }
-
-    /** The Keystore is not there on Robolectric: the key is kept in memory. */
-    private class FakeDevice(override val deviceId: String) : SyncDevice {
-        private var stored: ByteArray? = null
-        private val state = MutableStateFlow<Int?>(null)
-        override val deviceName = "Test phone"
-        override val keyVersion: StateFlow<Int?> = state
-
-        override fun key() = stored?.copyOf()
-
-        override fun keyOrCreate() = key() ?: HouseholdKey.create().also(::replaceKey)
-
-        override fun replaceKey(key: ByteArray) {
-            stored = key.copyOf()
-            state.value = (state.value ?: 0) + 1
-        }
-
-        override fun forgetKey() {
-            stored = null
-            state.value = null
-        }
     }
 
     private companion object {

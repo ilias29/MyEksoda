@@ -66,7 +66,7 @@ class SyncRuntime @Inject constructor(
     private val preferences: DataStore<Preferences>,
     private val device: SyncDevice,
     private val runner: SyncRunner,
-    private val discovery: SyncDiscovery,
+    private val discovery: PeerDiscovery,
     private val sync: SyncDao,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher,
