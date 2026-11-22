@@ -3,6 +3,23 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.4 - A way to support Eksoda
+
+A small update. Install it over 0.3.3 as usual: your data stays, and household sync keeps
+working between 0.3.3 and 0.3.4.
+
+### New
+
+- **Support Eksoda.** Eksoda is free. If you find it useful, Settings → About now has a
+  "Support Eksoda" link that opens `paypal.me/stsaklidis` in your browser, where you can make
+  a donation. It is optional, unlocks nothing, and the app sends nothing to PayPal: it only opens
+  the link when you tap it.
+
+### Under the hood
+
+- More tests for how receipts are stored and how household sync finds the other phones. Nothing
+  changes in how the app works.
+
 ## 0.3.3 - Discounts on receipts
 
 A small update: discounted items on receipts from `einvoice.impact.gr` (My Market, for example)
