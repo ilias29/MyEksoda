@@ -85,6 +85,7 @@
     <string name="warning_line_amount">A line\'s amount doesn\'t match its quantity and price.</string>
     <string name="warning_unit_price">A line\'s unit price doesn\'t match its amount.</string>
     <string name="warning_discount">A discount doesn\'t add up.</string>
+    <string name="warning_discount_unreadable">A discount on the receipt couldn\'t be read, so it\'s left out.</string>
     <string name="warning_vat_rate">A line\'s VAT doesn\'t match its rate.</string>
     <string name="warning_total">The line totals don\'t add up to the receipt total.</string>
     <string name="warning_total_discount">The discounts don\'t add up to the total discount.</string>

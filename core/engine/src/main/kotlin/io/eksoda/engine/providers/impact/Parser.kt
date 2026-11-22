@@ -10,6 +10,7 @@ import io.eksoda.engine.canonical.CanonicalReceipt
 import io.eksoda.engine.canonical.Document
 import io.eksoda.engine.canonical.Identity
 import io.eksoda.engine.canonical.Line
+import io.eksoda.engine.canonical.Notice
 import io.eksoda.engine.canonical.Party
 import io.eksoda.engine.canonical.Payment
 import io.eksoda.engine.canonical.PriceBasis
@@ -36,6 +37,7 @@ import io.eksoda.engine.text.pyIsAlpha
 import io.eksoda.engine.text.pyIsDigit
 import io.eksoda.engine.text.pyStrip
 import io.eksoda.engine.url.parseSubmittedUrl
+import io.eksoda.engine.validation.DISCOUNT_UNREADABLE
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -58,6 +60,12 @@ import org.jsoup.nodes.Document as HtmlDocument
 
 public const val PARSER_VERSION: String = "impact/1"
 private val SOURCE_TZ: ZoneId = ZoneId.of("Europe/Athens")
+
+/** A discount the page prints could not be read (once per receipt, whatever the count). */
+internal val DISCOUNT_UNREADABLE_NOTICE: Notice = Notice(
+    DISCOUNT_UNREADABLE,
+    "A discount on the receipt could not be read and was left out.",
+)
 
 /**
  * Date order per (culture, view). With the "en" culture the tax view switches to month/day while
@@ -142,6 +150,9 @@ private class Builder(
     private val culture: Culture,
     private val url: UrlIdentity,
 ) {
+    /** Conditions the user should see, as warnings (validation turns them into issues). */
+    private val notices = LinkedHashSet<Notice>()
+
     // --- helpers --------------------------------------------------------------------------------
     fun num(text: String?, where: String): BigDecimal? = amount(text, culture, where)
 
@@ -149,6 +160,30 @@ private class Builder(
     fun requiredNum(mapping: Map<String, String>, key: String, where: String): BigDecimal =
         num(required(mapping, key, where), where)
             ?: throw FormatChanged("missing required field $where")
+
+    /**
+     * A discount in euros, or null: zero is no discount. A value that is not a positive amount
+     * in euros (a percentage, text, a negative number) is a layout not seen yet: it is not read,
+     * so the import still works, but it is reported under [key] in the unknown fields (format
+     * drift) and shown as a warning (the receipt's discounts are incomplete).
+     */
+    fun discount(text: String?, key: String): BigDecimal? {
+        if (text.isNullOrBlank()) return null
+        val value = if ('%' in text) null else amountOrNull(text, key)
+        if (value == null || value.signum() < 0) {
+            c.unknown[key] = text
+            notices += DISCOUNT_UNREADABLE_NOTICE
+            return null
+        }
+        return value.takeIf { it.signum() > 0 }
+    }
+
+    /** [num], with a value that is not a number as null. */
+    private fun amountOrNull(text: String, where: String): BigDecimal? = try {
+        num(text, where)
+    } catch (_: FormatChanged) {
+        null
+    }
 
     /** Both views must agree whenever both provide a value. */
     fun agree(a: String?, b: String?, what: String) {
@@ -185,6 +220,8 @@ private class Builder(
             payments = payments(),
             providerPayload = payload(),
             unknownFields = c.unknown + t.unknown,
+            // Last: the values above add to them.
+            notices = notices.toList(),
         )
     }
 
@@ -341,6 +378,12 @@ private class Builder(
         }
 
         val unitPrice = num(c["UnitPrice"], where)
+        // The line discount in euros, VAT included (column "Έκπτ. 1", observed 2026-11-21; fixture
+        // mymarket_7_lines_discount line 7: 1.918 × 7.69 = 14.75, 7.38 off, 7.37 paid). The page
+        // prints no value before the discount: it is the total plus the discount, and validation
+        // checks it against quantity × unit price (R5) and the discount total (R17); R13 holds
+        // by construction.
+        val discount = discount(c[Labels.LINE_DISCOUNT], "commercial.line.${Labels.LINE_DISCOUNT}")
         val lineNumber = t["line_number"]?.ifEmpty { null } ?: index.toString()
         if (!lineNumber.pyIsDigit()) throw FormatChanged("$where: line number '$lineNumber'")
         val raw = LinkedHashMap<String, String>()
@@ -357,6 +400,8 @@ private class Builder(
             unitPrice = unitPrice,
             // Impact prints VAT-inclusive unit prices (0.622 kg × 7.21 = 4.48 gross).
             unitPriceBasis = if (unitPrice != null) PriceBasis.GROSS else PriceBasis.UNKNOWN,
+            grossBeforeDiscount = discount?.let { gross + it },
+            discount = discount,
             net = net,
             vatCategoryCode = category,
             vatRate = rate,
@@ -393,6 +438,8 @@ private class Builder(
             stampDuty = num(s["stamp_duty"], "summary"),
             digitalFee = num(s["digital_fee"], "summary"),
             deductions = num(s["deductions"], "summary"),
+            // "Σύνολο Εκπτώσεων" (commercial view only).
+            discount = discount(c.summary["TotalAllowances"], "commercial.summary.TotalAllowances"),
         )
     }
 
