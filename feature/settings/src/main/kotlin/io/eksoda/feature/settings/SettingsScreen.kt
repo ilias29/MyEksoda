@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -362,8 +363,9 @@ private fun RowIcon(icon: ImageVector) {
 }
 
 /**
- * Who made the app, with links to the author's GitHub profile and email, and the license notice
- * the GPL asks an interactive program to show (copyright, no warranty, where the license is).
+ * Who made the app, with links to the author's GitHub profile, email and PayPal (for donations:
+ * the app is free), and the license notice the GPL asks an interactive program to show
+ * (copyright, no warranty, where the license is).
  * When no app can open a link (no browser or no mail app), the address is copied instead and a
  * short message says so.
  */
@@ -404,6 +406,12 @@ private fun Credits() {
         onClick = { open("mailto:$EMAIL", EMAIL) },
     )
     LinkRow(
+        label = stringResource(R.string.settings_donate),
+        value = DONATE_LABEL,
+        icon = Icons.Outlined.VolunteerActivism,
+        onClick = { open(DONATE_URL, DONATE_URL) },
+    )
+    LinkRow(
         label = stringResource(R.string.settings_license),
         value = LICENSE_LABEL,
         icon = Icons.Outlined.Gavel,
@@ -417,6 +425,8 @@ private const val LICENSE_LABEL = "GPL-3.0"
 private const val GITHUB_URL = "https://github.com/tsaklidis"
 private const val GITHUB_LABEL = "github.com/tsaklidis"
 private const val EMAIL = "stefanos@tsaklidis.gr"
+private const val DONATE_URL = "https://paypal.me/stsaklidis"
+private const val DONATE_LABEL = "paypal.me/stsaklidis"
 
 /** The languages offered, as (tag, label); `locales_config.xml` lists the same. */
 private val LANGUAGES = listOf(

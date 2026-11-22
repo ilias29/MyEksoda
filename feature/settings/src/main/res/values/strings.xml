@@ -31,6 +31,7 @@
     <string name="settings_link_copied">Δεν βρέθηκε εφαρμογή για να ανοίξει. Η διεύθυνση αντιγράφηκε.</string>
     <string name="settings_github">GitHub</string>
     <string name="settings_email">Email</string>
+    <string name="settings_donate">Στηρίξτε το Eksoda</string>
     <string name="settings_license">Άδεια χρήσης</string>
     <string name="settings_license_notice">Copyright © 2026 Stefanos I. Tsaklidis. Το Eksoda είναι ελεύθερο λογισμικό με την άδεια GNU GPL v3 και διατίθεται χωρίς καμία εγγύηση. Μπορείτε να το μοιραστείτε και να το αλλάξετε σύμφωνα με τους όρους της άδειας.</string>
     <string name="settings_data">Δεδομένα και απόρρητο</string>

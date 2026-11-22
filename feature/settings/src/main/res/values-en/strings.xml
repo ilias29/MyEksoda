@@ -29,6 +29,7 @@
     <string name="settings_link_copied">No app could open it. The address was copied.</string>
     <string name="settings_github">GitHub</string>
     <string name="settings_email">Email</string>
+    <string name="settings_donate">Support Eksoda</string>
     <string name="settings_license">License</string>
     <string name="settings_license_notice">Copyright © 2026 Stefanos I. Tsaklidis. Eksoda is free software under the GNU GPL v3 and comes with absolutely no warranty. You may share and change it under the terms of the license.</string>
     <string name="settings_data">Data and privacy</string>
