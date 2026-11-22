@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // Runs ImportWorker in the import pipeline tests.
     testImplementation(libs.androidx.work.testing)
+    // Reads the paged lists (receipts, review) in the repository tests.
+    testImplementation(libs.androidx.paging.testing)
 }
 
 tasks.withType<Test>().configureEach {
@@ -41,10 +43,12 @@ kover {
             }
         }
         verify {
-            // The floor is where the tests are now (61% on 2026-11-22); raise it as they grow,
-            // up to the 80% target. `make check` verifies the debug variant.
+            // The floor is just under where the tests are now (84% on 2026-11-22); raise it as
+            // they grow. What is left is mostly code that needs a real device: household sync
+            // discovery and sockets (sync/), the Keystore (db/KeyManager). `make check`
+            // verifies the debug variant.
             rule("core:data line coverage") {
-                minBound(60)
+                minBound(82)
             }
         }
     }

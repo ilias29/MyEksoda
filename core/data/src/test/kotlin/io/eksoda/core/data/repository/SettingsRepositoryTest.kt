@@ -1,0 +1,60 @@
+package io.eksoda.core.data.repository
+
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.util.concurrent.Executors
+
+/** The app's own settings, in the preferences DataStore. */
+class SettingsRepositoryTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
+    private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    private val settings by lazy {
+        SettingsRepositoryImpl(
+            PreferenceDataStoreFactory.create(scope = scope) {
+                folder.root.resolve("settings.preferences_pb")
+            },
+        )
+    }
+
+    @After
+    fun tearDown() {
+        scope.cancel()
+        dispatcher.close()
+    }
+
+    @Test
+    fun `import notifications are off until turned on`() = runTest {
+        assertThat(settings.notifyImports.first()).isFalse()
+        settings.setNotifyImports(true)
+        assertThat(settings.notifyImports.first()).isTrue()
+        settings.setNotifyImports(false)
+        assertThat(settings.notifyImports.first()).isFalse()
+    }
+
+    @Test
+    fun `an insights card folds and unfolds`() = runTest {
+        assertThat(settings.foldedInsightsCards.first()).isEqualTo(emptySet())
+        settings.toggleInsightsCardFolded("trend")
+        settings.toggleInsightsCardFolded("shops")
+        assertThat(settings.foldedInsightsCards.first()).isEqualTo(setOf("trend", "shops"))
+        settings.toggleInsightsCardFolded("trend")
+        assertThat(settings.foldedInsightsCards.first()).isEqualTo(setOf("shops"))
+    }
+}
