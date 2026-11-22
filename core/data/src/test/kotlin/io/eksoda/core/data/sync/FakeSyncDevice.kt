@@ -23,6 +23,10 @@ internal class FakeSyncDevice(
 
     @Synchronized
     override fun replaceKey(key: ByteArray) {
+        // As strict as KeystoreSyncDevice, so a malformed key fails here as on a phone.
+        require(key.size == HouseholdKey.BYTES) {
+            "a household key is ${HouseholdKey.BYTES} bytes"
+        }
         current = key.copyOf()
         version.value = (version.value ?: 0) + 1
     }

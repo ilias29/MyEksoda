@@ -50,7 +50,10 @@ class ImportWorkerTest {
     }
 
     @Test
-    fun `an expedited import below Android 12 shows the quiet progress notification`() = runTest {
-        assertThat(app.worker("any-job").getForegroundInfo().notificationId).isEqualTo(1)
-    }
+    fun `the worker asked to run in the foreground shows the quiet progress notification`() =
+        runTest {
+            // WorkManager asks only for expedited work below Android 12; the answer is the same.
+            val notification = app.worker("any-job").getForegroundInfo().notification
+            assertThat(notification.channelId).isEqualTo("import_progress")
+        }
 }

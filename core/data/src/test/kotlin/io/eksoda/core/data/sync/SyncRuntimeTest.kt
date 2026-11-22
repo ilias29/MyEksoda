@@ -5,16 +5,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
-import io.eksoda.core.data.db.WriteCoordinator
-import io.eksoda.core.database.EksodaDatabase
 import io.eksoda.core.database.entity.SyncEventEntity
 import io.eksoda.core.database.entity.SyncPeerEntity
 import io.eksoda.core.model.SyncStart
@@ -24,11 +20,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -45,6 +42,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Household sync while the app is open: phone A runs the runtime on this machine's loopback
@@ -62,8 +60,8 @@ class SyncRuntimeTest {
     private val key = HouseholdKey.create()
     private val process = ProcessLifecycleOwner.get().lifecycle as LifecycleRegistry
     private val discovery = FakeDiscovery()
-    private lateinit var a: Phone
-    private lateinit var b: Phone
+    private lateinit var a: SyncTestPhone
+    private lateinit var b: SyncTestPhone
     private lateinit var runtime: SyncRuntime
     private val preferences by lazy {
         PreferenceDataStoreFactory.create(scope = scope) {
@@ -73,8 +71,8 @@ class SyncRuntimeTest {
 
     @Before
     fun setUp() {
-        a = Phone("phone-a", "Pixel 8")
-        b = Phone("phone-b", "Galaxy")
+        a = SyncTestPhone("phone-a", "Pixel 8", key, clock, dispatcher)
+        b = SyncTestPhone("phone-b", "Galaxy", key, clock, dispatcher)
         runtime = SyncRuntime(
             preferences,
             a.device,
@@ -90,10 +88,13 @@ class SyncRuntimeTest {
     fun tearDown() {
         // The process lifecycle outlives the test: back to the background.
         process.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        scope.cancel()
-        a.database.close()
-        b.database.close()
+        // Everything the runtime started ends (sockets closed, entries written) before the
+        // databases close, so nothing spills into the next test.
+        runBlocking { withTimeout(TIMEOUT) { scope.coroutineContext.job.cancelAndJoin() } }
         threads.shutdown()
+        threads.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)
+        a.close()
+        b.close()
     }
 
     private suspend fun enable(on: Boolean) {
@@ -117,7 +118,7 @@ class SyncRuntimeTest {
         withTimeout(TIMEOUT) { first(predicate) }
 
     /** Waits for [phone]'s history to read [expected] ("started by:result:error"). */
-    private suspend fun awaitHistory(phone: Phone, vararg expected: String) {
+    private suspend fun awaitHistory(phone: SyncTestPhone, vararg expected: String) {
         withTimeout(TIMEOUT) {
             while (phone.history() != expected.toList()) delay(POLL)
         }
@@ -171,7 +172,7 @@ class SyncRuntimeTest {
     @Test
     fun `a phone that appears is synced with, by the phone with the smaller id`() = runBlocking {
         listening()
-        ServerSocket(0, 1, LOOPBACK).use { server ->
+        listeningSocket().use { server ->
             val serving = async(dispatcher) { b.runner.serve(server.accept()) }
             discovery.peers.value =
                 mapOf("phone-b" to PeerAddress("phone-b", LOOPBACK, server.localPort))
@@ -206,7 +207,7 @@ class SyncRuntimeTest {
     @Test
     fun `sync now reaches the paired phones where they were last seen`() = runBlocking {
         enable(true)
-        ServerSocket(0, 1, LOOPBACK).use { server ->
+        listeningSocket().use { server ->
             a.database.syncDao().upsertPeer(
                 SyncPeerEntity("phone-b", "Galaxy", 1, "127.0.0.1:${server.localPort}", null, null),
             )
@@ -235,30 +236,6 @@ class SyncRuntimeTest {
         )
         runtime.start()
         awaitHistory(a, "auto:failed:interrupted")
-    }
-
-    private inner class Phone(id: String, name: String) {
-        val database: EksodaDatabase = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            EksodaDatabase::class.java,
-        ).allowMainThreadQueries().build()
-        val device = FakeSyncDevice(id, name, key)
-        val runner = SyncRunner(
-            device = device,
-            merger = SyncMerger(database, WriteCoordinator(database), clock),
-            sync = database.syncDao(),
-            policy = object : SyncAddressPolicy() {
-                override fun allows(address: InetAddress) = true
-            },
-            clock = clock,
-            io = dispatcher,
-        )
-
-        /** "started by:result:error" of every entry in the history. */
-        fun history(): List<String> = database.openHelper.readableDatabase.query(
-            "SELECT started_by || ':' || result || ':' || IFNULL(error_code, '') " +
-                "FROM sync_event ORDER BY started_at, id",
-        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
     }
 
     /** The network and the phones on it, as the test sets them. */
@@ -293,6 +270,5 @@ class SyncRuntimeTest {
         const val TIMEOUT = 10_000L
         const val POLL = 20L
         const val SETTLE = 300L
-        val LOOPBACK = InetAddress.getByName("127.0.0.1") as Inet4Address
     }
 }

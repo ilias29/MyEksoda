@@ -164,8 +164,8 @@ class PersisterTest {
         val newest = respelled(base).lines.first().description
         assertThat(
             app.count(
-                "SELECT COUNT(*) FROM merchant_product_mapping " +
-                    "WHERE last_seen_description = '${newest.replace("'", "''")}'",
+                "SELECT COUNT(*) FROM merchant_product_mapping WHERE last_seen_description = ?",
+                newest,
             ),
         ).isEqualTo(2)
     }

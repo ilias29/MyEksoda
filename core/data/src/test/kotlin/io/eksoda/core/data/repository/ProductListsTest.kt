@@ -15,7 +15,6 @@ import io.eksoda.core.model.Category
 import io.eksoda.core.model.Merchant
 import io.eksoda.core.model.ProductFilter
 import io.eksoda.core.model.ProductOrdering
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -59,8 +58,8 @@ class ProductListsTest {
     }
 
     /** The receipt's line [number]. */
-    private suspend fun line(number: Int): ReceiptItemEntity = app.database.receiptDao()
-        .observeItems(receiptId).first().single { it.item.lineNumber == number }.item
+    private suspend fun line(number: Int): ReceiptItemEntity =
+        checkNotNull(app.lines(receiptId)[number]).item
 
     @Test
     fun `the product list is sorted by name or by lines, and narrowed by text, category, shop`() =

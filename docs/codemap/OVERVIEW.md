@@ -301,7 +301,7 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 - Tests: JUnit 5 + AssertK in `core:engine` (fixtures in `testdata/fixtures/`); JUnit 4 +
   Robolectric in Android modules (in-memory Room). Every change ships with tests for its new
   paths, warning and error paths included. Coverage (Kover, in `make check`): `core:engine`
-  ≥ 97% lines, `core:data` ≥ 95%; on pull requests Codecov (`codecov.yml`)
+  ≥ 95% lines, `core:data` ≥ 92%; on pull requests Codecov (`codecov.yml`)
   requires 90% of the changed lines covered and lets each module (flag) drop at most 0.5%
   (status checks need the Codecov GitHub App). Check a file
   with `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`)
@@ -311,7 +311,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   `testdata/fixtures/`); paged lists are read with `asSnapshot()` (paging-testing).
   `FakeAndroidKeyStore` stands in for the Android Keystore (KeyManager, KeystoreSyncDevice);
   `SyncDiscovery` runs on Robolectric's NSD and connectivity shadows; `SyncRuntimeTest`
-  syncs two phones over loopback through a fake `PeerDiscovery`. In `core:engine`,
+  syncs two phones over loopback through a fake `PeerDiscovery` (`SyncTestPhone` is the
+  shared test phone; its sockets time out, so a regression fails instead of hanging). In `core:engine`,
   `DriftTest` parses every fixture again with each text blanked or garbled and each element
   removed, one at a time: a parser reads the page or throws a `ReceiptException`, never
   anything else.

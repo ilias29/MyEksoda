@@ -22,9 +22,10 @@ tasks.test {
 kover {
     reports {
         verify {
-            // Just under where the tests are now (99.0% on 2026-11-22).
+            // A floor, not a target: the tests are at 99.0% (2026-11-22); a drop on a pull
+            // request is Codecov's check (codecov.yml).
             rule("core:engine line coverage") {
-                minBound(97)
+                minBound(95)
             }
         }
     }

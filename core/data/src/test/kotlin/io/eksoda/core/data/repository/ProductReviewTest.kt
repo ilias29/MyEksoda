@@ -64,8 +64,7 @@ class ProductReviewTest {
     }
 
     /** The receipt's lines by line number. */
-    private suspend fun lines(): Map<Int, ReceiptItemRow> = app.database.receiptDao()
-        .observeItems(receiptId).first().associateBy { it.item.lineNumber }
+    private suspend fun lines(): Map<Int, ReceiptItemRow> = app.lines(receiptId)
 
     @Test
     fun `a package size gives the product's lines a price per kilo`() = runTest {
