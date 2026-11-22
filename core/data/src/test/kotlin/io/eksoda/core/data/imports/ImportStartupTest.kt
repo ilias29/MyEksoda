@@ -37,17 +37,20 @@ class ImportStartupTest {
         app.fetcher.serve(MYMARKET)
         scope = CoroutineScope(SupervisorJob() + app.dispatcher)
         version = AppVersion(app.context)
-        startup = ImportStartup(
-            app.jobs,
-            app.coordinator,
-            ImportScheduler(app.workManager),
-            PreferenceDataStoreFactory.create(scope = scope) {
-                folder.root.resolve("startup.preferences_pb")
-            },
-            version,
-            app.clock,
-        )
+        startup = startupWith("startup")
     }
+
+    /** The app start with its preferences in [file]: another file is a start with them cleared. */
+    private fun startupWith(file: String) = ImportStartup(
+        app.jobs,
+        app.coordinator,
+        ImportScheduler(app.workManager),
+        PreferenceDataStoreFactory.create(scope = scope) {
+            folder.root.resolve("$file.preferences_pb")
+        },
+        version,
+        app.clock,
+    )
 
     @After
     fun tearDown() {
@@ -75,15 +78,22 @@ class ImportStartupTest {
         val jobId = app.import(MYMARKET)
         assertThat(status(jobId)).isEqualTo("failed")
         failedWithOlderVersion(jobId)
+        // The run queued when the link was scanned is gone: a queued run now is the startup's.
+        app.workManager.cancelUniqueWork("import-$jobId")
+        assertThat(runs(jobId)).isEqualTo(listOf(WorkInfo.State.CANCELLED))
 
         startup.run()
         assertThat(status(jobId)).isEqualTo("pending")
         assertThat(runs(jobId).last()).isEqualTo(WorkInfo.State.ENQUEUED)
 
-        // It failed again: the next start of the same version leaves it failed.
+        // It fails again, now with this version: that is recorded, so it is not retried, not
+        // even by a start that forgot which version ran last.
         app.runWorker(jobId)
-        failedWithOlderVersion(jobId)
+        assertThat(status(jobId)).isEqualTo("failed")
+        assertThat(app.jobs.get(jobId)?.appVersionAtFailure).isEqualTo(version.code)
         startup.run()
+        assertThat(status(jobId)).isEqualTo("failed")
+        startupWith("cleared").run()
         assertThat(status(jobId)).isEqualTo("failed")
     }
 

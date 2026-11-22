@@ -2,6 +2,7 @@ package io.eksoda.core.data.repository
 
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.work.WorkInfo
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
@@ -90,6 +91,9 @@ class BackupRepositoryTest {
         return bytes.toByteArray()
     }
 
+    private fun runs(jobId: String): List<WorkInfo.State> =
+        app.workManager.getWorkInfosForUniqueWork("import-$jobId").get().map { it.state }
+
     private fun schema(): Int = app.database.openHelper.readableDatabase.version
 
     private suspend fun queue(fixture: String): String =
@@ -107,6 +111,8 @@ class BackupRepositoryTest {
 
         // Later: that import ran, another one waits.
         app.runWorker(pendingThen)
+        // Its run is over (the test ran the worker itself): a queued run later is the restore's.
+        app.workManager.cancelUniqueWork("import-$pendingThen")
         val pendingNow = queue(KOGIMOU)
         assertThat(app.count("SELECT COUNT(*) FROM receipt")).isEqualTo(2)
 
@@ -119,6 +125,9 @@ class BackupRepositoryTest {
         val pending = app.jobs.pending().map { it.id }
         assertThat(pending).isEqualTo(listOf(pendingThen))
         assertThat(app.jobs.get(pendingNow)).isNull()
+        // Its queued run stops, so it never runs for a job that is gone.
+        assertThat(runs(pendingNow).last()).isEqualTo(WorkInfo.State.CANCELLED)
+        assertThat(runs(pendingThen).last()).isEqualTo(WorkInfo.State.ENQUEUED)
     }
 
     @Test

@@ -145,22 +145,45 @@ class ReceiptListTest {
     }
 
     @Test
-    fun `the flags narrow the list like the database counts them`() = runTest {
-        val needsReview = list(ReceiptFilter(needsReview = true)).size.toLong()
-        assertThat(needsReview).isEqualTo(
-            app.count(
-                "SELECT COUNT(DISTINCT receipt_id) FROM receipt_item " +
-                    "WHERE match_status = 'needs_review'",
-            ),
+    fun `the flags narrow the list to the receipts they describe`() = runTest {
+        // One receipt each: a line to review, a warning, a refund, a cancelled receipt.
+        val metro = list().first().id
+        val sample = list().first { it.totalAmount.amount.toPlainString() == "9.15" }.id
+        val db = app.database.openHelper.writableDatabase
+        db.execSQL(
+            "UPDATE receipt_item SET match_status = 'matched' WHERE match_status = 'needs_review'",
         )
-        val warnings = list(ReceiptFilter(hasWarnings = true)).size.toLong()
-        assertThat(warnings)
-            .isEqualTo(app.count("SELECT COUNT(*) FROM receipt WHERE validation_warnings != '[]'"))
-        assertThat(list(ReceiptFilter(documentKind = DocumentKind.SALE)).size).isEqualTo(4)
-        assertThat(
-            list(ReceiptFilter(documentKind = DocumentKind.CREDIT_NOTE)),
-        ).isEqualTo(emptyList())
-        assertThat(list(ReceiptFilter(hideCancelled = true)).size).isEqualTo(4)
+        db.execSQL("UPDATE receipt SET validation_warnings = '[]'")
+        db.execSQL(
+            "UPDATE receipt_item SET match_status = 'needs_review' WHERE receipt_id = ? " +
+                "AND line_number = 1",
+            arrayOf(lidl),
+        )
+        db.execSQL(
+            "UPDATE receipt SET validation_warnings = '[\"total_mismatch\"]' WHERE id = ?",
+            arrayOf(grill),
+        )
+        db.execSQL(
+            "UPDATE receipt SET document_kind = 'credit_note' WHERE id = ?",
+            arrayOf(sample),
+        )
+        db.execSQL("UPDATE receipt SET status = 'cancelled' WHERE id = ?", arrayOf(metro))
+
+        suspend fun ids(filter: ReceiptFilter) = list(filter).map { it.id }.toSet()
+        assertThat(ids(ReceiptFilter(needsReview = true))).isEqualTo(setOf(lidl))
+        assertThat(ids(ReceiptFilter(hasWarnings = true))).isEqualTo(setOf(grill))
+        assertThat(ids(ReceiptFilter(documentKind = DocumentKind.CREDIT_NOTE)))
+            .isEqualTo(setOf(sample))
+        assertThat(ids(ReceiptFilter(documentKind = DocumentKind.SALE)))
+            .isEqualTo(setOf(metro, grill, lidl))
+        assertThat(ids(ReceiptFilter(hideCancelled = true)))
+            .isEqualTo(setOf(sample, grill, lidl))
+        // The list itself tells which is which.
+        val all = list().associateBy { it.id }
+        assertThat(all.getValue(metro).cancelled).isTrue()
+        assertThat(all.getValue(sample).documentKind).isEqualTo(DocumentKind.CREDIT_NOTE)
+        assertThat(all.getValue(grill).hasWarnings).isTrue()
+        assertThat(all.getValue(lidl).needsReview).isTrue()
     }
 
     @Test

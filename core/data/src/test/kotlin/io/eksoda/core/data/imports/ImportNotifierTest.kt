@@ -8,15 +8,18 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import assertk.assertThat
-import assertk.assertions.contains
-import assertk.assertions.doesNotContain
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import io.eksoda.core.data.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,6 +37,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /** The notification of a finished import, while the app is in the background. */
@@ -49,9 +53,12 @@ class ImportNotifierTest {
     private lateinit var preferences: DataStore<Preferences>
     private lateinit var notifier: ImportNotifier
     private val receipt = Persisted("r1", "created", "METRO", 2110)
+    private val locale = Locale.getDefault()
 
     @Before
     fun setUp() {
+        // The total is formatted for the phone's locale.
+        Locale.setDefault(Locale.US)
         // The notifier asks the main thread whether the app is visible.
         Dispatchers.setMain(UnconfinedTestDispatcher())
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
@@ -63,6 +70,7 @@ class ImportNotifierTest {
 
     @After
     fun tearDown() {
+        Locale.setDefault(locale)
         Dispatchers.resetMain()
         scope.cancel()
         dispatcher.close()
@@ -82,17 +90,39 @@ class ImportNotifierTest {
     }
 
     @Test
-    fun `the notification names the merchant and the total, never the link`() = runTest {
+    fun `the notification shows only the merchant and the total`() = runTest {
         turnOn()
         notifier.imported(receipt)
         val notification = posted().single()
-        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString()
-        val text = notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
-        assertThat(title).contains("METRO")
-        assertThat(text).contains("21")
-        assertThat(title + text).doesNotContain("http")
+        val extras = notification.extras
+        assertThat(extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+            .isEqualTo(context.getString(R.string.import_notification_title, "METRO"))
+        assertThat(extras.getCharSequence(Notification.EXTRA_TEXT).toString())
+            .isEqualTo("€21.10")
+        // Nothing else that could carry the receipt's link.
+        assertThat(extras.getCharSequence(Notification.EXTRA_SUB_TEXT)).isNull()
+        assertThat(extras.getCharSequence(Notification.EXTRA_BIG_TEXT)).isNull()
+        assertThat(notification.tickerText).isNull()
         assertThat(notification.channelId).isEqualTo("imports")
         assertThat(notification.flags and Notification.FLAG_AUTO_CANCEL != 0).isTrue()
+    }
+
+    @Test
+    fun `nothing is shown while the app is open`() = runTest {
+        turnOn()
+        // Robolectric does not run App Startup, which ties the process lifecycle to the
+        // activities: it is moved here as an activity coming to the screen would move it.
+        val process = ProcessLifecycleOwner.get().lifecycle as LifecycleRegistry
+        process.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        try {
+            notifier.imported(receipt)
+            assertThat(posted()).isEmpty()
+        } finally {
+            process.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        }
+        // Back in the background, the next import shows.
+        notifier.imported(receipt)
+        assertThat(posted().size).isEqualTo(1)
     }
 
     @Test
