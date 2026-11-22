@@ -43,12 +43,11 @@ kover {
             }
         }
         verify {
-            // The floor is just under where the tests are now (84% on 2026-11-22); raise it as
-            // they grow. What is left is mostly code that needs a real device: household sync
-            // discovery and sockets (sync/), the Keystore (db/KeyManager). `make check`
-            // verifies the debug variant.
+            // A floor, not a target: the tests are at 97.7% (2026-11-22). The room below is
+            // for code only a device runs (Keystore, NSD, sockets); a drop on a pull request is
+            // Codecov's check (codecov.yml). `make check` verifies the debug variant.
             rule("core:data line coverage") {
-                minBound(82)
+                minBound(92)
             }
         }
     }

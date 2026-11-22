@@ -209,8 +209,9 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   with the household key, then a per-session key; the client sends its snapshot, the server
   merges and answers with its own) over `Frames`; `LocalNetwork.isLocal` is the address rule.
   core:data `sync/SyncRunner` runs one session at a time over a TCP socket and writes the
-  history and paired phones; `SyncDiscovery` is NSD (`_eksoda._tcp`, device id and household
-  tag) and the Wi-Fi address (`localAddress`); `SyncRuntime` (started by
+  history and paired phones; `SyncDiscovery` (behind `PeerDiscovery`) is NSD
+  (`_eksoda._tcp`, device id and household tag) and the Wi-Fi address (`localAddress`);
+  `SyncRuntime` (started by
   `EksodaApplication`) listens on the Wi-Fi address and discovers only while the app is in
   the foreground, sync is on and a key is held (`SyncDevice.keyVersion`: a new key restarts
   it), and syncs automatically or on "Sync now". A sync already running answers `busy`;
@@ -300,7 +301,7 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
 - Tests: JUnit 5 + AssertK in `core:engine` (fixtures in `testdata/fixtures/`); JUnit 4 +
   Robolectric in Android modules (in-memory Room). Every change ships with tests for its new
   paths, warning and error paths included. Coverage (Kover, in `make check`): `core:engine`
-  ≥ 90% lines, `core:data` ≥ 82%; on pull requests Codecov (`codecov.yml`)
+  ≥ 95% lines, `core:data` ≥ 92%; on pull requests Codecov (`codecov.yml`)
   requires 90% of the changed lines covered and lets each module (flag) drop at most 0.5%
   (status checks need the Codecov GitHub App). Check a file
   with `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`)
@@ -308,3 +309,10 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   `core:data` tests run the real import pipeline on the fixtures with `ImportHarness`
   (in-memory Room seeded like the app, WorkManager test driver, a fetcher serving
   `testdata/fixtures/`); paged lists are read with `asSnapshot()` (paging-testing).
+  `FakeAndroidKeyStore` stands in for the Android Keystore (KeyManager, KeystoreSyncDevice);
+  `SyncDiscovery` runs on Robolectric's NSD and connectivity shadows; `SyncRuntimeTest`
+  syncs two phones over loopback through a fake `PeerDiscovery` (`SyncTestPhone` is the
+  shared test phone; its sockets time out, so a regression fails instead of hanging). In `core:engine`,
+  `DriftTest` parses every fixture again with each text blanked or garbled and each element
+  removed, one at a time: a parser reads the page or throws a `ReceiptException`, never
+  anything else.

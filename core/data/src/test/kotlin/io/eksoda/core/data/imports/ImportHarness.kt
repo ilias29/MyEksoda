@@ -21,6 +21,7 @@ import io.eksoda.core.data.repository.ReceiptRepositoryImpl
 import io.eksoda.core.data.util.NetworkMonitor
 import io.eksoda.core.database.CategorySeed
 import io.eksoda.core.database.EksodaDatabase
+import io.eksoda.core.database.dao.ReceiptItemRow
 import io.eksoda.core.model.ImportSubmission
 import io.eksoda.engine.Engine
 import io.eksoda.engine.fetch.FetchedDocument
@@ -33,6 +34,7 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -169,7 +171,10 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     }
 
     /** One run of the import worker for [jobId], as WorkManager would start it. */
-    suspend fun runWorker(jobId: String): ListenableWorker.Result {
+    suspend fun runWorker(jobId: String): ListenableWorker.Result = worker(jobId).doWork()
+
+    /** The import worker for [jobId], as WorkManager would make it. */
+    fun worker(jobId: String): ImportWorker {
         val factory = object : WorkerFactory() {
             override fun createWorker(
                 appContext: Context,
@@ -189,11 +194,10 @@ internal class ImportHarness(folder: File) : AutoCloseable {
                 clock,
             )
         }
-        val worker = TestListenableWorkerBuilder<ImportWorker>(context)
+        return TestListenableWorkerBuilder<ImportWorker>(context)
             .setInputData(workDataOf(ImportWorker.KEY_JOB_ID to jobId))
             .setWorkerFactory(factory)
             .build()
-        return worker.doWork()
     }
 
     /** Scans [fixture]'s link and runs its import: the job id. */
@@ -207,11 +211,22 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     /** The stored receipt of an imported job. */
     suspend fun receiptOf(jobId: String): String = checkNotNull(jobs.get(jobId)?.receiptId)
 
-    /** One number from the database (a count, a sum). */
-    fun count(sql: String): Long = database.openHelper.readableDatabase.query(sql).use { cursor ->
-        cursor.moveToFirst()
-        cursor.getLong(0)
-    }
+    /** A stored receipt's lines by line number. */
+    suspend fun lines(receiptId: String): Map<Int, ReceiptItemRow> =
+        database.receiptDao().observeItems(receiptId).first().associateBy { it.item.lineNumber }
+
+    /** One number from the database (a count, a sum); [args] fill the query's `?`. */
+    fun count(sql: String, vararg args: Any): Long =
+        database.openHelper.readableDatabase.query(sql, args).use { cursor ->
+            cursor.moveToFirst()
+            cursor.getLong(0)
+        }
+
+    /** One text value from the database (the first row's first column), or null. */
+    fun text(sql: String, vararg args: Any): String? =
+        database.openHelper.readableDatabase.query(sql, args).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
 
     /** Every step runs; the first failure is thrown, the others are suppressed into it. */
     override fun close() {
