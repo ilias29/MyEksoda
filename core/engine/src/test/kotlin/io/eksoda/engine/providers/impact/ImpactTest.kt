@@ -79,6 +79,9 @@ class ImpactTest {
             assertThat(line.grossBeforeDiscount, name = printed).isNull()
             assertThat(receipt.unknownFields["commercial.line.Amount"], name = printed)
                 .isEqualTo(drift)
+            // An unreadable discount is a warning, not a clean import.
+            val warned = "discount_unreadable" in validate(receipt).map { it.code }
+            assertThat(warned, name = printed).isEqualTo(drift != null)
         }
     }
 
@@ -91,10 +94,12 @@ class ImpactTest {
         val zero = printing("0,00")
         assertThat(zero.totals.discount).isNull()
         assertThat(zero.unknownFields).isEmpty()
+        assertThat(zero.notices).isEmpty()
         val text = printing("n/a")
         assertThat(text.totals.discount).isNull()
         assertThat(text.unknownFields)
             .isEqualTo(mapOf("commercial.summary.TotalAllowances" to "n/a"))
+        assertThat(validate(text).map { it.code }).isEqualTo(listOf("discount_unreadable"))
     }
 
     @Test

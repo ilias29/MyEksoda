@@ -58,7 +58,10 @@ class ProductReviewTest {
     }
 
     @After
-    fun tearDown() = app.close()
+    fun tearDown() {
+        // A failed setUp keeps its own error.
+        if (::app.isInitialized) app.close()
+    }
 
     /** The receipt's lines by line number. */
     private suspend fun lines(): Map<Int, ReceiptItemRow> = app.database.receiptDao()

@@ -300,7 +300,8 @@ Text helpers (stored keys depend on their exact behavior; reuse them, don't rein
   Robolectric in Android modules (in-memory Room). Every change ships with tests for its new
   paths, warning and error paths included. Coverage (Kover, in `make check`): `core:engine`
   ≥ 90% lines, `core:data` ≥ 60% (target 80%); on pull requests Codecov (`codecov.yml`)
-  requires 90% of the changed lines covered and lets the total drop at most 0.5%. Check a file
+  requires 90% of the changed lines covered and lets each module (flag) drop at most 0.5%
+  (status checks need the Codecov GitHub App). Check a file
   with `./gradlew :core:engine:koverXmlReport` (`core/engine/build/reports/kover/report.xml`)
   or `:core:data:koverXmlReportDebug` (`core/data/build/reports/kover/reportDebug.xml`).
   `core:data` tests run the real import pipeline on the fixtures with `ImportHarness`

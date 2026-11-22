@@ -45,7 +45,10 @@ class ImportPipelineTest {
     }
 
     @After
-    fun tearDown() = app.close()
+    fun tearDown() {
+        // A failed setUp keeps its own error.
+        if (::app.isInitialized) app.close()
+    }
 
     @Test
     fun `a scanned link is queued, imported, and stored with its lines and discount`() = runTest {
@@ -173,6 +176,17 @@ class ImportPipelineTest {
         assertThat(listOf(job.status, job.lastErrorCode))
             .isEqualTo(listOf("failed", InternalError().code.code))
         assertThat(job.receiptId).isNull()
+    }
+
+    @Test
+    fun `a link the test did not serve fails, and never gets another fixture's page`() = runTest {
+        // The Entersoft frame is served for its own host only.
+        app.fetcher.serveEntersoft(LIDL)
+        val url = Fixtures.url(ImportHarness.KOGIMOU)
+        val jobId = (app.service.submit(url) as ImportSubmission.Queued).jobId
+        app.runWorker(jobId)
+        assertThat(app.jobs.get(jobId)?.lastErrorCode).isEqualTo(InternalError().code.code)
+        assertThat(app.count("SELECT COUNT(*) FROM receipt")).isEqualTo(0)
     }
 
     @Test

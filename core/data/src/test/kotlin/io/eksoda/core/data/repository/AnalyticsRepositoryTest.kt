@@ -61,7 +61,10 @@ class AnalyticsRepositoryTest {
     }
 
     @After
-    fun tearDown() = app.close()
+    fun tearDown() {
+        // A failed setUp keeps its own error.
+        if (::app.isInitialized) app.close()
+    }
 
     @Test
     fun `the month's totals add up its receipts`() = runTest {

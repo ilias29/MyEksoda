@@ -26,6 +26,7 @@ import io.eksoda.engine.Engine
 import io.eksoda.engine.fetch.FetchedDocument
 import io.eksoda.engine.fetch.Fetcher
 import io.eksoda.engine.providers.REGISTRY
+import io.eksoda.engine.providers.entersoft.DOCUMENT_PATH
 import io.eksoda.engine.url.ParsedUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
@@ -40,6 +41,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.Executors
+import io.eksoda.engine.providers.entersoft.HOST as ENTERSOFT_HOST
 
 /** This repository's receipt fixtures, by "<provider>/<name>". */
 internal object Fixtures {
@@ -59,8 +61,11 @@ internal object Fixtures {
 
 /** Serves fixture pages instead of the network; [failure], when set, is thrown instead. */
 internal class FixtureFetcher : Fetcher {
-    /** Pages by full link, or by path (Entersoft's document frame). */
+    /** Pages by full link. */
     private val pages = mutableMapOf<String, ByteArray>()
+
+    /** Framed documents by host and path, whatever their query (Entersoft's GetInvoice). */
+    private val frames = mutableMapOf<String, ByteArray>()
     var failure: Exception? = null
 
     fun serve(fixture: String) {
@@ -70,7 +75,7 @@ internal class FixtureFetcher : Fetcher {
     /** An Entersoft receipt: the shell page at its link, the receipt in the frame it points to. */
     fun serveEntersoft(fixture: String) {
         pages[Fixtures.canonicalUrl(fixture)] = Fixtures.page("entersoft/shell")
-        pages["/api/GetInvoice"] = Fixtures.page(fixture)
+        frames[ENTERSOFT_HOST + DOCUMENT_PATH] = Fixtures.page(fixture)
     }
 
     override suspend fun get(
@@ -81,7 +86,9 @@ internal class FixtureFetcher : Fetcher {
     ): FetchedDocument {
         failure?.let { throw it }
         check(url.host in allowedHosts) { "a request outside the provider's hosts" }
-        val page = pages[url.geturl()] ?: pages[url.path] ?: error("no fixture for ${url.path}")
+        // Only what was served for this very host: a setup mistake fails, never another page.
+        val page = pages[url.geturl()] ?: frames[url.host + url.path]
+            ?: error("no fixture for ${url.host}${url.path}")
         return FetchedDocument(page)
     }
 }
@@ -92,13 +99,23 @@ internal class FixtureFetcher : Fetcher {
  * [fetcher] in place of the network.
  */
 internal class ImportHarness(folder: File) : AutoCloseable {
+    val context: Context = ApplicationProvider.getApplicationContext()
+
+    /** Set up first: if it fails, nothing is open yet. [close] releases what follows. */
+    val workManager: WorkManager = run {
+        WorkManagerTestInitHelper.initializeTestWorkManager(
+            context,
+            Configuration.Builder().setExecutor(SynchronousExecutor()).build(),
+        )
+        WorkManager.getInstance(context)
+    }
+
     /**
      * The dispatcher the repositories compute on (the app injects Default): a real thread, since
      * each test's runTest has its own scheduler.
      */
     val dispatcher: ExecutorCoroutineDispatcher =
         Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    val context: Context = ApplicationProvider.getApplicationContext()
     val clock: Clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC)
     val database: EksodaDatabase =
         Room.inMemoryDatabaseBuilder(context, EksodaDatabase::class.java)
@@ -112,7 +129,6 @@ internal class ImportHarness(folder: File) : AutoCloseable {
             .allowMainThreadQueries()
             .build()
     val fetcher = FixtureFetcher()
-    val workManager: WorkManager
     val jobs = database.importJobDao()
     val coordinator = WriteCoordinator(database)
     val engine = Engine(fetcher)
@@ -135,11 +151,6 @@ internal class ImportHarness(folder: File) : AutoCloseable {
     )
 
     init {
-        WorkManagerTestInitHelper.initializeTestWorkManager(
-            context,
-            Configuration.Builder().setExecutor(SynchronousExecutor()).build(),
-        )
-        workManager = WorkManager.getInstance(context)
         scheduler = ImportScheduler(workManager)
         service = ImportService(engine, jobs, coordinator, scheduler, clock)
         repository = ReceiptRepositoryImpl(
@@ -200,11 +211,18 @@ internal class ImportHarness(folder: File) : AutoCloseable {
         cursor.getLong(0)
     }
 
+    /** Every step runs; the first failure is thrown, the others are suppressed into it. */
     override fun close() {
-        scope.cancel()
-        database.close()
-        WorkManagerTestInitHelper.closeWorkDatabase()
-        dispatcher.close()
+        val failures = listOf<() -> Unit>(
+            { scope.cancel() },
+            { database.close() },
+            { WorkManagerTestInitHelper.closeWorkDatabase() },
+            { dispatcher.close() },
+        ).mapNotNull { step -> runCatching(step).exceptionOrNull() }
+        failures.firstOrNull()?.let { first ->
+            failures.drop(1).forEach(first::addSuppressed)
+            throw first
+        }
     }
 
     companion object {

@@ -10,6 +10,7 @@ import io.eksoda.engine.canonical.CanonicalReceipt
 import io.eksoda.engine.canonical.Document
 import io.eksoda.engine.canonical.Identity
 import io.eksoda.engine.canonical.Line
+import io.eksoda.engine.canonical.Notice
 import io.eksoda.engine.canonical.Party
 import io.eksoda.engine.canonical.Payment
 import io.eksoda.engine.canonical.PriceBasis
@@ -58,6 +59,12 @@ import org.jsoup.nodes.Document as HtmlDocument
 
 public const val PARSER_VERSION: String = "impact/1"
 private val SOURCE_TZ: ZoneId = ZoneId.of("Europe/Athens")
+
+/** A discount the page prints could not be read (once per receipt, whatever the count). */
+internal val DISCOUNT_UNREADABLE: Notice = Notice(
+    "discount_unreadable",
+    "A discount on the receipt could not be read and was left out.",
+)
 
 /**
  * Date order per (culture, view). With the "en" culture the tax view switches to month/day while
@@ -142,6 +149,9 @@ private class Builder(
     private val culture: Culture,
     private val url: UrlIdentity,
 ) {
+    /** Conditions the user should see, as warnings (validation turns them into issues). */
+    private val notices = LinkedHashSet<Notice>()
+
     // --- helpers --------------------------------------------------------------------------------
     fun num(text: String?, where: String): BigDecimal? = amount(text, culture, where)
 
@@ -152,14 +162,16 @@ private class Builder(
 
     /**
      * A discount in euros, or null: zero is no discount. A value that is not a positive amount
-     * in euros (a percentage, text, a negative number) is a layout not seen yet: it is reported
-     * under [key] in the unknown fields (format drift) and not read, so the import still works.
+     * in euros (a percentage, text, a negative number) is a layout not seen yet: it is not read,
+     * so the import still works, but it is reported under [key] in the unknown fields (format
+     * drift) and shown as a warning (the receipt's discounts are incomplete).
      */
     fun discount(text: String?, key: String): BigDecimal? {
         if (text.isNullOrBlank()) return null
         val value = if ('%' in text) null else amountOrNull(text, key)
         if (value == null || value.signum() < 0) {
             c.unknown[key] = text
+            notices += DISCOUNT_UNREADABLE
             return null
         }
         return value.takeIf { it.signum() > 0 }
@@ -207,6 +219,8 @@ private class Builder(
             payments = payments(),
             providerPayload = payload(),
             unknownFields = c.unknown + t.unknown,
+            // Last: the values above add to them.
+            notices = notices.toList(),
         )
     }
 

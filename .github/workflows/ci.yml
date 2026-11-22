@@ -59,12 +59,15 @@ jobs:
       - name: Coverage reports
         run: ./gradlew :core:engine:koverXmlReport :core:data:koverXmlReportDebug
 
+      # disable_search: only the named report goes under each flag (otherwise the uploader also
+      # picks up the other module's report and counts it twice).
       - name: Upload core:engine coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: core/engine/build/reports/kover/report.xml
           flags: engine
+          disable_search: true
 
       - name: Upload core:data coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -72,6 +75,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: core/data/build/reports/kover/reportDebug.xml
           flags: data
+          disable_search: true
 
       - name: Upload reports
         if: failure()

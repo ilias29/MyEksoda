@@ -42,7 +42,10 @@ class ReceiptRepositoryTest {
     }
 
     @After
-    fun tearDown() = app.close()
+    fun tearDown() {
+        // A failed setUp keeps its own error.
+        if (::app.isInitialized) app.close()
+    }
 
     private suspend fun detail() = repository.getReceipt(receiptId).first()
 
