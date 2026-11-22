@@ -21,7 +21,7 @@ test:  ## JVM unit tests: engine and model (JUnit 5), Android modules on Robolec
 lint:  ## ktlint (Spotless), detekt with type resolution, Android Lint
 	$(GRADLE) spotlessCheck $(DETEKT) lintDebug
 
-coverage:  ## Kover thresholds: core:engine >= 90%, core:data >= 60% (target 80%)
+coverage:  ## Kover thresholds: core:engine >= 90%, core:data >= 82%
 	$(GRADLE) :core:engine:koverVerify :core:data:koverVerifyDebug
 
 no-telemetry:  ## Fails if a telemetry, analytics or crash SDK is on the app's classpath
