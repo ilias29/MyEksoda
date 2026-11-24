@@ -1,6 +1,7 @@
 package io.eksoda.feature.receipts.detail
 
 import androidx.annotation.StringRes
+import io.eksoda.core.model.ReceiptItem
 import io.eksoda.core.model.ReceiptWarning
 import io.eksoda.feature.receipts.R
 
@@ -27,6 +28,16 @@ internal fun groupWarnings(warnings: List<ReceiptWarning>): List<WarningGroup> =
             amountCheck = group.all { it.code in AMOUNT_CHECKS },
         )
     }
+
+/**
+ * The description of each receipt line, by line number, to name the items a warning concerns.
+ * A number more than one item claims is left out: its warning says "line N" rather than name
+ * an item it may not be about.
+ */
+internal fun lineNames(items: List<ReceiptItem>): Map<Int, String> {
+    val byLine = items.groupBy { it.lineNumber }
+    return byLine.filterValues { it.size == 1 }.mapValues { (_, same) -> same.single().description }
+}
 
 /** The engine's arithmetic checks (`validation`): amounts that do not agree with each other. */
 private val AMOUNT_CHECKS = setOf(

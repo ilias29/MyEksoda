@@ -4,12 +4,11 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.doesNotContain
 import assertk.assertions.isEmpty
-import assertk.assertions.isEqualTo
 import io.eksoda.engine.canonical.Line
 import io.eksoda.engine.canonical.PriceBasis
 import org.junit.jupiter.api.Test
 
-/** Unit prices before VAT (R5) and how a parser tells them from prices with VAT. */
+/** Unit prices before VAT (R5). How a parser tells them apart: [PriceBasisInferenceTest]. */
 class UnitPriceBasisTest {
     /** The first line (net 1.80, VAT 0.23, gross 2.03 at 13%) without its net and VAT. */
     private fun netPriced(price: String, change: (Line) -> Line = { it }) = withFirstLine {
@@ -40,9 +39,54 @@ class UnitPriceBasisTest {
             it.copy(grossBeforeDiscount = d("2.53"), discount = d("0.50"))
         }
         assertThat(found(discounted)).isEmpty()
-        // Discounted, and the value before the discount is not printed: nothing to compare.
-        assertThat(codes(netPriced("9.99") { it.copy(discount = d("0.50")) }))
-            .doesNotContain("unit_price_mismatch")
+        // 2.50 × 1.13 = 2.825
+        val wrong = netPriced("2.50") {
+            it.copy(grossBeforeDiscount = d("2.53"), discount = d("0.50"))
+        }
+        assertThat(found(wrong))
+            .containsExactly(listOf("unit_price_mismatch", 1, "2.83", "2.53"))
+    }
+
+    @Test
+    fun `a discounted line with its net is checked against the gross before the discount`() {
+        // The line keeps its net 1.80 and VAT 0.23; 2.53 − 0.50 = 2.03.
+        fun discounted(price: String) = withFirstLine {
+            it.copy(
+                quantity = d("1"),
+                unitPrice = d(price),
+                unitPriceBasis = PriceBasis.NET,
+                grossBeforeDiscount = d("2.53"),
+                discount = d("0.50"),
+            )
+        }
+        assertThat(found(discounted("2.24"))).isEmpty()
+        assertThat(found(discounted("2.50")))
+            .containsExactly(listOf("unit_price_mismatch", 1, "2.83", "2.53"))
+    }
+
+    @Test
+    fun `a printed zero discount compares with the printed value before it, as Masoutis prints`() {
+        fun zeroDiscount(price: String) = netPriced(price) {
+            it.copy(grossBeforeDiscount = d("2.03"), discount = d("0.00"))
+        }
+        assertThat(found(zeroDiscount("1.80"))).isEmpty()
+        assertThat(found(zeroDiscount("2.00")))
+            .containsExactly(listOf("unit_price_mismatch", 1, "2.26", "2.03"))
+    }
+
+    @Test
+    fun `a discounted line without the value before the discount is not checked, net or not`() {
+        val withNet = withFirstLine {
+            it.copy(
+                quantity = d("1"),
+                unitPrice = d("9.99"),
+                unitPriceBasis = PriceBasis.NET,
+                discount = d("0.17"),
+            )
+        }
+        assertThat(codes(withNet)).doesNotContain("unit_price_mismatch")
+        val withoutNet = netPriced("9.99") { it.copy(discount = d("0.17")) }
+        assertThat(codes(withoutNet)).doesNotContain("unit_price_mismatch")
     }
 
     @Test
@@ -59,64 +103,5 @@ class UnitPriceBasisTest {
     @Test
     fun `a price before VAT without the VAT rate is not checked`() {
         assertThat(found(netPriced("9.99") { it.copy(vatRate = null) })).isEmpty()
-    }
-
-    @Test
-    fun `prices that fit only before VAT are net`() {
-        assertThat(inferPriceBasis(MASOUTIS)).isEqualTo(PriceBasis.NET)
-    }
-
-    @Test
-    fun `one line that fits neither way is reported alone, not with every other line`() {
-        val oneWrong = MASOUTIS.mapIndexed { i, line ->
-            if (i == 0) line.copy(unitPrice = d("5.00")) else line
-        }
-        val basis = inferPriceBasis(oneWrong)
-        assertThat(basis).isEqualTo(PriceBasis.NET)
-        val lines = oneWrong.map { it.copy(unitPriceBasis = basis) }
-        // 5.00 × 1.13 = 5.65
-        assertThat(found(CLEAN.copy(lines = lines)).filter { it.first() == "unit_price_mismatch" })
-            .containsExactly(listOf("unit_price_mismatch", 1, "5.65", "4.40"))
-    }
-
-    @Test
-    fun `prices that fit with VAT, as many lines both ways, or none, are gross`() {
-        // Printed with VAT.
-        val withVat = MASOUTIS.map { it.copy(unitPrice = it.gross) }
-        assertThat(inferPriceBasis(withVat)).isEqualTo(PriceBasis.GROSS)
-        // Most lines fit with VAT.
-        val mostlyWithVat = withVat.mapIndexed { i, line -> if (i == 0) MASOUTIS[0] else line }
-        assertThat(inferPriceBasis(mostlyWithVat)).isEqualTo(PriceBasis.GROSS)
-        // One line fits only with VAT, another only before it.
-        val mixed = listOf(MASOUTIS[0].copy(unitPrice = d("4.40")), MASOUTIS[1])
-        assertThat(inferPriceBasis(mixed)).isEqualTo(PriceBasis.GROSS)
-        // At 0% VAT a price fits both ways.
-        val zeroRate = listOf(MASOUTIS[0].copy(unitPrice = d("4.40"), vatRate = d("0")))
-        assertThat(inferPriceBasis(zeroRate)).isEqualTo(PriceBasis.GROSS)
-        // The line that misses has no VAT rate to try.
-        assertThat(inferPriceBasis(listOf(MASOUTIS[0].copy(vatRate = null))))
-            .isEqualTo(PriceBasis.GROSS)
-        // No unit prices.
-        assertThat(inferPriceBasis(MASOUTIS.map { it.copy(unitPrice = null) }))
-            .isEqualTo(PriceBasis.GROSS)
-    }
-
-    private companion object {
-        /** Masoutis (Entersoft) prints unit prices before VAT. */
-        val MASOUTIS = listOf(
-            Triple("3.90", "13", "4.40"),
-            Triple("2.14", "13", "2.42"),
-            Triple("0.09", "24", "0.11"),
-        ).mapIndexed { index, (price, rate, gross) ->
-            Line(
-                lineNumber = index + 1,
-                description = "Item ${index + 1}",
-                gross = d(gross),
-                quantity = d("1"),
-                unitPrice = d(price),
-                unitPriceBasis = PriceBasis.GROSS,
-                vatRate = d(rate),
-            )
-        }
     }
 }

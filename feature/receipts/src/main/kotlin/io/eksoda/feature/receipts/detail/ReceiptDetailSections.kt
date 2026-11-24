@@ -138,7 +138,7 @@ internal fun Notice(text: String, attention: Boolean = false) {
 internal fun WarningsCard(warnings: List<ReceiptWarning>, items: List<ReceiptItem>) {
     if (warnings.isEmpty()) return
     val groups = remember(warnings) { groupWarnings(warnings) }
-    val names = remember(items) { items.associate { it.lineNumber to it.description } }
+    val names = remember(items) { lineNames(items) }
     Column {
         WarningGroupsCard(groups.filterNot { it.amountCheck }, names, attention = true)
         WarningGroupsCard(groups.filter { it.amountCheck }, names, attention = false)

@@ -290,7 +290,8 @@ private class Builder(private val document: HtmlDocument, private val url: UrlId
         val freeRows = freeRows()
         val remarks = remarks(freeRows)
         val totalsRaw = labelMap(freeRows, TOTAL_LABELS).first
-        val lines = lines()
+        val vatNumber = NON_DIGIT.replace(required(header, "vat", "issuer VAT"), "")
+        val lines = lines(vatNumber)
         val totals = totals(totalsRaw)
         val breakdown = vatBreakdown()
         checkConsistency(lines, totals, breakdown)
@@ -299,7 +300,6 @@ private class Builder(private val document: HtmlDocument, private val url: UrlId
         val uid = remarks["uid"].orEmpty().uppercase(Locale.ROOT).ifEmpty { null }
         val mark = remarks["mark"]?.ifEmpty { null }
         if (uid == null && mark == null) throw FormatChanged("neither UID nor MARK on the page")
-        val vatNumber = NON_DIGIT.replace(required(header, "vat", "issuer VAT"), "")
         return CanonicalReceipt(
             providerCode = PROVIDER_CODE,
             parserVersion = PARSER_VERSION,
@@ -377,13 +377,10 @@ private class Builder(private val document: HtmlDocument, private val url: UrlId
         ) to issueTime
     }
 
-    /**
-     * The page does not say whether its unit prices include VAT: LIDL's do, Masoutis' do not
-     * (3,90 × 1 at 13% for 4,40). The basis that fits the receipt's lines is taken.
-     */
-    fun lines(): List<Line> {
+    /** The receipt's lines, their unit prices on the issuer's basis ([unitPriceBasis]). */
+    fun lines(issuerVat: String): List<Line> {
         val lines = printedLines()
-        val basis = inferPriceBasis(lines)
+        val basis = unitPriceBasis(issuerVat, lines)
         if (basis == PriceBasis.GROSS) return lines
         return lines.map { if (it.unitPrice != null) it.copy(unitPriceBasis = basis) else it }
     }
@@ -468,6 +465,21 @@ private class Builder(private val document: HtmlDocument, private val url: UrlId
         }
     }
 }
+
+/**
+ * Issuers (VAT numbers) known to print unit prices before VAT. The page does not say which basis
+ * it uses: LIDL prints them with VAT, Masoutis (094063140) before VAT (3,90 × 1 at 13% for
+ * 4,40).
+ */
+internal val NET_PRICED_ISSUERS: Set<String> = setOf("094063140")
+
+/**
+ * The basis of a receipt's unit prices, most certain first: the issuer's when it is known
+ * ([NET_PRICED_ISSUERS]); otherwise the one more of the receipt's lines fit
+ * ([inferPriceBasis]), which stays with VAT unless the lines show otherwise.
+ */
+internal fun unitPriceBasis(issuerVat: String, lines: List<Line>): PriceBasis =
+    if (issuerVat in NET_PRICED_ISSUERS) PriceBasis.NET else inferPriceBasis(lines)
 
 private fun json(values: Map<String, String>): JsonObject =
     JsonObject(values.mapValues { (_, value) -> JsonPrimitive(value) })
