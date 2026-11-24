@@ -3,6 +3,32 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.5 - Masoutis receipts and supermarket logos
+
+A small update: Masoutis receipts now import, and the big supermarket chains show their logo.
+Install it over 0.3.4 as usual: your data stays, and household sync keeps working between
+0.3.4 and 0.3.5.
+
+### New
+
+- **Receipts on `epsilondigital-3rdpartb.epsilonnet.gr`** now import, for example Masoutis'.
+  Scan the receipt's QR code as usual. Scan these receipts again: the earlier attempt was
+  refused before anything was saved.
+- **Supermarket logos.** AB Vasilopoulos, Sklavenitis, Masoutis, Lidl and My Market show
+  their logo instead of their initials in Home, Receipts and the shop list, drawn in the app's
+  own colors. Other shops keep their initials. My Market's receipts are issued by METRO ΑΕΒΕ,
+  which also runs Metro Cash & Carry under the same tax number: if that shop is Metro Cash &
+  Carry for you, rename it (for example "Metro Cash & Carry") and it shows its initials again.
+
+### Fixed
+
+- **Epsilon Digital receipts without the shop's name** now import instead of being refused.
+  Until a receipt names the shop, it is shown by its tax number (ΑΦΜ); you can rename it.
+- **Shops named Ταξιάρχης** (or ταξίδια, travel agencies) are no longer taken for taxis: a
+  new shop such as "Φούρνος Ταξιάρχης" gets the bakery category. Shops already in the app keep
+  the category they have; change it on the shop's page if needed.
+- **Initials are shown as the shop's name is written**, never turned into capitals.
+
 ## 0.3.4 - A way to support Eksoda
 
 A small update. Install it over 0.3.3 as usual: your data stays, and household sync keeps
