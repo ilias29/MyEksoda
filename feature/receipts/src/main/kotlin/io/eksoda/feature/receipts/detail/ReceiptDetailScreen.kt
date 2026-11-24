@@ -236,7 +236,7 @@ private fun DetailContent(
         if (!detail.hasLink) {
             item { Notice(stringResource(R.string.detail_synced)) }
         }
-        item { WarningsCard(detail.warnings) }
+        item { WarningsCard(detail.warnings, detail.items) }
         item { SectionHeading(stringResource(R.string.detail_items)) }
         if (detail.hasLineItems) {
             items(detail.items, key = { it.id }) { item ->

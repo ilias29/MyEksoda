@@ -1,0 +1,234 @@
+{
+  "branch": {
+    "address": {
+      "city": null,
+      "country": null,
+      "number": null,
+      "postal_code": null,
+      "street": "ΥΠ/ΜΑ ΠΛ.ΕΛΕΥΘΕΡΙΑΣ, ΚΟΖΑΝΗ"
+    },
+    "number": null
+  },
+  "coverage": {
+    "cross_checked": false,
+    "issue_time": "approximate",
+    "line_items": true,
+    "line_tax_amounts": false,
+    "mydata_registered": true,
+    "official_codes": false
+  },
+  "culture": "el",
+  "document": {
+    "currency": "EUR",
+    "formatted_number": "30203 756612",
+    "issued_at": "2026-11-24T18:42:16+02:00",
+    "issued_date": "2026-11-24",
+    "kind": "sale",
+    "number": "30203 756612",
+    "series": null,
+    "type_code": "11.1",
+    "type_label": "ΑΠΟΔΕΙΞΗ ΛΙΑΝΙΚΗΣ ΠΩΛΗΣΗΣ"
+  },
+  "identity": {
+    "cancellation_mark": null,
+    "mark": "400016153157873",
+    "source_key": null,
+    "transmission_failure": false,
+    "uid": "94252C765B6E0AA179CB28202328C1A296CEAB1C"
+  },
+  "issuer": {
+    "activity": null,
+    "address": null,
+    "country_code": "GR",
+    "gemi_number": null,
+    "legal_name": "302-ΠΛ.ΕΛΕΥΘΕΡΙΑΣ ΚΟΖΑΝΗ",
+    "tax_office": null,
+    "vat_number": "094063140"
+  },
+  "lines": [
+    {
+      "annotation_code": null,
+      "barcode": null,
+      "deductions": null,
+      "description": "ΓΙΑΟΥΡΤΙ ΣΤΡΑΓΓΙΣΤΟ 2% ΚΟΥΚΑΚΗ 1000ΓΡ",
+      "digital_fee": null,
+      "discount": "0.00",
+      "fees": null,
+      "gross": "4.40",
+      "gross_before_discount": "4.40",
+      "line_number": 1,
+      "line_type_code": null,
+      "merchant_product_code": "3036241",
+      "net": null,
+      "other_taxes": null,
+      "quantity": "1.00",
+      "raw": {
+        "item.before_discount": "4,40",
+        "item.code": "3036241",
+        "item.description": "ΓΙΑΟΥΡΤΙ ΣΤΡΑΓΓΙΣΤΟ 2% ΚΟΥΚΑΚΗ 1000ΓΡ",
+        "item.discount": "0,00",
+        "item.gross": "4,40",
+        "item.quantity": "1,00",
+        "item.unit": "ΤΕΜ",
+        "item.unit_price": "3,90",
+        "item.vat_rate": "13%"
+      },
+      "stamp_duty": null,
+      "unit": "piece",
+      "unit_code": null,
+      "unit_label": "ΤΕΜ",
+      "unit_price": "3.90",
+      "unit_price_basis": "net",
+      "vat": null,
+      "vat_category_code": "2",
+      "vat_exemption_code": null,
+      "vat_rate": "13",
+      "withheld": null
+    },
+    {
+      "annotation_code": null,
+      "barcode": null,
+      "deductions": null,
+      "description": "ΧΡΙΣΤΟΥΓ ΗΜΕΡΟΛΟΓΙΟ OSCAR ΣΟΚΟΛΑΤΑΚ 75ΓΡ",
+      "digital_fee": null,
+      "discount": "0.00",
+      "fees": null,
+      "gross": "2.42",
+      "gross_before_discount": "2.42",
+      "line_number": 2,
+      "line_type_code": null,
+      "merchant_product_code": "2245801",
+      "net": null,
+      "other_taxes": null,
+      "quantity": "1.00",
+      "raw": {
+        "item.before_discount": "2,42",
+        "item.code": "2245801",
+        "item.description": "ΧΡΙΣΤΟΥΓ ΗΜΕΡΟΛΟΓΙΟ OSCAR ΣΟΚΟΛΑΤΑΚ 75ΓΡ",
+        "item.discount": "0,00",
+        "item.gross": "2,42",
+        "item.quantity": "1,00",
+        "item.unit": "ΤΕΜ",
+        "item.unit_price": "2,14",
+        "item.vat_rate": "13%"
+      },
+      "stamp_duty": null,
+      "unit": "piece",
+      "unit_code": null,
+      "unit_label": "ΤΕΜ",
+      "unit_price": "2.14",
+      "unit_price_basis": "net",
+      "vat": null,
+      "vat_category_code": "2",
+      "vat_exemption_code": null,
+      "vat_rate": "13",
+      "withheld": null
+    },
+    {
+      "annotation_code": null,
+      "barcode": null,
+      "deductions": null,
+      "description": "ΣΑΚΟΥΛΑ ΤΑΜΕΙΟΥ ΒΙΟ ΜΑΣΟΥΤΗ",
+      "digital_fee": null,
+      "discount": "0.00",
+      "fees": null,
+      "gross": "0.11",
+      "gross_before_discount": "0.11",
+      "line_number": 3,
+      "line_type_code": null,
+      "merchant_product_code": "3747912",
+      "net": null,
+      "other_taxes": null,
+      "quantity": "1.00",
+      "raw": {
+        "item.before_discount": "0,11",
+        "item.code": "3747912",
+        "item.description": "ΣΑΚΟΥΛΑ ΤΑΜΕΙΟΥ ΒΙΟ ΜΑΣΟΥΤΗ",
+        "item.discount": "0,00",
+        "item.gross": "0,11",
+        "item.quantity": "1,00",
+        "item.unit": "ΤΕΜ",
+        "item.unit_price": "0,09",
+        "item.vat_rate": "24%"
+      },
+      "stamp_duty": null,
+      "unit": "piece",
+      "unit_code": null,
+      "unit_label": "ΤΕΜ",
+      "unit_price": "0.09",
+      "unit_price_basis": "net",
+      "vat": null,
+      "vat_category_code": "1",
+      "vat_exemption_code": null,
+      "vat_rate": "24",
+      "withheld": null
+    }
+  ],
+  "notices": [],
+  "parser_version": "entersoft/1",
+  "payments": [
+    {
+      "amount": "6.93",
+      "derived": false,
+      "method": "card",
+      "method_code": null,
+      "method_label": "POS / e-POS",
+      "tip": "0"
+    }
+  ],
+  "provider_code": "entersoft",
+  "provider_payload": {
+    "header": {
+      "address": "ΥΠ/ΜΑ ΠΛ.ΕΛΕΥΘΕΡΙΑΣ, ΚΟΖΑΝΗ",
+      "issue_date": "24-11-2026",
+      "name": "302-ΠΛ.ΕΛΕΥΘΕΡΙΑΣ ΚΟΖΑΝΗ",
+      "number": "30203 756612",
+      "title": "ΑΠΟΔΕΙΞΗ ΛΙΑΝΙΚΗΣ ΠΩΛΗΣΗΣ",
+      "vat": "094063140"
+    },
+    "remarks": {
+      "license": "2020_07_102Entersoft_001_Paperless e-Invoicing_V1_31072020",
+      "mark": "400016153157873",
+      "provider": "ENTERSOFTONE Α.Ε.",
+      "provider_url": "https://www.entersoft.gr",
+      "transmitted_at": "24-11-2026 18:42:16",
+      "uid": "94252C765B6E0AA179CB28202328C1A296CEAB1C"
+    },
+    "totals": {
+      "before_discount": "6,93EUR",
+      "discount": "0,00EUR",
+      "gross": "6,93EUR",
+      "net": "6,13EUR",
+      "vat": "0,80EUR"
+    }
+  },
+  "source_url": "https://e-invoicing.gr/edocuments/ViewInvoice/-1/00000000-0000-4000-8000-000000000000_0xxxx000",
+  "totals": {
+    "deductions": null,
+    "digital_fee": null,
+    "discount": "0.00",
+    "fees": null,
+    "gross": "6.93",
+    "gross_before_discount": "6.93",
+    "net": "6.13",
+    "other_taxes": null,
+    "stamp_duty": null,
+    "vat": "0.80",
+    "withheld": null
+  },
+  "unknown_fields": {},
+  "vat_breakdown": [
+    {
+      "category_code": "2",
+      "net": "6.04",
+      "rate": "13",
+      "vat": "0.78"
+    },
+    {
+      "category_code": "1",
+      "net": "0.09",
+      "rate": "24",
+      "vat": "0.02"
+    }
+  ]
+}

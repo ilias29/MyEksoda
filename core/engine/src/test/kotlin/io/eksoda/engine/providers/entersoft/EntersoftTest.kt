@@ -3,16 +3,20 @@ package io.eksoda.engine.providers.entersoft
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.contains
+import assertk.assertions.containsExactly
 import assertk.assertions.doesNotContain
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import io.eksoda.engine.FormatChanged
 import io.eksoda.engine.ReceiptNotFound
 import io.eksoda.engine.TestData
+import io.eksoda.engine.canonical.PriceBasis
 import io.eksoda.engine.fetch.FetchedDocument
 import io.eksoda.engine.fetch.Fetcher
 import io.eksoda.engine.providers.REGISTRY
 import io.eksoda.engine.url.ParsedUrl
+import io.eksoda.engine.validation.validate
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -88,6 +92,17 @@ class EntersoftTest {
         assertThat(result.html).contains("hashToken=xx00xx00xx")
         assertThat(result.replaced)
             .isEqualTo(mapOf("download_token" to 1, "url_access_token" to 2))
+    }
+
+    @Test
+    fun `unit prices are read before VAT when that is how the receipt prints them`() {
+        val masoutis = parseHtml(directory.resolve("masoutis_3_lines.html").readText(), identity)
+        assertThat(masoutis.lines.map { it.unitPriceBasis }.distinct())
+            .containsExactly(PriceBasis.NET)
+        assertThat(validate(masoutis)).isEmpty()
+        // LIDL prints them with VAT.
+        assertThat(parseHtml(receipt, identity).lines.map { it.unitPriceBasis }.distinct())
+            .containsExactly(PriceBasis.GROSS)
     }
 
     @Test

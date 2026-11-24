@@ -17,7 +17,8 @@ import java.math.RoundingMode
 // sources have no line VAT amounts).
 //
 // R4  line composition          net + VAT + fees + … − withheld − deductions = gross
-// R5  unit price                qty × unit price = gross before discount (or gross)
+// R5  unit price                qty × unit price = gross before discount (or gross); a price
+//                               before VAT: = net, or with its VAT rate = gross
 // R6  VAT rate                  net × rate = VAT, allowing a rate's rounding remainder on a line
 // R7  totals vs lines           Σ line values = receipt totals (only fully provided values)
 // R8  receipt composition       net + VAT + fees + … − withheld − deductions = gross
@@ -116,31 +117,81 @@ private fun lineComposition(line: Line): List<ValidationIssue> { // R4
 }
 
 private fun unitPrice(line: Line): List<ValidationIssue> { // R5
-    val unitPrice = line.unitPrice ?: return emptyList()
-    val quantity = line.quantity ?: return emptyList()
-    val target = when {
-        line.grossBeforeDiscount != null -> line.grossBeforeDiscount
-
-        line.discount != null -> return emptyList()
-
-        // discounted, and the pre-discount value is unknown
-        line.unitPriceBasis == PriceBasis.GROSS -> line.gross
-
-        line.unitPriceBasis == PriceBasis.NET -> line.net
-
-        else -> null
-    } ?: return emptyList()
-    val expected = money(quantity * unitPrice)
-    if (!off(expected, target, LINE_TOLERANCE)) return emptyList()
+    val check = priceCheck(line, line.unitPriceBasis)
+    if (check == null || check.fits) return emptyList()
     return listOf(
         issue(
             "unit_price_mismatch",
             "Quantity × unit price does not match the line amount.",
             line.lineNumber,
-            expected,
-            target,
+            money(check.expected),
+            check.target,
         ),
     )
+}
+
+/** `quantity × unit price` ([expected]) against the line value it should give ([target]). */
+private class PriceCheck(
+    val expected: BigDecimal,
+    val target: BigDecimal,
+    val tolerance: BigDecimal = LINE_TOLERANCE,
+) {
+    val fits: Boolean get() = !off(expected, target, tolerance)
+}
+
+/** R5 for [line] with its unit price on [basis]; null when the line cannot be checked. */
+private fun priceCheck(line: Line, basis: PriceBasis): PriceCheck? {
+    val unitPrice = line.unitPrice ?: return null
+    val quantity = line.quantity ?: return null
+    // The gross the quantity was sold at: before the discount, or the gross when undiscounted.
+    val gross = line.grossBeforeDiscount ?: line.gross.takeIf { line.discount == null }
+    val value = quantity * unitPrice
+    return when (basis) {
+        PriceBasis.NET -> netPriceCheck(line, quantity, value, gross)
+
+        PriceBasis.GROSS -> gross?.let { PriceCheck(money(value), it) }
+
+        // Without a basis, only a printed value before the discount is compared.
+        PriceBasis.UNKNOWN -> line.grossBeforeDiscount?.let { PriceCheck(money(value), it) }
+    }
+}
+
+/**
+ * A unit price before VAT ([netValue] = [quantity] × price): compared with the line's net when
+ * the line has one and no discount; otherwise, with the VAT rate added, with the [gross]. The
+ * printed net unit price is rounded to the cent, so each unit may carry half a cent (plus its
+ * VAT) of difference, and the gross its own half cent.
+ */
+private fun netPriceCheck(
+    line: Line,
+    quantity: BigDecimal,
+    netValue: BigDecimal,
+    gross: BigDecimal?,
+): PriceCheck? {
+    val net = line.net
+    if (net != null && line.grossBeforeDiscount == null && line.discount == null) {
+        return PriceCheck(money(netValue), net)
+    }
+    val rate = line.vatRate ?: return null
+    val target = gross ?: return null
+    val withVat = BigDecimal.ONE + rate.pyDivide(HUNDRED)
+    val tolerance = LINE_TOLERANCE.max(HALF_CENT * (quantity.abs() * withVat + BigDecimal.ONE))
+    return PriceCheck(netValue * withVat, target, tolerance)
+}
+
+/**
+ * The basis of a receipt's unit prices when the page does not say. Most shops print the price
+ * with VAT; some (Masoutis on Entersoft) print it before VAT. The basis more lines fit wins, so
+ * one odd line (a multi-buy, a misprint) is reported on its own instead of turning every other
+ * line into a warning. A tie, including prices that fit both ways (0% VAT), is GROSS.
+ */
+internal fun inferPriceBasis(lines: List<Line>): PriceBasis {
+    fun fitting(basis: PriceBasis) = lines.count { priceCheck(it, basis)?.fits == true }
+    return if (fitting(PriceBasis.NET) > fitting(PriceBasis.GROSS)) {
+        PriceBasis.NET
+    } else {
+        PriceBasis.GROSS
+    }
 }
 
 private fun vatRate(line: Line, lines: List<Line>): List<ValidationIssue> { // R6

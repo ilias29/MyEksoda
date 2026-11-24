@@ -118,6 +118,9 @@ parser version, read by Impact's layout (`impact/Parser.kt` `Site`: code, versio
 rule; `parsePage`) and Impact's sanitizer. Its QR link is `/v/<prefix><VAT>-<number>-<40-hex
 authentication code>-<GUID>` (`s1ecos/Urls.kt`); the page prints the `/p/` form, which must have
 the same issuer and access GUID (`printsLink`). Neither 40-hex id is the myDATA UID.
+Entersoft does not say whether its unit prices include VAT (LIDL's do, Masoutis' do not): the
+parser takes the basis that fits the receipt's lines (`validation/Validation.kt`
+`inferPriceBasis`), and R5 checks a price before VAT with the line's VAT rate added.
 Fixtures: `testdata/fixtures/<provider>/` (sample page + expected JSON), edited with the parser.
 `EpsilonTest` compares its fixture with the golden JSON and, on a difference, writes the
 actual output to `core/engine/build/golden/` for review.

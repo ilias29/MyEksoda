@@ -37,6 +37,7 @@ import io.eksoda.engine.text.pyStrip
 import io.eksoda.engine.url.ParsedUrl
 import io.eksoda.engine.url.parseQs
 import io.eksoda.engine.url.urlsplit
+import io.eksoda.engine.validation.inferPriceBasis
 import io.eksoda.engine.vocabulary.currency
 import io.eksoda.engine.vocabulary.documentType
 import io.eksoda.engine.vocabulary.paymentMethod
@@ -376,7 +377,18 @@ private class Builder(private val document: HtmlDocument, private val url: UrlId
         ) to issueTime
     }
 
+    /**
+     * The page does not say whether its unit prices include VAT: LIDL's do, Masoutis' do not
+     * (3,90 × 1 at 13% for 4,40). The basis that fits the receipt's lines is taken.
+     */
     fun lines(): List<Line> {
+        val lines = printedLines()
+        val basis = inferPriceBasis(lines)
+        if (basis == PriceBasis.GROSS) return lines
+        return lines.map { if (it.unitPrice != null) it.copy(unitPriceBasis = basis) else it }
+    }
+
+    private fun printedLines(): List<Line> {
         val rows = items()
         if (rows.isEmpty()) throw FormatChanged("the receipt has no item rows")
         return rows.mapIndexed { offset, row ->
