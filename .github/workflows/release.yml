@@ -1,0 +1,53 @@
+# Every merge to master is a release, so a pull request must carry its own `make bump`: a newer
+# version than its base and written release notes (`make release_check`). Make the "release
+# ready" check required for master in branch protection, so a pull request without its bump
+# cannot be merged. Also turn on "Require branches to be up to date before merging": the check
+# runs on pull request events only, so without it two pull requests bumping to the same version
+# both stay green, and the second one merges without a new version.
+#
+# Only pull requests into master are releases; merges between other branches need no bump.
+#
+# A pull request that deliberately ships no release (CI, scripts or docs only) gets the label
+# "no release": the check then passes without a bump. The next release's notes cover it.
+#
+# A workflow of its own: labeling re-runs it, and that must not cancel or skip ci.yml's
+# `make check`.
+name: Release
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-ready:
+    name: release ready
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Labeled "no release"
+        if: contains(github.event.pull_request.labels.*.name, 'no release')
+        run: echo "Labeled 'no release'; no version bump needed."
+
+      - name: Check out
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no release') }}
+        uses: actions/checkout@v5
+
+      - name: Fetch the base branch
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no release') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch --no-tags --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+
+      - name: make release_check
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no release') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: make release_check BASE="origin/$BASE_REF"

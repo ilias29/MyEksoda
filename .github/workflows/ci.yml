@@ -1,5 +1,6 @@
 # Runs `make check` (format, detekt, lint, unit tests, coverage, no-telemetry, debug build) on
-# every push to master and every pull request. All tests run on the JVM (JUnit 5 and
+# every push to master and every pull request. The version bump a pull request needs is checked
+# by release.yml. All tests run on the JVM (JUnit 5 and
 # Robolectric), so no emulator is needed; tests tagged `live` (real network) are excluded by the
 # build unless -Plive is passed, and CI never passes it.
 #
