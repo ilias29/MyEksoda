@@ -12,6 +12,7 @@ import io.eksoda.core.data.imports.Fixtures
 import io.eksoda.core.data.imports.ImportHarness
 import io.eksoda.core.data.imports.ImportHarness.Companion.MYMARKET
 import io.eksoda.core.model.ImportSubmission
+import io.eksoda.core.model.MerchantBrand
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -71,6 +72,21 @@ class ReceiptRepositoryTest {
         assertThat(recent.itemCount).isEqualTo(7)
         assertThat(recent.hasWarnings).isFalse()
         assertThat(recent.fromOtherPhone).isFalse()
+    }
+
+    @Test
+    fun `a chain's receipts carry its brand for the logo`() = runTest {
+        app.fetcher.serveEntersoft(ImportHarness.LIDL)
+        val lidl = app.receiptOf(app.import(ImportHarness.LIDL))
+        val brands = repository.getRecentReceipts(5).first().associate {
+            it.id to it.merchant.brand
+        }
+        assertThat(brands[lidl]).isEqualTo(MerchantBrand.LIDL)
+        // METRO ΑΕΒΕ's VAT number is My Market's.
+        assertThat(brands[receiptId]).isEqualTo(MerchantBrand.MY_MARKET)
+        // The detail's receipt too.
+        val detail = repository.getReceipt(lidl).first()
+        assertThat(detail?.receipt?.merchant?.brand).isEqualTo(MerchantBrand.LIDL)
     }
 
     @Test

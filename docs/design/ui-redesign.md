@@ -30,7 +30,8 @@ Tokens: `core:designsystem` `theme/Color.kt` (`EksodaColors`, also mapped to
 Use what `core:designsystem` has (`SectionCard`, `ChangeBadge`, `HeroAmount`, `StatRow`,
 `OverlineText`, `PeriodSelector`, `SegmentedToggle`, navigation, `CategoryTile`); shapes are in
 `theme/Shape.kt`. Cards have a line border and no elevation. Categories have no color: their
-identity is the name and icon on a neutral tile.
+identity is the name and icon on a neutral tile. Merchants show their initials on a neutral
+tile, or a known chain's logo in the ink color only (never its brand colors, §1).
 
 ## 4. Charts
 

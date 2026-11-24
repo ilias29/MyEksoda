@@ -186,6 +186,12 @@ private fun fold(word: String): String =
 
 private const val WHOLE_WORD_MAX = 3
 
+/**
+ * Longer stems that also match whole words only: ΤΑΞΙ (taxi) must not take ΤΑΞΙΑΡΧΗΣ, a common
+ * shop name, or ΤΑΞΙΔΙΑ (travel).
+ */
+private val WHOLE_WORDS: Set<String> = setOf("ΤΑΞΙ").map { fold(normalizeText(it)) }.toSet()
+
 /** (slug, stem words) with the stems normalized like product names, longest stems first. */
 private val STEMS: List<Pair<String, List<String>>> = (KEYWORDS.entries + BRANDS.entries)
     .flatMap { (slug, words) -> words.map { word -> slug to stem(word) } }
@@ -198,7 +204,11 @@ private fun matches(parts: List<String>, words: List<String>, start: Int): Boole
     if (start + parts.size > words.size) return false
     return parts.withIndex().all { (offset, part) ->
         val word = words[start + offset]
-        if (part.length <= WHOLE_WORD_MAX) word == part else word.startsWith(part)
+        if (part.length <= WHOLE_WORD_MAX || part in WHOLE_WORDS) {
+            word == part
+        } else {
+            word.startsWith(part)
+        }
     }
 }
 
@@ -235,7 +245,7 @@ public fun productCategorySlug(name: String, merchantSlug: String?): String? =
  */
 private val GENERAL_STORES = listOf(
     "ΜΗ ΕΞΕΙΔΙΚΕΥΜΕΝ", "ΥΠΕΡΑΓΟΡ", "SUPER MARKET", "SUPERMARKET", "ΠΕΡΙΠΤΕΡ", "ΠΑΝΤΟΠΩΛ",
-    "ΜΙΝΙ ΜΑΡΚΕΤ", "MINI MARKET", "ΜΙΚΤΟ ΛΙΑΝΙΚ",
+    "ΜΙΝΙ ΜΑΡΚΕΤ", "MINI MARKET", "ΜΙΚΤΟ ΛΙΑΝΙΚ", "ΣΟΥΠΕΡ ΜΑΡΚΕΤ", "ΣΟΥΠΕΡΜΑΡΚΕΤ",
 )
 
 private val SHOP_KINDS: List<Pair<String, List<String>>> = listOf(

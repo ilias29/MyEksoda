@@ -40,7 +40,8 @@ core:designsystem      Theme (dark scheme + EksodaColors, Inter + IBM Plex Mono,
                        text/monoNumbers
 core:ui                Shared composables (EmptyState, MoneyText, HeroMoney) and text helpers
                        (formatMoney, formatAmount, currencySymbol, dayLabel, importErrorRes,
-                       categoryNameRes)
+                       categoryNameRes); chain logos (component/MerchantLogos.kt,
+                       res/drawable/merchant_logo_*.xml)
 feature:*              Screens. See only core:data interfaces, core:model, core:ui,
                        core:designsystem (wired by the eksoda.android.feature plugin).
                        feature:household: the Sync screen (`sync/`, opened from Settings).
@@ -53,6 +54,18 @@ Package roots: `io.eksoda` (app), `io.eksoda.engine` (engine), `io.eksoda.core.<
 `io.eksoda.feature.<feature>`. Sources are under `src/main/kotlin/`. Short paths here drop that
 prefix: `core/data/util/Fixed.kt` is `core/data/src/main/kotlin/io/eksoda/core/data/util/Fixed.kt`.
 SDK: `minSdk` 26, `targetSdk` 36, `compileSdk` 37.
+
+Chain logos: `core:engine` `merchants/Brand.kt` (`merchantBrand`) maps a merchant's VAT number
+to a chain (never the name alone: the chain names are also surnames). A VAT number two chains
+share (METRO ΑΕΒΕ: My Market and Metro Cash & Carry) shows the logo until the household renames
+the merchant to something that does not name the chain. core:data reads it from the merchant's
+own row on every screen (`repository/Brands.kt`; the receipt queries select the merchant's
+country, VAT and rename flag) into `Merchant.brand` / `MerchantSummary.brand`; `MerchantAvatar`
+tints the logo with the ink color instead of the initials. Logos are alpha masks (white paths,
+dim parts as `fillAlpha`, holes for cutouts) from Wikimedia Commons, My Market's redrawn from a
+supplied image; source and license are in each drawable's header. A new chain: a `Brand` entry
+and its VAT number (engine), the same-named `MerchantBrand` (model; a test keeps them in step),
+a drawable and its arm in `core:ui` `MerchantLogos.kt` (the `when` will not compile without it).
 
 ## The import pipeline (the heart of the app)
 
@@ -87,13 +100,17 @@ Providers: `engine/providers/{impact,s1ecos,entersoft,aadefhm,epsilon}/` each wi
 (recognize), `Parser.kt` (layouts → `CanonicalReceipt`), `Sanitize.kt`; Impact also
 `Labels.kt`, `Views.kt`. Shared: `Base.kt` (`Provider`, `Layout`, `UrlIdentity`,
 `maskUrl`), `Registry.kt` (`REGISTRY`), `Html.kt` (`textOf`, Jsoup), `Sanitizing.kt`.
-Epsilon Digital (a host per big merchant, `epsilondigital-<merchant>.epsilonnet.gr`, and the
-shared `epsilondigital-3rd` host for smaller ones) is not read from its viewer page (behind a
-Cloudflare Turnstile check) but from the receipt's detailed myDATA XML
-(`/filedocument/GetInvoiceDocDetailed/<uuid>`, Jsoup XML parser). The XML has no time of day
-(the time is the date only) and, on merchant hosts, no merchant name: names come from
-`TENANTS` in `epsilon/Urls.kt` (a new merchant host is one entry there). Shared hosts
-(`SHARED_HOSTS`) carry the issuer name in the XML.
+Epsilon Digital (merchant hosts `epsilondigital-<merchant>.epsilonnet.gr`, `MERCHANT_HOSTS`,
+and the shared `epsilondigital-3rd` and `epsilondigital-3rdpartb` hosts, `SHARED_HOSTS`) is not
+read from its viewer page (behind a Cloudflare Turnstile check) but from the receipt's detailed
+myDATA XML (`/filedocument/GetInvoiceDocDetailed/<uuid>`, Jsoup XML parser). The XML has no
+time of day (the time is the date only) and often no merchant name (merchant hosts never send
+one, shared hosts usually do; Masoutis on `3rdpartb` does not). A name in the XML wins;
+otherwise it comes from `ISSUER_NAMES` in `epsilon/Urls.kt`, keyed by issuer VAT and valid on
+every Epsilon host. Without either the receipt is still read with an empty legal name, and the
+merchant is called by its VAT number until a receipt names it (`merchants/Merchants.kt`
+`defaultDisplayName`; an empty name never overwrites a known one). A new merchant host is a
+`MERCHANT_HOSTS` entry, best with its issuer's name.
 Impact: the link's 40-hex id is usually the myDATA UID but not always; when it differs, the
 page's tax view must print the link itself.
 s1ecos (`einvoice.s1ecos.gr`) serves Impact's pages under its own host: its own provider code and

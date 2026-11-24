@@ -65,6 +65,7 @@ import io.eksoda.core.ui.component.EmptyState
 import io.eksoda.core.ui.component.FromOtherPhoneMark
 import io.eksoda.core.ui.component.HeroMoney
 import io.eksoda.core.ui.component.MoneyText
+import io.eksoda.core.ui.component.logo
 import io.eksoda.core.ui.text.appLocale
 import io.eksoda.core.ui.text.bucketName
 import io.eksoda.core.ui.text.dateFormatter
@@ -489,7 +490,12 @@ private fun RecentCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MerchantAvatar(receipt.merchant.id, receipt.merchant.name, size = 38.dp)
+                MerchantAvatar(
+                    receipt.merchant.id,
+                    receipt.merchant.name,
+                    size = 38.dp,
+                    logo = receipt.merchant.brand?.logo,
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
