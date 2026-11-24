@@ -7,10 +7,12 @@ GRADLE := ./gradlew
 DETEKT := detektDebug detektDebugUnitTest :core:engine:detektMain :core:engine:detektTest :core:model:detektMain :core:model:detektTest
 
 .PHONY: build test lint coverage no-telemetry check install install_rc format clean codemap \
-	release_key bump publish
+	release_key bump release_check publish
 
 # Version part bump raises: patch (0.1.0 -> 0.1.1), minor (-> 0.2.0) or major (-> 1.0.0).
 BUMP ?= patch
+# The branch a pull request merges into, for release_check.
+BASE ?= origin/master
 
 build:  ## Debug APK
 	$(GRADLE) assembleDebug
@@ -50,6 +52,9 @@ release_key:  ## Once: create the release signing key in ~/.eksoda (then back it
 
 bump:  ## On a PR branch: bump the version (BUMP=patch|minor|major), add its CHANGELOG.md section
 	bash scripts/bump_version.sh $(BUMP)
+
+release_check:  ## On a PR branch, before pushing: version bumped from BASE and release notes written (CI runs it)
+	bash scripts/check_release.sh $(BASE)
 
 publish:  ## After merging to master: check, build the signed APK, tag and create the GitHub release
 	bash scripts/publish_release.sh

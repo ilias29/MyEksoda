@@ -79,9 +79,18 @@ OUTPUT="eksoda-$NAME.apk"
 RESUME=""
 if RELEASE_STATE="$(gh release view "$TAG" --repo "$REPO" --json isDraft,assets \
     --jq "\"\(.isDraft) \(any(.assets[]; .name == \"$OUTPUT\"))\"" 2>/dev/null)"; then
-    [[ "$RELEASE_STATE" != "false true" ]] ||
+    if [[ "$RELEASE_STATE" == "false true" ]]; then
+        # Commits merged since the tag without a bump: a pull request merged without it, or one
+        # labeled "no release" (.github/workflows/release.yml).
+        UNRELEASED="$(git rev-list --count "refs/tags/$TAG..HEAD" 2>/dev/null || echo 0)"
+        ((UNRELEASED == 0)) ||
+            fail "master has $UNRELEASED commit(s) since $TAG, but its version is still $NAME: they \
+were merged without a version bump. Release them with a pull request of its own: git fetch origin \
+&& git switch --no-track -c release/<version> origin/master && make bump BUMP=patch|minor|major, \
+write the notes, make release_check, commit, push, merge, then make publish."
         fail "$TAG is already published. The next release needs its version bumped in a pull \
 request first: make bump BUMP=patch|minor|major"
+    fi
     RESUME=1
 fi
 
