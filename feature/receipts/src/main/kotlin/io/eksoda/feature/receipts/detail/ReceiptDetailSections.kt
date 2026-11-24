@@ -11,7 +11,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -20,10 +21,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -39,6 +42,7 @@ import io.eksoda.core.designsystem.theme.HeroNumberStyle
 import io.eksoda.core.model.DocumentKind
 import io.eksoda.core.model.IssueTime
 import io.eksoda.core.model.ReceiptDetail
+import io.eksoda.core.model.ReceiptItem
 import io.eksoda.core.model.ReceiptWarning
 import io.eksoda.core.ui.component.MoneyText
 import io.eksoda.core.ui.motion.SharedKeys
@@ -122,64 +126,106 @@ internal fun Notice(text: String, attention: Boolean = false) {
     }
 }
 
-/** The validation warnings, collapsed to the first one. */
+/**
+ * The validation warnings, in two cards. Notices that need attention (the QR signature or amount
+ * differs from AADE's record, no MARK, another currency, an unknown document type) are
+ * terracotta, each with its own message. The arithmetic checks are worded as what they are: the
+ * receipt's amounts do not agree with each other and are left as printed; they are neutral,
+ * since nothing is wrong with the user's data. One entry per kind of issue, naming the items it
+ * concerns; each card collapsed to its first entry.
+ */
 @Composable
-internal fun WarningsCard(warnings: List<ReceiptWarning>) {
+internal fun WarningsCard(warnings: List<ReceiptWarning>, items: List<ReceiptItem>) {
     if (warnings.isEmpty()) return
+    val groups = remember(warnings) { groupWarnings(warnings) }
+    val names = remember(items) { lineNames(items) }
+    Column {
+        WarningGroupsCard(groups.filterNot { it.amountCheck }, names, attention = true)
+        WarningGroupsCard(groups.filter { it.amountCheck }, names, attention = false)
+    }
+}
+
+@Composable
+private fun WarningGroupsCard(
+    groups: List<WarningGroup>,
+    names: Map<Int, String>,
+    attention: Boolean,
+) {
+    if (groups.isEmpty()) return
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val colors = EksodaTheme.colors
+    val content = if (attention) colors.spendText else colors.ink
+    // Secondary text: the item names and the expand arrow.
+    val detail = if (attention) colors.spendText else MaterialTheme.colorScheme.onSurfaceVariant
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable(enabled = warnings.size > 1) { expanded = !expanded },
+            .clickable(enabled = groups.size > 1) { expanded = !expanded },
         shape = CardShape,
         colors = CardDefaults.cardColors(
-            containerColor = EksodaTheme.colors.spendTint,
-            contentColor = EksodaTheme.colors.spendText,
+            containerColor = if (attention) colors.spendTint else colors.inset,
+            contentColor = content,
         ),
-        border = BorderStroke(1.dp, EksodaTheme.colors.spendBorder),
+        border = BorderStroke(1.dp, if (attention) colors.spendBorder else colors.line),
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            val shown = if (expanded) warnings else warnings.take(1)
-            shown.forEach { WarningLine(it) }
-            if (warnings.size > 1) {
-                Icon(
-                    imageVector = expandIcon(expanded),
-                    contentDescription = stringResource(
-                        if (expanded) R.string.detail_show_less else R.string.detail_show_more,
-                    ),
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
+            Icon(
+                imageVector = if (attention) Icons.Outlined.WarningAmber else Icons.Outlined.Info,
+                contentDescription = null,
+                tint = detail,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (!attention) {
+                    Text(
+                        stringResource(R.string.detail_warnings_intro),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                val shown = if (expanded) groups else groups.take(1)
+                shown.forEach { WarningEntry(it, names, detail) }
+                if (groups.size > 1) {
+                    Icon(
+                        imageVector = expandIcon(expanded),
+                        contentDescription = stringResource(
+                            if (expanded) R.string.detail_show_less else R.string.detail_show_more,
+                        ),
+                        tint = detail,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    )
+                }
             }
         }
     }
 }
 
+/** The message, and the items it concerns by their receipt description. */
 @Composable
-private fun WarningLine(warning: ReceiptWarning) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(Icons.Default.Warning, contentDescription = null)
-        val text = stringResource(warningRes(warning.code))
-        val line = warning.lineNumber
-        Text(if (line != null) stringResource(R.string.detail_warning_line, line, text) else text)
+private fun WarningEntry(group: WarningGroup, names: Map<Int, String>, detail: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            stringResource(group.message),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        if (group.lines.isNotEmpty()) {
+            val labels = group.lines.map {
+                names[it] ?: stringResource(R.string.detail_warning_line, it)
+            }
+            Text(
+                pluralStringResource(
+                    R.plurals.detail_warning_items,
+                    labels.size,
+                    labels.joinToString(", "),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = detail,
+            )
+        }
     }
-}
-
-/** Validation issue codes (the engine's `validation`), as local strings. */
-private fun warningRes(code: String): Int = when (code) {
-    "line_amount_mismatch" -> R.string.warning_line_amount
-    "unit_price_mismatch" -> R.string.warning_unit_price
-    "discount_mismatch" -> R.string.warning_discount
-    "discount_unreadable" -> R.string.warning_discount_unreadable
-    "vat_rate_mismatch" -> R.string.warning_vat_rate
-    "total_mismatch", "receipt_amount_mismatch" -> R.string.warning_total
-    "total_discount_mismatch", "line_discounts_mismatch" -> R.string.warning_total_discount
-    "vat_breakdown_mismatch", "vat_breakdown_rate_mismatch" -> R.string.warning_vat_breakdown
-    "payment_mismatch" -> R.string.warning_payment
-    else -> R.string.warning_other
 }
 
 private fun expandIcon(expanded: Boolean) =

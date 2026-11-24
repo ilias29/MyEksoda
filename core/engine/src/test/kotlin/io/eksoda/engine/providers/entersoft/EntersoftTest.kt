@@ -3,21 +3,27 @@ package io.eksoda.engine.providers.entersoft
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.contains
+import assertk.assertions.containsExactly
 import assertk.assertions.doesNotContain
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import io.eksoda.engine.FormatChanged
 import io.eksoda.engine.ReceiptNotFound
 import io.eksoda.engine.TestData
+import io.eksoda.engine.canonical.Line
+import io.eksoda.engine.canonical.PriceBasis
 import io.eksoda.engine.fetch.FetchedDocument
 import io.eksoda.engine.fetch.Fetcher
 import io.eksoda.engine.providers.REGISTRY
 import io.eksoda.engine.url.ParsedUrl
+import io.eksoda.engine.validation.validate
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 
 class EntersoftTest {
     private val directory = TestData.fixtures.resolve("entersoft")
@@ -88,6 +94,40 @@ class EntersoftTest {
         assertThat(result.html).contains("hashToken=xx00xx00xx")
         assertThat(result.replaced)
             .isEqualTo(mapOf("download_token" to 1, "url_access_token" to 2))
+    }
+
+    @Test
+    fun `unit prices are read before VAT when that is how the receipt prints them`() {
+        val masoutis = parseHtml(directory.resolve("masoutis_3_lines.html").readText(), identity)
+        assertThat(masoutis.lines.map { it.unitPriceBasis }.distinct())
+            .containsExactly(PriceBasis.NET)
+        assertThat(validate(masoutis)).isEmpty()
+        // LIDL prints them with VAT.
+        assertThat(parseHtml(receipt, identity).lines.map { it.unitPriceBasis }.distinct())
+            .containsExactly(PriceBasis.GROSS)
+    }
+
+    @Test
+    fun `a known issuer's basis comes first, then the receipt's lines`() {
+        // 3,90 for 4,40 at 13% fits before VAT; 4,40 for 4,40 fits with VAT.
+        fun priced(price: String) = listOf(
+            Line(
+                lineNumber = 1,
+                description = "Item",
+                gross = BigDecimal("4.40"),
+                quantity = BigDecimal.ONE,
+                unitPrice = BigDecimal(price),
+                vatRate = BigDecimal("13"),
+            ),
+        )
+        val masoutis = NET_PRICED_ISSUERS.single()
+        assertThat(unitPriceBasis(masoutis, priced("3.90"))).isEqualTo(PriceBasis.NET)
+        // Known: its prices are read before VAT even where a line would fit with VAT.
+        assertThat(unitPriceBasis(masoutis, priced("4.40"))).isEqualTo(PriceBasis.NET)
+        // Unknown issuers: the lines decide, with VAT unless they show otherwise.
+        assertThat(unitPriceBasis("000000000", priced("3.90"))).isEqualTo(PriceBasis.NET)
+        assertThat(unitPriceBasis("000000000", priced("4.40"))).isEqualTo(PriceBasis.GROSS)
+        assertThat(unitPriceBasis("000000000", emptyList())).isEqualTo(PriceBasis.GROSS)
     }
 
     @Test
