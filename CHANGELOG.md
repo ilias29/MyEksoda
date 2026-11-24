@@ -3,6 +3,30 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.3.6 - Clearer receipt warnings
+
+A small update: fewer false warnings on receipts, and the ones that remain say what they mean.
+Install it over 0.3.5 as usual: your data stays, and household sync keeps working between
+0.3.5 and 0.3.6.
+
+### Fixed
+
+- **Masoutis receipts from `e-invoicing.gr` no longer warn on every item.** These receipts
+  print the unit price before VAT (3,90 for a yogurt that costs 4,40 with 13% VAT), and
+  Eksoda took it for the price with VAT, so every item showed "Η τιμή μονάδας μιας γραμμής
+  δεν ταιριάζει με το ποσό της". Receipts imported before this version keep the warning:
+  delete such a receipt and scan it again.
+
+### Improved
+
+- **Receipt warnings are easier to read.** When a receipt's amounts don't agree with each
+  other, a calm card explains it and says the amounts are shown exactly as the shop printed
+  them. Warnings of the same kind are shown once, naming the items they concern, instead of
+  one "Γραμμή 1, Γραμμή 2…" line each, and every message says what doesn't add up.
+- **Warnings that deserve a closer look stand out.** A QR code whose data or amount differs
+  from what AADE holds, a receipt without a MARK, a receipt not in euros or of an unknown
+  type each get their own message in a highlighted card.
+
 ## 0.3.5 - Masoutis receipts and supermarket logos
 
 A small update: Masoutis receipts now import, and the big supermarket chains show their logo.
