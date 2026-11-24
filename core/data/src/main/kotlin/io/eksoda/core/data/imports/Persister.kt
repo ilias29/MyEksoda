@@ -19,7 +19,7 @@ import io.eksoda.engine.classification.LineType
 import io.eksoda.engine.classification.classify
 import io.eksoda.engine.merchants.FieldSize
 import io.eksoda.engine.merchants.addressKey
-import io.eksoda.engine.merchants.deriveDisplayName
+import io.eksoda.engine.merchants.defaultDisplayName
 import io.eksoda.engine.merchants.fit
 import io.eksoda.engine.merchants.normalizeAddress
 import io.eksoda.engine.merchants.refreshedDetails
@@ -129,9 +129,9 @@ class Persister @Inject constructor(
                 countryCode = issuer.countryCode,
                 vatNumber = issuer.vatNumber,
                 legalName = details.getValue("legal_name"),
-                displayName = deriveDisplayName(details.getValue("legal_name")),
+                displayName = defaultDisplayName(details.getValue("legal_name"), issuer.vatNumber),
                 normalizedDisplayName = normalizeText(
-                    deriveDisplayName(details.getValue("legal_name")),
+                    defaultDisplayName(details.getValue("legal_name"), issuer.vatNumber),
                 ),
                 activityDescription = details.getValue("activity_description"),
                 defaultCategoryId = defaultCategoryOf(details),
@@ -162,10 +162,10 @@ class Persister @Inject constructor(
         )
         // A new legal name renames the merchant only while its display name is still the derived
         // one: a name the user set is kept.
-        val previousDefault = deriveDisplayName(existing.legalName)
+        val previousDefault = defaultDisplayName(existing.legalName, existing.vatNumber)
         val derivedName = !existing.displayNameSetByUser && existing.displayName == previousDefault
         if ("legal_name" in changed && derivedName) {
-            val name = deriveDisplayName(updated.legalName)
+            val name = defaultDisplayName(updated.legalName, updated.vatNumber)
             updated = updated.copy(displayName = name, normalizedDisplayName = normalizeText(name))
         }
         merchants.update(updated)

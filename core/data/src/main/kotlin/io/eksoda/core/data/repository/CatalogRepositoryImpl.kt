@@ -15,7 +15,7 @@ import io.eksoda.core.model.CategorySummary
 import io.eksoda.core.model.MerchantSummary
 import io.eksoda.core.model.Store
 import io.eksoda.engine.merchants.FieldSize
-import io.eksoda.engine.merchants.deriveDisplayName
+import io.eksoda.engine.merchants.defaultDisplayName
 import io.eksoda.engine.products.categorySlug
 import io.eksoda.engine.text.normalizeText
 import kotlinx.coroutines.flow.Flow
@@ -103,7 +103,9 @@ class CatalogRepositoryImpl @Inject constructor(
         coordinator.write {
             val merchant = merchants.get(id) ?: fail(CatalogError.NOT_FOUND)
             val text = name.trim().take(FieldSize.DISPLAY_NAME)
-            val display = text.ifEmpty { deriveDisplayName(merchant.legalName) }
+            val display = text.ifEmpty {
+                defaultDisplayName(merchant.legalName, merchant.vatNumber)
+            }
             merchants.update(
                 merchant.copy(
                     displayName = display,
@@ -158,4 +160,10 @@ private fun MerchantRow.toModel(zone: ZoneId) = MerchantSummary(
     },
     receiptCount = receiptCount,
     lastReceiptAt = lastReceiptAt?.let { OffsetDateTime.ofInstant(Instant.ofEpochMilli(it), zone) },
+    brand = brandOf(
+        merchant.countryCode,
+        merchant.vatNumber,
+        merchant.displayName,
+        merchant.displayNameSetByUser,
+    ),
 )

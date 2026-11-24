@@ -27,7 +27,11 @@ public data class Receipt(
     val fromOtherPhone: Boolean = false,
 )
 
-public data class Merchant(val id: String, val name: String)
+/** [brand] is set for the chains the app has a logo for (core:engine `merchantBrand`). */
+public data class Merchant(val id: String, val name: String, val brand: MerchantBrand? = null)
+
+/** A supermarket chain the app shows a logo for instead of the merchant's initials. */
+public enum class MerchantBrand { AB_VASILOPOULOS, SKLAVENITIS, MASOUTIS, LIDL, MY_MARKET }
 
 public data class Store(
     val id: String,

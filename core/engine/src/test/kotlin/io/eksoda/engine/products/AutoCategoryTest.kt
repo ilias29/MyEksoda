@@ -69,6 +69,11 @@ class AutoCategoryTest {
         "'ΛΙΑΝΙΚΟ ΕΜΠΟΡΙΟ ΗΛΕΚΤΡΙΚΩΝ ΟΙΚΙΑΚΩΝ ΣΥΣΚΕΥΩΝ', 'ΚΩΤΣΟΒΟΛΟΣ ΑΕ', electronics-and-appliances",
         "'ΠΑΡΑΓΩΓΗ ΚΑΙ ΕΜΠΟΡΙΑ ΗΛΕΚΤΡΙΚΗΣ ΕΝΕΡΓΕΙΑΣ', 'ΔΕΗ ΑΕ', services",
         "'', 'SHELL HELLAS', fuel-and-transport",
+        "'', 'ΤΑΞΙ ΑΘΗΝΑΣ', fuel-and-transport",
+        // ΤΑΞΙ is a whole word only: Ταξιάρχης is a common shop name.
+        "'', 'ΦΟΥΡΝΟΣ ΤΑΞΙΑΡΧΗΣ', bakery",
+        "'', 'ΦΑΡΜΑΚΕΙΟ ΤΑΞΙΑΡΧΗΣ', pharmacy-and-health",
+        "'', 'ΚΡΕΟΠΩΛΕΙΟ ΤΑΞΙΑΡΧΗΣ', meat-and-fish",
     )
     fun `a merchant's activity or name gives its kind`(
         activity: String?,
@@ -83,6 +88,12 @@ class AutoCategoryTest {
         "'ΕΜΠΟΡΙΟ ΣΕ ΜΗ ΕΞΕΙΔΙΚΕΥΜΕΝΑ ΚΑΤΑΣΤΗΜΑΤΑ, ΤΡΟΦΙΜΑ, ΠΟΤΑ', 'ΑΒ ΒΑΣΙΛΟΠΟΥΛΟΣ ΑΕ'",
         "'ΛΙΑΝΙΚΟ ΕΜΠΟΡΙΟ ΣΕ ΜΗ ΕΞΕΙΔΙΚΕΥΜΕΝΑ ΚΑΤΑΣΤΗΜΑΤΑ', 'SHELL CAFE'",
         "'', 'ΚΑΡΑΜΑΝΛΗΣ ΟΕ'",
+        // A supermarket spelled in Greek, though its name also reads as a bakery (ΦΟΥΡΝ).
+        "'', 'ΣΟΥΠΕΡ ΜΑΡΚΕΤ Ο ΦΟΥΡΝΑΡΗΣ'",
+        "'', 'ΣΟΥΠΕΡΜΑΡΚΕΤ Ο ΦΟΥΡΝΑΡΗΣ'",
+        "'', 'ΔΙΑΜΑΝΤΗΣ ΜΑΣΟΥΤΗΣ Α.Ε. ΣΟΥΠΕΡ ΜΑΡΚΕΤ'",
+        // Travel, not a taxi.
+        "'', 'ΤΑΞΙΔΙΑ ΑΛΦΑ'",
     )
     fun `general stores and unknown merchants have no kind`(activity: String?, name: String) {
         assertThat(merchantCategorySlug(activity.orEmpty(), name)).isNull()

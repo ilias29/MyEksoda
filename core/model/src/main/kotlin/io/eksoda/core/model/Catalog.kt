@@ -18,6 +18,8 @@ public data class MerchantSummary(
     val defaultCategory: Category?,
     val receiptCount: Int,
     val lastReceiptAt: OffsetDateTime?,
+    /** The chain, when the app has its logo. */
+    val brand: MerchantBrand? = null,
 )
 
 /** Values of a product to create or edit. The package size has both parts or neither. */

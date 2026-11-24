@@ -10,11 +10,13 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import io.eksoda.core.data.imports.ImportHarness
 import io.eksoda.core.data.imports.ImportHarness.Companion.KOGIMOU
+import io.eksoda.core.data.imports.ImportHarness.Companion.LIDL
 import io.eksoda.core.data.imports.ImportHarness.Companion.METRO_SAMPLE
 import io.eksoda.core.data.imports.ImportHarness.Companion.MYMARKET
 import io.eksoda.core.model.CatalogError
 import io.eksoda.core.model.CatalogException
 import io.eksoda.core.model.Category
+import io.eksoda.core.model.MerchantBrand
 import io.eksoda.core.model.MerchantSummary
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -144,6 +146,29 @@ class CatalogRepositoryTest {
         val stores = catalog.getStores(metro.id).first()
         assertThat(stores).isNotEmpty()
         assertThat(stores.all { it.label.isNotEmpty() }).isTrue()
+    }
+
+    @Test
+    fun `a chain's merchant carries its brand for the logo, other merchants none`() = runTest {
+        app.fetcher.serveEntersoft(LIDL)
+        app.import(LIDL)
+        val merchants = catalog.getMerchants().first()
+        val brands = merchants.associate { it.vatNumber to it.brand }
+        assertThat(brands.getValue("093683423")).isEqualTo(MerchantBrand.LIDL)
+        // METRO ΑΕΒΕ's VAT number is My Market's.
+        assertThat(brands.getValue("094062259")).isEqualTo(MerchantBrand.MY_MARKET)
+        // The grill house has no logo.
+        assertThat(brands.values.count { it == null }).isEqualTo(1)
+    }
+
+    @Test
+    fun `METRO renamed to the other chain on its VAT number loses the My Market logo`() = runTest {
+        val metro = metro()
+        assertThat(metro.brand).isEqualTo(MerchantBrand.MY_MARKET)
+        catalog.renameMerchant(metro.id, "Metro Cash & Carry").getOrThrow()
+        assertThat(catalog.getMerchant(metro.id).first()?.brand).isNull()
+        catalog.renameMerchant(metro.id, "My Market Κοζάνης").getOrThrow()
+        assertThat(catalog.getMerchant(metro.id).first()?.brand).isEqualTo(MerchantBrand.MY_MARKET)
     }
 
     @Test

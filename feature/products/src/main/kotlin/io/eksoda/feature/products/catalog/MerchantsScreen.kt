@@ -43,6 +43,7 @@ import io.eksoda.core.designsystem.component.MerchantAvatar
 import io.eksoda.core.model.MerchantSummary
 import io.eksoda.core.ui.component.DelayedProgressIndicator
 import io.eksoda.core.ui.component.EmptyState
+import io.eksoda.core.ui.component.logo
 import io.eksoda.core.ui.text.categoryName
 import io.eksoda.core.ui.text.searchKey
 import io.eksoda.feature.products.R
@@ -113,7 +114,9 @@ private fun MerchantRow(merchant: MerchantSummary, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(merchant.name) },
         supportingContent = { Text(listOfNotNull(receipts, category).joinToString(" · ")) },
-        leadingContent = { MerchantAvatar(merchant.id, merchant.name) },
+        leadingContent = {
+            MerchantAvatar(merchant.id, merchant.name, logo = merchant.brand?.logo)
+        },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick),
     )

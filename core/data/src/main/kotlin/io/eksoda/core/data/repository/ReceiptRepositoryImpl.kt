@@ -179,6 +179,9 @@ class ReceiptRepositoryImpl @Inject constructor(
         status = receipt.status,
         excludedFromAnalytics = receipt.excludedFromAnalytics,
         merchantName = merchantName,
+        merchantCountry = merchantCountry,
+        merchantVat = merchantVat,
+        merchantNameSetByUser = merchantNameSetByUser,
         storeName = storeName,
         storeStreet = storeStreet,
         storeCity = storeCity,
@@ -190,7 +193,11 @@ class ReceiptRepositoryImpl @Inject constructor(
 
     private fun ReceiptListRow.toModel(zone: ZoneId): Receipt = Receipt(
         id = id,
-        merchant = Merchant(id = merchantId, name = merchantName),
+        merchant = Merchant(
+            id = merchantId,
+            name = merchantName,
+            brand = brandOf(merchantCountry, merchantVat, merchantName, merchantNameSetByUser),
+        ),
         store = storeId?.let {
             Store(
                 id = it,

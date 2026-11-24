@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sklavenitis logo, a trademark of Ελληνικές Υπεραγορές Σκλαβενίτης Α.Ε.Ε. From Wikimedia Commons,
+  "File:Sklavenitis Logo.svg" (public domain, a simple text logo; trademarked):
+  https://commons.wikimedia.org/wiki/File:Sklavenitis_Logo.svg
+  An alpha mask for the merchant avatar, which tints it with the ink color: the round emblem
+  only (no wordmark).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="45dp"
+    android:height="40dp"
+    android:viewportWidth="61"
+    android:viewportHeight="54">
+    <group
+        android:translateX="-0.25"
+        android:translateY="-0.27">
+        <!-- The center dot. -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M30.78,15.75A11.47,11.47,0,1,1,19.29,27.2,11.48,11.48,0,0,1,30.78,15.75Z" />
+        <!-- The two arcs. -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M30.76,53.65a26.34,26.34,0,0,0,23.8-37.83H37.9a13.48,13.48,0,0,1-7.14,25H0.53V53.65ZM30.78,0.9h0A26.44,26.44,0,0,0,4.37,27.25,26.16,26.16,0,0,0,7,38.73H23.64a13.48,13.48,0,0,1,7.14-25H61V0.9Z" />
+    </group>
+</vector>

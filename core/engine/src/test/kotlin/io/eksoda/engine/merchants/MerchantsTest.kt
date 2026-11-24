@@ -32,6 +32,13 @@ class MerchantsTest {
     }
 
     @Test
+    fun `a merchant without a legal name is called by its VAT number`() {
+        assertThat(defaultDisplayName("ΣΚΛΑΒΕΝΙΤΗΣ - Α.Ε.", "800764388")).isEqualTo("Σκλαβενιτης")
+        assertThat(defaultDisplayName("", "800764388")).isEqualTo("800764388")
+        assertThat(defaultDisplayName("  ", "800764388")).isEqualTo("800764388")
+    }
+
+    @Test
     fun `the store key joins the address parts it has`() {
         assertThat(normalizeAddress(null)).isEqualTo("")
         val full = Address(street = "Ερμού", number = "5", postalCode = "10563", city = "Αθήνα")

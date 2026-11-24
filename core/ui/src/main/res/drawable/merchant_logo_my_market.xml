@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  My Market logo, a trademark of METRO ΑΕΒΕ. Redrawn as vector paths from the logo image supplied
+  for this project (no Wikimedia Commons file exists).
+  An alpha mask for the merchant avatar, which tints it with the ink color: the checkbox emblem
+  only (no "My market" lettering), the frame (blue in color) at 55% opacity and the check (red)
+  full. The frame is cut where the check crosses it, 9 units clear of the check on each side.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="40dp"
+    android:viewportWidth="530"
+    android:viewportHeight="380">
+    <group android:translateY="-5">
+        <!-- The frame, open on the right where the check passes. -->
+        <path
+            android:fillAlpha="0.55"
+            android:fillColor="#FFFFFF"
+            android:pathData="M385,141.9 L385,385 L0,385 L0,5 L385,5 L385,90.15 L345,115.15 L345,45 L40,45 L40,345 L345,345 L345,175.2 Z" />
+        <!-- The check. -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M80,140 L215,207 L527,12 L205,280 Z" />
+    </group>
+</vector>

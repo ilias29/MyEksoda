@@ -58,6 +58,7 @@ import io.eksoda.core.model.MerchantSummary
 import io.eksoda.core.model.Store
 import io.eksoda.core.ui.component.DelayedProgressIndicator
 import io.eksoda.core.ui.component.EmptyState
+import io.eksoda.core.ui.component.logo
 import io.eksoda.core.ui.text.appLocale
 import io.eksoda.core.ui.text.categoryName
 import io.eksoda.core.ui.text.dateFormatter
@@ -181,7 +182,7 @@ private fun MerchantDetailContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            MerchantAvatar(merchant.id, merchant.name, size = 56.dp)
+            MerchantAvatar(merchant.id, merchant.name, size = 56.dp, logo = merchant.brand?.logo)
             Column {
                 Text(merchant.name, style = MaterialTheme.typography.headlineSmall)
                 Text(

@@ -32,6 +32,7 @@ import io.eksoda.core.model.PaymentMethod
 import io.eksoda.core.model.Receipt
 import io.eksoda.core.ui.component.FromOtherPhoneMark
 import io.eksoda.core.ui.component.MoneyText
+import io.eksoda.core.ui.component.logo
 import io.eksoda.core.ui.motion.SharedKeys
 import io.eksoda.core.ui.motion.sharedBoundsIfAvailable
 import io.eksoda.core.ui.text.dayLabel
@@ -57,7 +58,11 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        MerchantAvatar(receipt.merchant.id, receipt.merchant.name)
+        MerchantAvatar(
+            receipt.merchant.id,
+            receipt.merchant.name,
+            logo = receipt.merchant.brand?.logo,
+        )
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

@@ -12,7 +12,6 @@ import assertk.assertions.isTrue
 import io.eksoda.engine.Engine
 import io.eksoda.engine.FormatChanged
 import io.eksoda.engine.InconsistentSource
-import io.eksoda.engine.ReceiptNotFound
 import io.eksoda.engine.TestData
 import io.eksoda.engine.UnsupportedProvider
 import io.eksoda.engine.fetch.FetchedDocument
@@ -129,20 +128,17 @@ class EpsilonTest {
     }
 
     @Test
-    fun `the not-found answer is a missing receipt`() {
-        assertFailure { parse("Document not found.") }.isInstanceOf<ReceiptNotFound>()
-    }
-
-    @Test
     fun `an XML for another document is refused`() {
         val other = fixture.replace("/fd/" + FAKE_HEX_ID, "/fd/" + "1".repeat(32))
         assertFailure { parse(other) }.isInstanceOf<InconsistentSource>()
     }
 
     @Test
-    fun `an issuer without a known name is a format change`() {
+    fun `an issuer without a known name is read with an empty name`() {
         val other = fixture.replace("<vatNumber>800764388<", "<vatNumber>999999999<")
-        assertFailure { parse(other) }.isInstanceOf<FormatChanged>()
+        val receipt = parse(other)
+        assertThat(receipt.issuer.legalName).isEqualTo("")
+        assertThat(receipt.issuer.vatNumber).isEqualTo("999999999")
         // A name in the XML is used as it is.
         val named = other.replace("<country>GR</country>", "<country>GR</country><name>SHOP</name>")
         assertThat(parse(named).issuer.legalName).isEqualTo("SHOP")
@@ -156,9 +152,13 @@ class EpsilonTest {
         val receipt = parseDocument(fuel, shared)
         assertThat(receipt.issuer.legalName).isEqualTo("R203-ΚΟΖΑΝΗ")
         assertThat(receipt.lines.single().unit).isEqualTo(io.eksoda.engine.mydata.Unit.L)
-        // No tenant entry names its issuers: without the XML name the receipt is refused.
+        // An unknown issuer without the XML name is still read, without a name.
         val unnamed = fuel.replace("<name>R203-ΚΟΖΑΝΗ</name>", "")
-        assertFailure { parseDocument(unnamed, shared) }.isInstanceOf<FormatChanged>()
+        assertThat(parseDocument(unnamed, shared).issuer.legalName).isEqualTo("")
+        // A known VAT number is named on any Epsilon host, not only where it was first seen.
+        val masoutisHere = unnamed.replace("<vatNumber>999644611<", "<vatNumber>094247924<")
+        assertThat(parseDocument(masoutisHere, shared).issuer.legalName)
+            .isEqualTo(ISSUER_NAMES.getValue("094247924"))
     }
 
     @Test

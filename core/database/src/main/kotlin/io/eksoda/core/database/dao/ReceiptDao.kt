@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.Flow
 data class ReceiptRow(
     @Embedded val receipt: ReceiptEntity,
     @ColumnInfo(name = "merchant_name") val merchantName: String,
+    @ColumnInfo(name = "merchant_country") val merchantCountry: String,
+    @ColumnInfo(name = "merchant_vat") val merchantVat: String,
+    @ColumnInfo(name = "merchant_name_set_by_user") val merchantNameSetByUser: Boolean,
     @ColumnInfo(name = "store_name") val storeName: String?,
     @ColumnInfo(name = "store_street") val storeStreet: String?,
     @ColumnInfo(name = "store_city") val storeCity: String?,
@@ -54,6 +57,10 @@ data class ReceiptListRow(
     val status: String,
     @ColumnInfo(name = "excluded_from_analytics") val excludedFromAnalytics: Boolean,
     @ColumnInfo(name = "merchant_name") val merchantName: String,
+    /** The merchant's own row decides its chain logo (core:engine `merchantBrand`). */
+    @ColumnInfo(name = "merchant_country") val merchantCountry: String,
+    @ColumnInfo(name = "merchant_vat") val merchantVat: String,
+    @ColumnInfo(name = "merchant_name_set_by_user") val merchantNameSetByUser: Boolean,
     @ColumnInfo(name = "store_name") val storeName: String?,
     @ColumnInfo(name = "store_street") val storeStreet: String?,
     @ColumnInfo(name = "store_city") val storeCity: String?,
@@ -205,6 +212,8 @@ interface ReceiptDao {
     companion object {
         /** What both selects add to the receipt's own columns. */
         const val ROW_EXTRAS: String = """merchant.display_name AS merchant_name,
+            merchant.country_code AS merchant_country, merchant.vat_number AS merchant_vat,
+            merchant.display_name_set_by_user AS merchant_name_set_by_user,
             store.display_name AS store_name, store.street AS store_street, store.city AS store_city,
             (SELECT COUNT(*) FROM receipt_item i WHERE i.receipt_id = receipt.id) AS item_count,
             EXISTS (SELECT 1 FROM receipt_item i WHERE i.receipt_id = receipt.id

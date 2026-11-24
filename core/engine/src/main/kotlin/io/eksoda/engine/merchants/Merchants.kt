@@ -80,6 +80,15 @@ public fun deriveDisplayName(legalName: String): String {
     return fit(name, FieldSize.DISPLAY_NAME)
 }
 
+/**
+ * The name a merchant gets until the user sets one: the brand part of [legalName], or the
+ * [vatNumber] while no receipt has named the merchant (an Epsilon XML may carry only the VAT
+ * number). An empty legal name is never written over a known one, so a later named receipt
+ * replaces the VAT number and a later nameless one keeps the name.
+ */
+public fun defaultDisplayName(legalName: String, vatNumber: String): String =
+    deriveDisplayName(legalName).ifEmpty { vatNumber }
+
 /** The store matching key: street, number, postal code and city (country omitted). */
 public fun normalizeAddress(address: Address?): String {
     if (address == null) return ""
