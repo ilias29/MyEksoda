@@ -55,6 +55,13 @@ class AppViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
 
+    fun bankHistory(account: String) = flow {
+        emitAll(database.get().cashDao().bankHistory(account))
+    }.flowOn(ioDispatcher)
+
+    suspend fun saveBank(rows: List<io.eksoda.core.database.entity.BankRow>): Int =
+        kotlinx.coroutines.withContext(ioDispatcher) { database.get().cashDao().importBank(rows) }
+
     val cashRows = flow { emitAll(database.get().cashDao().observe()) }.flowOn(ioDispatcher)
 
     suspend fun saveCash(entry: io.eksoda.engine.finance.ManualCashEntry) {
