@@ -11,24 +11,55 @@ data class CsvMapping(
     val delimiter: Char = ';',
     val decimalSeparator: Char = ',',
     val datePattern: String = "dd/MM/uuuu",
+    val hasHeader: Boolean = true,
 )
+
+data class ImportProblem(val line: Int, val reason: String)
+data class BankImportPreview(val movements: List<BankMovement>, val problems: List<ImportProblem>) {
+    val canCommit: Boolean get() = problems.isEmpty() && movements.isNotEmpty()
+}
 
 object BankCsv {
     fun parse(text: String, accountId: String, mapping: CsvMapping): List<BankMovement> {
+        val preview = preview(text, accountId, mapping)
+        require(preview.problems.isEmpty()) { preview.problems.joinToString { "line ${it.line}: ${it.reason}" } }
+        return preview.movements
+    }
+
+    /** Nothing should be persisted until every input row has passed validation. */
+    fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview {
+        require(accountId.isNotBlank())
+        require(listOf(mapping.date, mapping.description, mapping.amount).all { it >= 0 })
+        require(mapping.sourceId == null || mapping.sourceId >= 0)
         val rows = rows(text.removePrefix("\uFEFF"), mapping.delimiter)
         val formatter = DateTimeFormatter.ofPattern(mapping.datePattern)
             .withResolverStyle(java.time.format.ResolverStyle.STRICT)
-        return rows.drop(1).filter { row -> row.any { it.isNotBlank() } }.map { row ->
-            val amount = BankLedger.amountMinor(row[mapping.amount], mapping.decimalSeparator)
-            BankMovement(
-                accountId = accountId,
-                date = LocalDate.parse(row[mapping.date].trim(), formatter),
-                description = row[mapping.description].trim(),
-                amountMinor = amount,
-                kind = if (amount > 0) MovementKind.INCOME else MovementKind.EXPENSE,
-                sourceId = mapping.sourceId?.let { row[it].trim().ifEmpty { null } },
-            )
+        val movements = mutableListOf<BankMovement>()
+        val problems = mutableListOf<ImportProblem>()
+        rows.drop(if (mapping.hasHeader) 1 else 0).forEachIndexed { index, row ->
+            if (row.all { it.isBlank() }) return@forEachIndexed
+            val line = index + if (mapping.hasHeader) 2 else 1
+            val requiredIndex = maxOf(mapping.date, mapping.description, mapping.amount, mapping.sourceId ?: 0)
+            if (row.size <= requiredIndex) {
+                problems.add(ImportProblem(line, "missing mapped column"))
+                return@forEachIndexed
+            }
+            try {
+                val amount = BankLedger.amountMinor(row[mapping.amount], mapping.decimalSeparator)
+                val movement = BankMovement(
+                    accountId = accountId,
+                    date = LocalDate.parse(row[mapping.date].trim(), formatter),
+                    description = row[mapping.description].trim(),
+                    amountMinor = amount,
+                    kind = if (amount > 0) MovementKind.INCOME else MovementKind.EXPENSE,
+                    sourceId = mapping.sourceId?.let { row[it].trim().ifEmpty { null } },
+                )
+                movements.add(movement.copy(category = SpendingClassifier.suggest(movement)))
+            } catch (e: RuntimeException) {
+                problems.add(ImportProblem(line, "invalid date, amount or movement"))
+            }
         }
+        return BankImportPreview(movements, problems)
     }
 
     private fun rows(text: String, delimiter: Char): List<List<String>> {

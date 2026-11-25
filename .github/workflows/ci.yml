@@ -55,6 +55,15 @@ jobs:
       - name: make check
         run: make check
 
+      - name: Upload verified debug APK
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: personal-finance-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
       # `make check` only verifies coverage; this writes the reports, reusing its test results.
       # core:engine and core:data apply Kover so far.
       - name: Coverage reports

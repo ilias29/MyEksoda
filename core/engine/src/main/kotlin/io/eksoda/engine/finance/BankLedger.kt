@@ -5,6 +5,9 @@ import java.time.LocalDate
 
 enum class MovementKind { INCOME, EXPENSE, TRANSFER, REFUND }
 
+/** Categories are editable: an import suggestion must never replace a user's correction. */
+enum class SpendingCategory { UNCLASSIFIED, RENT, LOAN_PAYMENT, GROCERIES, UTILITIES }
+
 data class BankMovement(
     val accountId: String,
     val date: LocalDate,
@@ -12,6 +15,7 @@ data class BankMovement(
     val amountMinor: Long,
     val kind: MovementKind,
     val sourceId: String? = null,
+    val category: SpendingCategory = SpendingCategory.UNCLASSIFIED,
 ) {
     init {
         require(accountId.isNotBlank())
@@ -19,6 +23,7 @@ data class BankMovement(
         require(kind != MovementKind.INCOME || amountMinor > 0)
         require(kind != MovementKind.REFUND || amountMinor > 0)
         require(kind != MovementKind.EXPENSE || amountMinor < 0)
+        require(kind == MovementKind.EXPENSE || category == SpendingCategory.UNCLASSIFIED)
     }
 }
 
@@ -44,5 +49,20 @@ object BankLedger {
             }
         }
         return CashFlow(income, spending)
+    }
+}
+
+object SpendingClassifier {
+    /** Suggest only unmistakable descriptions; leave all other payments for manual review. */
+    fun suggest(movement: BankMovement): SpendingCategory {
+        if (movement.kind != MovementKind.EXPENSE) return SpendingCategory.UNCLASSIFIED
+        val text = java.text.Normalizer.normalize(movement.description, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").uppercase(java.util.Locale.ROOT)
+        return when {
+            Regex("\\b(ΕΝΟΙΚΙΟ|ΕΝΟΙΚΙΑ|RENT)\\b").containsMatchIn(text) -> SpendingCategory.RENT
+            Regex("\\b(ΔΟΣΗ ΔΑΝΕΙΟΥ|ΔΟΣΗ ΣΤΕΓΑΣΤΙΚΟΥ|LOAN PAYMENT|LOAN INSTALMENT|LOAN INSTALLMENT)\\b")
+                .containsMatchIn(text) -> SpendingCategory.LOAN_PAYMENT
+            else -> SpendingCategory.UNCLASSIFIED
+        }
     }
 }
