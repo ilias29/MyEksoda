@@ -151,3 +151,7 @@ Release check run 45723717408 succeeded. CI run 45723717412 failed during config
 ## Stabilization pass 3
 
 Release run 45724114509 succeeded; CI run 45724114520 (job 139589487685) failed in the OCR Gradle script on java.nio.file references shadowed by the Java plugin extension. Explicit imports for Files and StandardCopyOption remove the two reported errors; checked the entire scan Gradle script for remaining qualified java package expressions outside imports. New CI result required. No APK yet, no quality checks bypassed.
+
+## Stabilization pass 4
+
+CI run 45724641620 passed Gradle configuration and stopped at :core:database:spotlessKotlinCheck; formatting violations in EksodaDatabase.kt, BankTaxReviewRow.kt, ReceiptBankLink.kt, BankCorrectionTest.kt. Release run 45724641524 succeeded. Host has no Gradle/ktlint or DNS access to download them. Added failure-only CI diagnostics: run project's own spotlessApply, print and upload patch, then independently diagnose assembleDebug to expose compilation errors. Original make check remains mandatory; diagnostics never publish an APK as verified or push changes. Formatter patch must be reviewed and applied to the feature branch, then CI rerun. No APK yet.
