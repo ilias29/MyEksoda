@@ -52,4 +52,12 @@
     <string name="scan_capture_failed">Camera could not open. Try a gallery photo.</string>
     <string name="scan_ocr_title">Recognized receipt text</string>
     <string name="scan_ocr_review">Check the text. This preview is not saved and does not create an expense.</string>
+    <string name="scan_ocr_items">Suggested receipt items</string>
+    <string name="scan_ocr_discount">Discount: %1$s</string>
+    <string name="scan_ocr_vat">VAT (included): %1$s</string>
+    <string name="scan_ocr_calculated">Calculated: %1$s</string>
+    <string name="scan_ocr_total">Printed total: %1$s</string>
+    <string name="scan_ocr_reconciles">Amounts agree. Check all lines manually.</string>
+    <string name="scan_ocr_mismatch">Incomplete or inconsistent amounts. Correct the text.</string>
+    <string name="scan_ocr_warnings">Lines or values needing review: %1$d</string>
 </resources>

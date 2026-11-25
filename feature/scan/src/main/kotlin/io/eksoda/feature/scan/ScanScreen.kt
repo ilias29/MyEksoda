@@ -257,8 +257,9 @@ fun ScanScreen(
                         value = corrected,
                         onValueChange = { corrected = it },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 8,
+                        maxLines = 4,
                     )
+                    ReceiptTextReview(corrected)
                 }
             },
             confirmButton = {
