@@ -252,6 +252,48 @@ class AppViewModel @Inject constructor(
             database.get().cashDao().changePaymentState(row.id, row.state, if (paid) "PAID" else "CANCELLED")
         }
 
+    fun financeAdvice(today: java.time.LocalDate, coverageConfirmed: Boolean) = flow {
+        val dao = database.get().cashDao()
+        val month = java.time.YearMonth.from(today)
+        val movements = dao.monthlyMovements(month.minusMonths(1).atDay(1).toString(), today.toString())
+        val basics = kotlinx.coroutines.flow.combine(movements, dao.monthlyPlan(month.toString()),
+            dao.subscriptions(), dao.netWorthHistory()) { rows, plan, subscriptions, worth ->
+            AdvisorInputs(rows, plan, subscriptions, worth)
+        }
+        val payday = kotlinx.coroutines.flow.combine(dao.paydayPlan(), dao.plannedPayments()) { plan, rows -> plan to rows }
+        emitAll(kotlinx.coroutines.flow.combine(basics, payday) { input, (payPlan, payments) ->
+            val entries = input.rows.map { r ->
+                io.eksoda.engine.finance.LedgerEntry(
+                    io.eksoda.engine.finance.FinanceSource.valueOf(r.source),
+                    io.eksoda.engine.finance.BankMovement(r.account, java.time.LocalDate.parse(r.day),
+                        r.description, r.amountMinor, io.eksoda.engine.finance.MovementKind.valueOf(r.kind),
+                        category = io.eksoda.engine.finance.SpendingCategory.valueOf(r.category)),
+                )
+            }
+            val monthly = input.plan?.let {
+                io.eksoda.engine.finance.MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
+            }
+            val worth = input.worth.map {
+                io.eksoda.engine.finance.NetWorthSnapshot(java.time.LocalDate.parse(it.day), it.bankMinor,
+                    it.cashMinor, it.lightyearMinor, it.otherAssetsMinor, it.loanMinor, it.otherDebtsMinor, it.fromLightyear)
+            }
+            val forecast = if (payPlan == null || payPlan.needsReview || payPlan.balanceDay != today.toString()) null
+            else io.eksoda.engine.finance.PaydayCalendar.forecast(
+                io.eksoda.engine.finance.PaydayPlan(java.time.LocalDate.parse(payPlan.balanceDay),
+                    payPlan.balanceMinor, java.time.LocalDate.parse(payPlan.payday)),
+                today, payments.map {
+                    io.eksoda.engine.finance.PlannedPayment(it.id, it.name, java.time.LocalDate.parse(it.due),
+                        it.amountMinor, io.eksoda.engine.finance.PaymentType.valueOf(it.type),
+                        io.eksoda.engine.finance.PaymentState.valueOf(it.state))
+                },
+            )
+            Result.success(io.eksoda.engine.finance.FinanceAdvisor.evaluate(
+                today, entries, monthly, input.subscriptions.map { it.expectedMonthlyMinor }, worth,
+                forecast, payPlan != null && forecast == null, coverageConfirmed,
+            ))
+        })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,

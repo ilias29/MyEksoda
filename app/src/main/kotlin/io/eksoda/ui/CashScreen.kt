@@ -33,6 +33,7 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
             TextButton(onClick = back) { Text("Πίσω") }
             Text("Οικονομικά", style = MaterialTheme.typography.headlineMedium)
         }
+        item { FinanceAdvisorPanel(model) }
         item { MonthlyOverviewPanel(model) }
         item { NetWorthPanel(model) }
         item { PaydayPanel(model) }
