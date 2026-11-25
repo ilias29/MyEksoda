@@ -12,6 +12,31 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_portfolio_snapshot WHERE broker = :broker ORDER BY day DESC")
+    fun portfolioSnapshots(broker: String): Flow<List<io.eksoda.core.database.entity.PortfolioSnapshotRow>>
+
+    @Query("SELECT * FROM finance_portfolio_snapshot WHERE broker = :broker ORDER BY day")
+    suspend fun portfolioHistory(broker: String): List<io.eksoda.core.database.entity.PortfolioSnapshotRow>
+
+    @Upsert
+    suspend fun upsertPortfolioSnapshot(row: io.eksoda.core.database.entity.PortfolioSnapshotRow)
+
+    @Transaction
+    suspend fun savePortfolioSnapshot(row: io.eksoda.core.database.entity.PortfolioSnapshotRow) {
+        val history = portfolioHistory(row.broker).filter { it.day != row.day }
+        require(history.all {
+            if (it.day < row.day) it.depositedMinor <= row.depositedMinor && it.withdrawnMinor <= row.withdrawnMinor
+            else it.depositedMinor >= row.depositedMinor && it.withdrawnMinor >= row.withdrawnMinor
+        }) { "Cumulative deposits or withdrawals contradict existing history" }
+        upsertPortfolioSnapshot(row)
+    }
+
+    @Query("SELECT * FROM finance_holding_snapshot WHERE broker = :broker ORDER BY day DESC, instrument")
+    fun holdingSnapshots(broker: String): Flow<List<io.eksoda.core.database.entity.HoldingSnapshotRow>>
+
+    @Upsert
+    suspend fun saveHoldingSnapshot(row: io.eksoda.core.database.entity.HoldingSnapshotRow)
+
     @Query("SELECT * FROM finance_tax_plan WHERE year = :year")
     fun taxPlan(year: Int): Flow<io.eksoda.core.database.entity.AnnualTaxPlanRow?>
 

@@ -131,6 +131,36 @@ class AppViewModel @Inject constructor(
             database.get().cashDao().reviewTaxMovement(row, review.name)
         }
 
+    val lightyearHistory = flow {
+        val dao = database.get().cashDao()
+        emitAll(kotlinx.coroutines.flow.combine(
+            dao.portfolioSnapshots("Lightyear"), dao.holdingSnapshots("Lightyear"),
+        ) { portfolio, holdings -> Result.success(portfolio to holdings) })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun saveLightyearSnapshot(snapshot: io.eksoda.engine.finance.PortfolioSnapshot) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            require(!snapshot.date.isAfter(java.time.LocalDate.now()))
+            database.get().cashDao().savePortfolioSnapshot(io.eksoda.core.database.entity.PortfolioSnapshotRow(
+                "Lightyear", snapshot.date.toString(), snapshot.valueMinor,
+                snapshot.depositedMinor, snapshot.withdrawnMinor,
+            ))
+        }
+
+    suspend fun saveLightyearHolding(
+        instrument: String, day: java.time.LocalDate, quantity: java.math.BigDecimal,
+        valueMinor: Long, costMinor: Long?,
+    ) = kotlinx.coroutines.withContext(ioDispatcher) {
+        val id = instrument.trim().uppercase(java.util.Locale.ROOT)
+        require(id.isNotBlank() && id.length <= 100 && !day.isAfter(java.time.LocalDate.now()))
+        require(quantity.signum() >= 0 && quantity.scale() in 0..12 && quantity.precision() <= 30)
+        require(valueMinor >= 0 && (costMinor == null || costMinor >= 0))
+        require(quantity.signum() != 0 || (valueMinor == 0L && (costMinor == null || costMinor == 0L)))
+        database.get().cashDao().saveHoldingSnapshot(io.eksoda.core.database.entity.HoldingSnapshotRow(
+            "Lightyear", id, day.toString(), quantity.toPlainString(), valueMinor, costMinor,
+        ))
+    }
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,
