@@ -137,3 +137,5 @@ Verification: standalone kotlinc/JDK 21 compiled exact PaydayCalendar.kt, NetWor
 ## Local financial advisor
 
 Added rule-based observations from the existing bank/cash ledger, current monthly plan, subscription estimates, last two confirmed net-worth snapshots and current payday forecast. Ranks gross categories separately from refunds, highlights unclassified amounts, budget thresholds, recorded cash-flow deficit and reserve shortfall. Equal elapsed-day comparison and forecast/savings observations require explicit session confirmation of data coverage; no fabricated trend when a comparison period lacks movements. No new financial movements, no network, no new database schema or AI inference. Receipts not independently counted. Android build and integration pending.
+
+Verification: standalone kotlinc compiled the exact FinanceAdvisor.kt Git blob with existing finance engine sources. 14/14 synthetic assertions passed for recorded totals, refund and transfer treatment, equal-day comparison, coverage gating, budget, savings, subscriptions, net worth and payday deficit. Added JUnit regression tests; Gradle and Android integration remain unverified.
