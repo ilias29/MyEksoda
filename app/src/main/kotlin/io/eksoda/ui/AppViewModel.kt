@@ -74,6 +74,43 @@ class AppViewModel @Inject constructor(
     suspend fun saveBank(rows: List<io.eksoda.core.database.entity.BankRow>): Int =
         kotlinx.coroutines.withContext(ioDispatcher) { database.get().cashDao().importBank(rows) }
 
+    val subscriptionRows = flow { emitAll(database.get().cashDao().subscriptions()) }.flowOn(ioDispatcher)
+
+    fun subscriptionSuggestions(today: java.time.LocalDate) = flow {
+        val start = java.time.YearMonth.from(today).minusMonths(2).atDay(1)
+        emitAll(database.get().cashDao().subscriptionCandidates(start.toString(), today.toString()))
+    }.map { rows ->
+        val movements = rows.mapNotNull { row ->
+            runCatching {
+                io.eksoda.engine.finance.BankMovement(
+                    row.account, java.time.LocalDate.parse(row.day), row.description, row.amount,
+                    io.eksoda.engine.finance.MovementKind.valueOf(row.kind), row.reference,
+                    io.eksoda.engine.finance.SpendingCategory.valueOf(row.category),
+                )
+            }.getOrNull()
+        }
+        io.eksoda.engine.finance.Subscriptions.suggest(movements, today)
+    }.flowOn(ioDispatcher)
+
+    suspend fun saveSubscription(name: String, monthlyMinor: Long) {
+        val record = io.eksoda.engine.finance.SubscriptionRecord(name.trim(), monthlyMinor, true)
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().saveSubscription(
+                io.eksoda.core.database.entity.SubscriptionRow(
+                    io.eksoda.engine.finance.Subscriptions.key(record.name),
+                    record.name,
+                    record.expectedMonthlyMinor,
+                ),
+            )
+        }
+    }
+
+    suspend fun removeSubscription(key: String) {
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().removeSubscription(key)
+        }
+    }
+
     val cashRows = flow { emitAll(database.get().cashDao().observe()) }.flowOn(ioDispatcher)
 
     suspend fun saveCash(entry: io.eksoda.engine.finance.ManualCashEntry) {

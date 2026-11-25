@@ -1,5 +1,6 @@
 package io.eksoda.engine.finance
 
+import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
 
@@ -22,10 +23,21 @@ data class SubscriptionRecord(
 }
 
 object Subscriptions {
+    fun key(name: String): String = name.trim().uppercase(Locale.ROOT)
+
     /** Two equal debits in different months within a rolling three-month window prompt a question. */
-    fun suggest(movements: Iterable<BankMovement>): List<SubscriptionSuggestion> = movements
-        .filter { it.kind == MovementKind.EXPENSE && it.description.isNotBlank() }
-        .groupBy { it.description.trim().uppercase(Locale.ROOT) to it.amountMinor }
+    fun suggest(
+        movements: Iterable<BankMovement>,
+        asOf: LocalDate? = null,
+    ): List<SubscriptionSuggestion> = movements
+        .filter {
+            it.kind == MovementKind.EXPENSE && it.description.isNotBlank() &&
+                it.amountMinor != Long.MIN_VALUE &&
+                it.category != SpendingCategory.RENT && it.category != SpendingCategory.LOAN_PAYMENT &&
+                (asOf == null || (!it.date.isAfter(asOf) &&
+                    !YearMonth.from(it.date).isBefore(YearMonth.from(asOf).minusMonths(2))))
+        }
+        .groupBy { key(it.description) to it.amountMinor }
         .mapNotNull { (key, payments) ->
             val byMonth = payments.groupBy { YearMonth.from(it.date) }
             if (byMonth.size < 2) return@mapNotNull null

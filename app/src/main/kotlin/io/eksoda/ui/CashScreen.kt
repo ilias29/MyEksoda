@@ -77,6 +77,7 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
             Text(message)
         }
         item { BankImportForm(model) }
+        item { SubscriptionPanel(model) }
         items(rows, key = { it.id }) { row ->
             Text(row.day + "   " + row.description + "   €" + BigDecimal.valueOf(row.amountMinor, 2).toPlainString())
         }

@@ -1,6 +1,8 @@
 package io.eksoda.core.database.dao
 
 import androidx.room.Dao
+import androidx.room.Upsert
+import io.eksoda.core.database.entity.SubscriptionRow
 import androidx.room.Insert
 import io.eksoda.core.database.entity.BankRow
 import androidx.room.Transaction
@@ -10,6 +12,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_subscription ORDER BY name")
+    fun subscriptions(): Flow<List<SubscriptionRow>>
+
+    @Upsert
+    suspend fun saveSubscription(row: SubscriptionRow)
+
+    @Query("DELETE FROM finance_subscription WHERE `key` = :key")
+    suspend fun removeSubscription(key: String)
+
+    @Query("SELECT * FROM finance_bank WHERE day >= :start AND day <= :end AND kind = 'EXPENSE'")
+    fun subscriptionCandidates(start: String, end: String): Flow<List<BankRow>>
+
     @Insert
     suspend fun insert(entry: CashRow)
 
