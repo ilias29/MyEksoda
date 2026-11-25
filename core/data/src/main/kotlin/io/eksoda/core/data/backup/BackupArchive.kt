@@ -62,6 +62,7 @@ internal object BackupArchive {
         "merchant_product_mapping",
         "receipt",
         "receipt_item",
+        "finance_receipt_bank",
         "import_job",
         "tombstone",
     )

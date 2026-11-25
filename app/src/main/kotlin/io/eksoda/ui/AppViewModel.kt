@@ -93,6 +93,23 @@ class AppViewModel @Inject constructor(
         Result.success(overview)
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
+    fun receiptMatches(month: java.time.YearMonth) = flow {
+        val dao = database.get().cashDao()
+        val start = month.atDay(1).toString()
+        val end = month.atEndOfMonth().toString()
+        emitAll(kotlinx.coroutines.flow.combine(
+            dao.receiptBankCandidates(start, end), dao.receiptBankLinks(start, end),
+        ) { candidates, links -> Result.success(candidates to links) })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun linkReceipt(match: io.eksoda.core.database.dao.ReceiptBankMatch) =
+        kotlinx.coroutines.withContext(ioDispatcher) { database.get().cashDao().linkReceipt(match) }
+
+    suspend fun unlinkReceipt(match: io.eksoda.core.database.dao.ReceiptBankMatch) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            check(database.get().cashDao().unlinkReceipt(match.receiptId, match.account, match.reference) == 1)
+        }
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,

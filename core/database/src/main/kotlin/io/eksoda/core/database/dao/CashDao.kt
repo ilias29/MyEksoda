@@ -12,6 +12,62 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    // Candidate is not proof: only same amount and a bank posting up to three days later.
+    @Query(
+        """SELECT r.id AS receiptId, m.display_name AS merchant, r.issued_local_date AS receiptDay,
+                  r.gross_total_minor AS amountMinor, b.account, b.reference, b.day AS bankDay, b.description
+           FROM receipt r JOIN merchant m ON r.merchant_id = m.id
+           JOIN finance_bank b ON b.amount = -r.gross_total_minor
+           WHERE r.issued_local_date BETWEEN :start AND :end
+             AND r.status = 'active' AND r.document_kind = 'sale' AND r.currency = 'EUR'
+             AND r.payment_method IN ('card', 'bank') AND r.gross_total_minor > 0
+             AND r.excluded_from_analytics = 0
+             AND b.kind = 'EXPENSE' AND b.category NOT IN ('RENT', 'LOAN_PAYMENT')
+             AND b.day BETWEEN r.issued_local_date AND date(r.issued_local_date, '+3 days')
+             AND NOT EXISTS (SELECT 1 FROM finance_receipt_bank l WHERE l.receiptId = r.id)
+             AND NOT EXISTS (SELECT 1 FROM finance_receipt_bank l WHERE l.account = b.account AND l.reference = b.reference)
+           ORDER BY r.issued_local_date DESC, r.id, b.day, b.account, b.reference""",
+    )
+    fun receiptBankCandidates(start: String, end: String): Flow<List<ReceiptBankMatch>>
+
+    @Query(
+        """SELECT r.id AS receiptId, m.display_name AS merchant, r.issued_local_date AS receiptDay,
+                  r.gross_total_minor AS amountMinor, b.account, b.reference, b.day AS bankDay, b.description
+           FROM finance_receipt_bank l JOIN receipt r ON r.id = l.receiptId
+           JOIN merchant m ON m.id = r.merchant_id
+           JOIN finance_bank b ON b.account = l.account AND b.reference = l.reference
+           WHERE r.issued_local_date BETWEEN :start AND :end
+           ORDER BY r.issued_local_date DESC, r.id""",
+    )
+    fun receiptBankLinks(start: String, end: String): Flow<List<ReceiptBankMatch>>
+
+    // Recheck eligibility in the write itself, including stale UI and competing confirmations.
+    @Query(
+        """INSERT OR IGNORE INTO finance_receipt_bank (receiptId, account, reference)
+           SELECT r.id, b.account, b.reference FROM receipt r JOIN finance_bank b
+             ON b.amount = -r.gross_total_minor
+           WHERE r.id = :receiptId AND b.account = :account AND b.reference = :reference
+             AND r.status = 'active' AND r.document_kind = 'sale' AND r.currency = 'EUR'
+             AND r.payment_method IN ('card', 'bank') AND r.gross_total_minor > 0
+             AND r.excluded_from_analytics = 0
+             AND b.kind = 'EXPENSE' AND b.category NOT IN ('RENT', 'LOAN_PAYMENT')
+             AND b.day BETWEEN r.issued_local_date AND date(r.issued_local_date, '+3 days')""",
+    )
+    suspend fun confirmReceiptBank(receiptId: String, account: String, reference: String)
+
+    @Query("SELECT * FROM finance_receipt_bank WHERE receiptId = :receiptId")
+    suspend fun receiptBankLink(receiptId: String): io.eksoda.core.database.entity.ReceiptBankLink?
+
+    @Transaction
+    suspend fun linkReceipt(match: ReceiptBankMatch) {
+        confirmReceiptBank(match.receiptId, match.account, match.reference)
+        val actual = receiptBankLink(match.receiptId)
+        check(actual?.account == match.account && actual.reference == match.reference)
+    }
+
+    @Query("DELETE FROM finance_receipt_bank WHERE receiptId = :receiptId AND account = :account AND reference = :reference")
+    suspend fun unlinkReceipt(receiptId: String, account: String, reference: String): Int
+
     @Query("SELECT * FROM finance_monthly_plan WHERE month = :month")
     fun monthlyPlan(month: String): Flow<io.eksoda.core.database.entity.MonthlyPlanRow?>
 
@@ -58,7 +114,10 @@ interface CashDao {
     @Query(
         """UPDATE finance_bank SET kind = :kind, category = :category
            WHERE account = :account AND reference = :reference
-             AND kind = :previousKind AND category = :previousCategory""",
+             AND kind = :previousKind AND category = :previousCategory
+             AND ((:kind = 'EXPENSE' AND :category NOT IN ('RENT', 'LOAN_PAYMENT'))
+               OR NOT EXISTS (SELECT 1 FROM finance_receipt_bank l
+                   WHERE l.account = finance_bank.account AND l.reference = finance_bank.reference))""",
     )
     suspend fun classify(
         account: String,
