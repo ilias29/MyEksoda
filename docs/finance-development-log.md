@@ -69,3 +69,5 @@ Verification: a host Tesseract CLI smoke test using installed ell+eng data recog
 ## Structured OCR receipt preview (unverified Android build)
 
 Added a conservative Greek/English text parser for single-line items, explicit quantity × unit price, explicit discounts/coupons, printed VAT and payable total. Money uses integer cents. Payment lines are excluded; VAT is not added again. Conflicting totals, arithmetic mismatches and ambiguous tax values require review. Editing OCR text refreshes the structured preview. This remains an in-memory preview, not a saved receipt or financial movement. Merchant/date extraction, complex multiline layouts, discount allocation, photo persistence and bank reconciliation remain pending. Added domain tests; Android compilation is not verified.
+
+Verification: standalone kotlinc/JDK 21 compiled the exact parser blob (Git SHA-1 matched the branch); 15/15 synthetic assertions passed for Greek items, quantities, discounts, VAT, totals, payment lines and inconsistent values. The Android UI, native OCR, Room and APK remain unverified.

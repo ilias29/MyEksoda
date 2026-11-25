@@ -25,8 +25,9 @@ internal fun ReceiptTextReview(text: String) {
     ) {
         Text(stringResource(R.string.scan_ocr_items), style = MaterialTheme.typography.titleSmall)
         parsed.items.forEach { item ->
-            val detail = if (item.quantity != null && item.unitPriceMinor != null) {
-                " · ${item.quantity} × ${receiptEuro(item.unitPriceMinor)}"
+            val unit = item.unitPriceMinor
+            val detail = if (item.quantity != null && unit != null) {
+                " · ${item.quantity} × ${receiptEuro(unit)}"
             } else ""
             Text(item.name + detail + " · " + receiptEuro(item.lineMinor))
         }
