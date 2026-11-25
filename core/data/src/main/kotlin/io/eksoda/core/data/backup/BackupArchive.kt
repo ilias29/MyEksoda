@@ -54,6 +54,8 @@ internal object BackupArchive {
         "budget",
         "finance_cash",
         "finance_bank",
+        "finance_tax_plan",
+        "finance_tax_review",
         "finance_subscription",
         "finance_monthly_plan",
         "merchant",

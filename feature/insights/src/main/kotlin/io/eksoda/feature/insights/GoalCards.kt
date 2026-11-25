@@ -167,6 +167,8 @@ internal fun EPaymentCard(progress: EPaymentProgress, onIncomeChange: (BigDecima
                 color = colors.ink2,
             )
             HeroMoney(Money(progress.paid, progress.currency))
+            Text("Εκτίμηση από αποδείξεις μόνο. Μην την προσθέτεις στο ελεγμένο τραπεζικό ποσό της ενότητας Οικονομικά.",
+                style = MaterialTheme.typography.bodySmall)
             val target = progress.target
             if (target == null) {
                 Text(

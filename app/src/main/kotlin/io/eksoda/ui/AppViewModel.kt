@@ -110,6 +110,27 @@ class AppViewModel @Inject constructor(
             check(database.get().cashDao().unlinkReceipt(match.receiptId, match.account, match.reference) == 1)
         }
 
+    fun taxData(year: Int, today: java.time.LocalDate) = flow {
+        val dao = database.get().cashDao()
+        val start = java.time.LocalDate.of(year, 1, 1)
+        val end = minOf(java.time.LocalDate.of(year, 12, 31), today)
+        emitAll(kotlinx.coroutines.flow.combine(
+            dao.taxPlan(year), dao.taxMovements(start.toString(), end.toString()),
+        ) { plan, rows -> Result.success(plan to rows) })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun saveTaxPlan(plan: io.eksoda.engine.finance.AnnualTaxPlan) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().saveTaxPlan(io.eksoda.core.database.entity.AnnualTaxPlanRow(
+                plan.year, plan.incomeMinor, plan.mode.name, plan.specialCap,
+            ))
+        }
+
+    suspend fun reviewTax(row: io.eksoda.core.database.dao.TaxBankMovement, review: io.eksoda.engine.finance.TaxReview) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().reviewTaxMovement(row, review.name)
+        }
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,
@@ -117,8 +138,8 @@ class AppViewModel @Inject constructor(
         val movement = io.eksoda.engine.finance.BankMovement(row.account, java.time.LocalDate.parse(row.day),
             row.description, row.amount, kind, row.reference, category)
         kotlinx.coroutines.withContext(ioDispatcher) {
-            check(database.get().cashDao().classify(row.account, row.reference, row.kind, row.category,
-                movement.kind.name, movement.category.name) == 1)
+            database.get().cashDao().classifyAndResetTax(row.account, row.reference, row.kind, row.category,
+                movement.kind.name, movement.category.name)
         }
     }
 

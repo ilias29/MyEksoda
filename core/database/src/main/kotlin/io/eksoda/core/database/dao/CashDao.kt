@@ -12,6 +12,57 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_tax_plan WHERE year = :year")
+    fun taxPlan(year: Int): Flow<io.eksoda.core.database.entity.AnnualTaxPlanRow?>
+
+    @Upsert
+    suspend fun saveTaxPlan(row: io.eksoda.core.database.entity.AnnualTaxPlanRow)
+
+    @Query(
+        """SELECT b.account, b.reference, b.day, b.description, b.amount, b.kind, b.category,
+                  COALESCE(t.review, 'PENDING') AS review, m.display_name AS receiptMerchant
+           FROM finance_bank b LEFT JOIN finance_tax_review t
+             ON t.account = b.account AND t.reference = b.reference AND t.kind = b.kind AND t.category = b.category
+           LEFT JOIN finance_receipt_bank l ON l.account = b.account AND l.reference = b.reference
+           LEFT JOIN receipt r ON r.id = l.receiptId AND r.status = 'active' AND r.excluded_from_analytics = 0
+           LEFT JOIN merchant m ON m.id = r.merchant_id
+           WHERE b.day BETWEEN :start AND :end
+             AND ((b.kind = 'EXPENSE' AND b.amount < 0 AND b.category NOT IN ('RENT', 'LOAN_PAYMENT'))
+                OR (b.kind = 'REFUND' AND b.amount > 0))
+           ORDER BY b.day DESC, b.account, b.reference""",
+    )
+    fun taxMovements(start: String, end: String): Flow<List<TaxBankMovement>>
+
+    @Upsert
+    suspend fun upsertTaxReview(row: io.eksoda.core.database.entity.BankTaxReviewRow)
+
+    @Query("DELETE FROM finance_tax_review WHERE account = :account AND reference = :reference")
+    suspend fun clearTaxReview(account: String, reference: String)
+
+    @Transaction
+    suspend fun reviewTaxMovement(row: TaxBankMovement, review: String) {
+        require(review in setOf("PENDING", "EXCLUDED", "ELIGIBLE", "DOUBLE_HEALTH"))
+        val current = checkNotNull(findBank(row.account, row.reference))
+        check(current.kind == row.kind && current.category == row.category &&
+            current.amount == row.amount && current.day == row.day)
+        check((current.kind == "EXPENSE" && current.amount < 0 &&
+            current.category !in setOf("RENT", "LOAN_PAYMENT")) ||
+            (current.kind == "REFUND" && current.amount > 0))
+        if (review == "PENDING") clearTaxReview(row.account, row.reference)
+        else upsertTaxReview(io.eksoda.core.database.entity.BankTaxReviewRow(
+            row.account, row.reference, row.kind, row.category, review,
+        ))
+    }
+
+    @Transaction
+    suspend fun classifyAndResetTax(
+        account: String, reference: String, previousKind: String, previousCategory: String,
+        kind: String, category: String,
+    ) {
+        check(classify(account, reference, previousKind, previousCategory, kind, category) == 1)
+        if (previousKind != kind || previousCategory != category) clearTaxReview(account, reference)
+    }
+
     // Candidate is not proof: only same amount and a bank posting up to three days later.
     @Query(
         """SELECT r.id AS receiptId, m.display_name AS merchant, r.issued_local_date AS receiptDay,
