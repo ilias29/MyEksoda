@@ -115,3 +115,5 @@ Added JUnit regression cases for sorted snapshots, funding-adjusted result, frac
 ## Simple Lightyear progress assessment
 
 Descriptive lifetime and latest-snapshot directions (up/down/flat), actual date range, EUR gain change net of funding, percent only if starting value is positive and no external deposits or withdrawals occurred. First observation has no trend. No trading advice, benchmark judgment or risk inference. Manual upload remains primary, optional API remains collapsed. No schema changes. JUnit cases added; Android build not run.
+
+Verification: exact PortfolioDirection.kt and InvestmentTracking.kt Git blobs compiled with standalone kotlinc/JDK 21; 9/9 checks passed for total gain versus recent decline, deposit-neutral result, absent percent when funding changes, and first-snapshot behavior. Android UI and CSV import remain unverified.
