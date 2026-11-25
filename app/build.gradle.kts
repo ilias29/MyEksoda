@@ -78,6 +78,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:ui"))
     implementation(project(":core:data"))
+    implementation(project(":core:engine"))
+    implementation(project(":core:database"))
     implementation(project(":feature:home"))
     implementation(project(":feature:household"))
     implementation(project(":feature:insights"))

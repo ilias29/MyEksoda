@@ -61,14 +61,14 @@ fun EksodaApp(viewModel: AppViewModel) {
             AppState.ONBOARDING -> OnboardingRoute()
 
             AppState.READY ->
-                MainNavHost(launch = launch, onLaunchHandled = viewModel::onLaunchHandled)
+                MainNavHost(viewModel = viewModel, launch = launch, onLaunchHandled = viewModel::onLaunchHandled)
         }
     }
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
+private fun MainNavHost(viewModel: AppViewModel, launch: AppLaunch?, onLaunchHandled: () -> Unit) {
     val navController = rememberNavController()
     val openReceipt: (String) -> Unit = { navController.navigate(ReceiptDetailDestination(it)) }
     val openProduct: (String) -> Unit = { navController.navigate(ProductDetailDestination(it)) }
@@ -102,8 +102,10 @@ private fun MainNavHost(launch: AppLaunch?, onLaunchHandled: () -> Unit) {
                         )
                     }
                 }
+                composable<CashDestination> { CashScreen(viewModel, back) }
                 composable<SettingsDestination> {
                     SettingsRoute(
+                        onCashClick = { navController.navigate(CashDestination) },
                         onBack = back,
                         onCategoriesClick = { navController.navigate(CategoriesDestination) },
                         onMerchantsClick = { navController.navigate(MerchantsDestination) },

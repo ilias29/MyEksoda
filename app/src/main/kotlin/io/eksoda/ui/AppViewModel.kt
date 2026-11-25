@@ -45,14 +45,27 @@ sealed interface AppLaunch {
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
+    private val database: Lazy<io.eksoda.core.database.EksodaDatabase>,
     households: Lazy<HouseholdRepository>,
-    @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     val state: StateFlow<AppState> = flow { emitAll(households.get().household) }
         .map { if (it == null) AppState.ONBOARDING else AppState.READY }
         .catch { emit(AppState.UNAVAILABLE) }
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
+
+    val cashRows = flow { emitAll(database.get().cashDao().observe()) }.flowOn(ioDispatcher)
+
+    suspend fun saveCash(entry: io.eksoda.engine.finance.ManualCashEntry) {
+        val movement = entry.toMovement("cash")
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().insert(io.eksoda.core.database.entity.CashRow(
+                java.util.UUID.randomUUID().toString(), movement.date.toString(), movement.description,
+                movement.amountMinor, movement.category.name,
+            ))
+        }
+    }
 
     private val _launch = MutableStateFlow<AppLaunch?>(null)
     val launch: StateFlow<AppLaunch?> = _launch.asStateFlow()

@@ -12,3 +12,8 @@
 Local verification: `git diff --check` passed. `./gradlew :core:engine:test --offline` did not start tests: Gradle 9.9.1 is not cached and this host cannot reach services.gradle.org. No test success or APK claimed.
 
 Release gate: v0.1 **open**. CSV and manual cash are not connected to the Android UI or the encrypted database; XLS/XLSX parsing, account management and full import reversal remain to be built. Subscription detection is a domain prototype, not an active feature. Bank-specific formats need anonymized examples before their adapters can be validated. Keep PR draft.
+
+## Manual cash Android integration
+Settings → Μετρητά now opens a form for dated EUR income, expenses, rent and loan repayments. The form writes to a new Room table in the existing SQLCipher database. It displays the recorded movements and the sum of positive cash entries. Schema version 8 declares an additive 7→8 Room migration. Bank CSV and subscription prompts still need UI integration.
+
+Executed a SQLite smoke check with the exported version 7 table definitions and two synthetic cash movements. Original table definitions were preserved and the positive income total was correct. This check covers raw SQLite only. Android Gradle tests and assembleDebug stopped before compilation because the wrapper could not download Gradle. Generated Room schema, migration verification on Android, full regressions and APK remain pending.
