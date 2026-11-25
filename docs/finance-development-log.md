@@ -32,3 +32,8 @@ Executed python3 scripts/finance/check_xlsx.py on JDK 21 with synthetic openpyxl
 Imported account names are selectable. Bank history now pages beyond ten records and allows sign-compatible corrections (including refunds and internal transfers). Account net spending subtracts refunds and excludes transfers. Re-import leaves the stored classification intact. The correction query checks the previous classification before writing. Both finance tables are included in the existing encrypted logical backup.
 
 Executed the DAO update SQL against synthetic SQLite records: account isolation and stale-edit rejection passed. Re-ran the production XLSX reader fixture checks successfully. Added a Room regression test for re-import. Gradle could not fetch its distribution, so the Room test, backup round trip on Android, full build and APK remain unverified.
+
+## Legacy Excel
+The picker now recognizes OLE compound files and routes single-sheet BIFF workbooks through Apache POI HSSF, followed by the same preview and atomic import as CSV and XLSX. Added synthetic workbook tests for Greek descriptions, a formatted reference, a numeric date and amount, and rejection of formulas. The Android branch is included in the existing push CI trigger so a build can run when repository Actions are available.
+
+Executed the existing XLSX fixture regression on JDK 21. The new XLS tests and debug build did not execute: the local wrapper could not fetch Gradle 9.9.1. The HSSF dependency and its Android runtime compatibility remain unverified. No APK produced.

@@ -10,6 +10,7 @@ dependencies {
     api(libs.kotlinx.serialization.json)
     // Parsers take Jsoup documents (the Layout contract); the fetcher is the app's only HTTP client.
     api(libs.jsoup)
+    implementation("org.apache.poi:poi:5.4.1")
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.core)
 }

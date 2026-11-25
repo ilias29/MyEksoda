@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.eksoda.core.database.entity.BankRow
+import io.eksoda.engine.finance.LegacyBankWorkbook
 import io.eksoda.engine.finance.BankWorkbook
 import io.eksoda.engine.finance.BankCsv
 import io.eksoda.engine.finance.CsvMapping
@@ -50,6 +51,10 @@ internal fun BankImportForm(model: AppViewModel) {
                             val rows = BankWorkbook.rows(data, mapping.date, mapping.amount,
                                 mapping.decimalSeparator, mapping.datePattern)
                             BankCsv.previewRows(rows, account.trim(), mapping)
+                        } else if (LegacyBankWorkbook.matches(data)) {
+                            val rows = LegacyBankWorkbook.rows(data, mapping.date, mapping.amount,
+                                mapping.decimalSeparator, mapping.datePattern)
+                            BankCsv.previewRows(rows, account.trim(), mapping)
                         } else {
                             val csv = Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(data)).toString()
                             BankCsv.preview(csv, account.trim(), mapping)
@@ -70,7 +75,7 @@ internal fun BankImportForm(model: AppViewModel) {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    message = "Έλεγξε τη μορφή CSV/XLSX, τις στήλες και το μέγεθος του αρχείου."
+                    message = "Έλεγξε τη μορφή CSV/XLS/XLSX, τις στήλες και το μέγεθος του αρχείου."
                 } finally {
                     busy = false
                 }
@@ -98,13 +103,13 @@ internal fun BankImportForm(model: AppViewModel) {
         }
     }
     OutlinedTextField(account, { account = it; preview = emptyList() }, enabled = !busy, label = { Text("Όνομα λογαριασμού") })
-    Text("CSV UTF-8 ή XLSX ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
+    Text("CSV UTF-8 ή Excel (XLS/XLSX) ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
     OutlinedTextField(columns, { columns = it; preview = emptyList() }, enabled = !busy,
         label = { Text("Ημερομηνία, περιγραφή, ποσό, κωδικός") })
     OutlinedTextField(delimiter, { delimiter = it; preview = emptyList() }, enabled = !busy, label = { Text("Διαχωριστικό στηλών") })
     OutlinedTextField(decimal, { decimal = it; preview = emptyList() }, enabled = !busy, label = { Text("Δεκαδικό σύμβολο") })
     OutlinedTextField(pattern, { pattern = it; preview = emptyList() }, enabled = !busy, label = { Text("Μορφή ημερομηνίας") })
-    Button(enabled = !busy && account.isNotBlank(), onClick = { picker.launch(arrayOf("*/*")) }) { Text("Επιλογή CSV ή XLSX") }
+    Button(enabled = !busy && account.isNotBlank(), onClick = { picker.launch(arrayOf("*/*")) }) { Text("Επιλογή CSV ή Excel") }
     Text(message)
     preview.take(10).forEach { Text(it.day + "   " + it.description + "   " + BigDecimal.valueOf(it.amount, 2) + " €") }
     if (preview.isNotEmpty()) {
