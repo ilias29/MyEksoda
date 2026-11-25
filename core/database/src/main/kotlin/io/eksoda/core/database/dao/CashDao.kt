@@ -12,6 +12,28 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_net_worth ORDER BY day DESC")
+    fun netWorthHistory(): Flow<List<io.eksoda.core.database.entity.NetWorthRow>>
+
+    @Query("SELECT * FROM finance_portfolio_snapshot WHERE broker = 'Lightyear' AND day = :day")
+    suspend fun lightyearOnDay(day: String): io.eksoda.core.database.entity.PortfolioSnapshotRow?
+
+    @Query("SELECT * FROM finance_net_worth WHERE day = :day")
+    suspend fun netWorthOnDay(day: String): io.eksoda.core.database.entity.NetWorthRow?
+
+    @Upsert
+    suspend fun upsertNetWorth(row: io.eksoda.core.database.entity.NetWorthRow)
+
+    @Transaction
+    suspend fun saveNetWorth(row: io.eksoda.core.database.entity.NetWorthRow, expected: io.eksoda.core.database.entity.NetWorthRow?) {
+        check(netWorthOnDay(row.day) == expected) { "Snapshot changed; review before replacing" }
+        if (row.fromLightyear) {
+            val portfolio = checkNotNull(lightyearOnDay(row.day)) { "Same-day portfolio required" }
+            check(portfolio.valueMinor == row.lightyearMinor) { "Portfolio changed; review again" }
+        }
+        upsertNetWorth(row)
+    }
+
     @Transaction
     suspend fun importValuations(
         portfolio: List<io.eksoda.core.database.entity.PortfolioSnapshotRow>,

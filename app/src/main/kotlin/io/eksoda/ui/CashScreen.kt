@@ -34,6 +34,7 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
             Text("Οικονομικά", style = MaterialTheme.typography.headlineMedium)
         }
         item { MonthlyOverviewPanel(model) }
+        item { NetWorthPanel(model) }
         item {
             Text("Μετρητά", style = MaterialTheme.typography.headlineSmall)
             Text("Καταχώρισε μόνο πραγματικά έσοδα και έξοδα, όχι αναλήψεις ή καταθέσεις μεταξύ δικών σου λογαριασμών.")

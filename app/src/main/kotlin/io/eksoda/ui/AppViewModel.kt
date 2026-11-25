@@ -202,6 +202,26 @@ class AppViewModel @Inject constructor(
         ))
     }
 
+    val netWorthData = flow {
+        val dao = database.get().cashDao()
+        emitAll(kotlinx.coroutines.flow.combine(
+            dao.netWorthHistory(), dao.portfolioSnapshots("Lightyear"),
+        ) { history, portfolio -> Result.success(history to portfolio) })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun saveNetWorth(
+        snapshot: io.eksoda.engine.finance.NetWorthSnapshot,
+        expected: io.eksoda.core.database.entity.NetWorthRow?,
+    ) = kotlinx.coroutines.withContext(ioDispatcher) {
+        require(!snapshot.day.isAfter(java.time.LocalDate.now()))
+        database.get().cashDao().saveNetWorth(
+            io.eksoda.core.database.entity.NetWorthRow(
+                snapshot.day.toString(), snapshot.bankMinor, snapshot.cashMinor, snapshot.lightyearMinor,
+                snapshot.otherAssetsMinor, snapshot.loanMinor, snapshot.otherDebtsMinor, snapshot.fromLightyear,
+            ), expected,
+        )
+    }
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,
