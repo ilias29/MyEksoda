@@ -62,7 +62,7 @@ interface CashDao {
     suspend fun linkReceipt(match: ReceiptBankMatch) {
         confirmReceiptBank(match.receiptId, match.account, match.reference)
         val actual = receiptBankLink(match.receiptId)
-        check(actual?.account == match.account && actual.reference == match.reference)
+        check(actual != null && actual.account == match.account && actual.reference == match.reference)
     }
 
     @Query("DELETE FROM finance_receipt_bank WHERE receiptId = :receiptId AND account = :account AND reference = :reference")
