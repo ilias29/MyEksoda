@@ -4,7 +4,7 @@ Repository: https://github.com/ilias29/MyEksoda
 Branch: feature/personal-finance
 Draft PR: https://github.com/ilias29/MyEksoda/pull/1
 
-Read personal-finance-roadmap.md and finance-release-gates.md before implementation. Continue existing code, not a rewrite. Current state: BankLedger and BankCsv domain code with preview, conservative rent/loan payment suggestions and ID-based import reconciliation. These changes are not integrated with UI or encrypted storage. Unit tests and APK are not verified yet.
+Read personal-finance-roadmap.md and finance-release-gates.md before implementation. Continue existing code, not a rewrite. Current state: BankLedger and BankCsv domain code with preview, conservative rent/loan payment suggestions and ID-based import reconciliation; manual cash and subscription suggestion models. These changes are not integrated with UI or encrypted storage. Unit tests and APK are not verified yet.
 
 ## Deliverables
 - v0.1: Greek bank CSV/XLS/XLSX imports, configurable mappings and preview, multiple accounts, income/expenses/refunds/transfers, editable automatic categories, duplicate prevention, manual cash, encrypted storage.
