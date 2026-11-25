@@ -1,6 +1,7 @@
 package io.eksoda.feature.scan
 
 import android.net.Uri
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,7 +37,7 @@ sealed interface ScanEvent {
 
     data class LinkPasted(val text: String) : ScanEvent
 
-    data class PhotoPicked(val uri: Uri) : ScanEvent
+    data class PhotoPicked(val uri: Uri, val temporaryCapture: Boolean = false) : ScanEvent
 
     data object FeedbackShown : ScanEvent
 }
@@ -71,7 +72,7 @@ class ScanViewModel @Inject constructor(
             ScanEvent.PasteOpened -> _state.update { it.copy(pasteOpen = true) }
             ScanEvent.PasteDismissed -> _state.update { it.copy(pasteOpen = false) }
             is ScanEvent.LinkPasted -> onPasted(event.text)
-            is ScanEvent.PhotoPicked -> onPhoto(event.uri)
+            is ScanEvent.PhotoPicked -> onPhoto(event.uri, event.temporaryCapture)
             ScanEvent.FeedbackShown -> _state.update { it.copy(feedback = null) }
         }
     }
@@ -96,11 +97,19 @@ class ScanViewModel @Inject constructor(
         }
     }
 
-    private fun onPhoto(uri: Uri) {
+    private fun onPhoto(uri: Uri, temporaryCapture: Boolean) {
         _state.update { it.copy(readingPhoto = true) }
         viewModelScope.launch {
-            val text = runCatching { photoDecoder.decode(uri) }.getOrNull()
-            _state.update { it.copy(readingPhoto = false) }
+            val text = try {
+                photoDecoder.decode(uri)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            } finally {
+                if (temporaryCapture) photoDecoder.discardCapture(uri)
+                _state.update { it.copy(readingPhoto = false) }
+            }
             when {
                 text == null -> show(ImportFeedback.NoCodeInPhoto)
 

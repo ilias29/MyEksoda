@@ -45,6 +45,13 @@ class QrImageDecoder @Inject constructor(
         }
     }
 
+    /** Delete only a temporary image created by this app, never a user's gallery photo. */
+    fun discardCapture(uri: Uri) {
+        if (uri.authority == context.packageName + ".receipt.capture") {
+            runCatching { context.contentResolver.delete(uri, null, null) }
+        }
+    }
+
     private fun load(uri: Uri): Bitmap? {
         val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
