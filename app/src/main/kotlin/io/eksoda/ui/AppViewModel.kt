@@ -222,6 +222,36 @@ class AppViewModel @Inject constructor(
         )
     }
 
+    val paydayData = flow {
+        val dao = database.get().cashDao()
+        emitAll(kotlinx.coroutines.flow.combine(dao.paydayPlan(), dao.plannedPayments()) { plan, rows ->
+            Result.success(plan to rows)
+        })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun savePaydayPlan(plan: io.eksoda.engine.finance.PaydayPlan) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            require(plan.balanceDay == java.time.LocalDate.now())
+            database.get().cashDao().savePaydayPlan(io.eksoda.core.database.entity.PaydayPlanRow(
+                balanceDay = plan.balanceDay.toString(), balanceMinor = plan.balanceMinor,
+                payday = plan.payday.toString(),
+            ))
+        }
+
+    suspend fun addPlannedPayment(payment: io.eksoda.engine.finance.PlannedPayment) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            require(payment.state == io.eksoda.engine.finance.PaymentState.PENDING)
+            database.get().cashDao().insertPlannedPayment(io.eksoda.core.database.entity.PlannedPaymentRow(
+                payment.id, payment.name, payment.due.toString(), payment.amountMinor,
+                payment.type.name, payment.state.name,
+            ))
+        }
+
+    suspend fun resolvePlannedPayment(row: io.eksoda.core.database.entity.PlannedPaymentRow, paid: Boolean) =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().changePaymentState(row.id, row.state, if (paid) "PAID" else "CANCELLED")
+        }
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,

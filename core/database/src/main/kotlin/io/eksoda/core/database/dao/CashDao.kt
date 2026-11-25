@@ -12,6 +12,31 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_payday_plan WHERE id = 'current'")
+    fun paydayPlan(): Flow<io.eksoda.core.database.entity.PaydayPlanRow?>
+
+    @Upsert
+    suspend fun savePaydayPlan(row: io.eksoda.core.database.entity.PaydayPlanRow)
+
+    @Query("SELECT * FROM finance_planned_payment ORDER BY due, id")
+    fun plannedPayments(): Flow<List<io.eksoda.core.database.entity.PlannedPaymentRow>>
+
+    @Insert
+    suspend fun insertPlannedPayment(row: io.eksoda.core.database.entity.PlannedPaymentRow)
+
+    @Query("UPDATE finance_planned_payment SET state = :next WHERE id = :id AND state = :previous")
+    suspend fun updatePaymentState(id: String, previous: String, next: String): Int
+
+    @Query("UPDATE finance_payday_plan SET needsReview = 1 WHERE id = 'current'")
+    suspend fun invalidatePaydayBalance()
+
+    @Transaction
+    suspend fun changePaymentState(id: String, previous: String, next: String) {
+        require(previous == "PENDING" && next in setOf("PAID", "CANCELLED"))
+        check(updatePaymentState(id, previous, next) == 1)
+        if (next == "PAID") invalidatePaydayBalance()
+    }
+
     @Query("SELECT * FROM finance_net_worth ORDER BY day DESC")
     fun netWorthHistory(): Flow<List<io.eksoda.core.database.entity.NetWorthRow>>
 
