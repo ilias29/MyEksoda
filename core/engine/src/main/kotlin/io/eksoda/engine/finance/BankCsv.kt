@@ -28,10 +28,13 @@ object BankCsv {
 
     /** Nothing should be persisted until every input row has passed validation. */
     fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview {
+        return previewRows(rows(text.removePrefix("\uFEFF"), mapping.delimiter), accountId, mapping)
+    }
+
+    fun previewRows(rows: List<List<String>>, accountId: String, mapping: CsvMapping): BankImportPreview {
         require(accountId.isNotBlank())
         require(listOf(mapping.date, mapping.description, mapping.amount).all { it >= 0 })
         require(mapping.sourceId == null || mapping.sourceId >= 0)
-        val rows = rows(text.removePrefix("\uFEFF"), mapping.delimiter)
         val formatter = DateTimeFormatter.ofPattern(mapping.datePattern)
             .withResolverStyle(java.time.format.ResolverStyle.STRICT)
         val movements = mutableListOf<BankMovement>()

@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.eksoda.core.database.entity.BankRow
+import io.eksoda.engine.finance.BankWorkbook
 import io.eksoda.engine.finance.BankCsv
 import io.eksoda.engine.finance.CsvMapping
 import kotlinx.coroutines.CancellationException
@@ -42,18 +43,17 @@ internal fun BankImportForm(model: AppViewModel) {
                     val mapping = CsvMapping(indices[0], indices[1], indices[2], indices[3],
                         delimiter.single(), decimal.single(), pattern)
                     val result = withContext(Dispatchers.IO) {
-                        val csv = requireNotNull(resolver.openInputStream(uri)).bufferedReader(Charsets.UTF_8).use {
-                            val buffer = CharArray(4096)
-                            val text = StringBuilder()
-                            while (true) {
-                                val count = it.read(buffer)
-                                if (count < 0) break
-                                require(text.length + count <= 2_000_000)
-                                text.append(buffer, 0, count)
-                            }
-                            text.toString()
+                        val data = requireNotNull(resolver.openInputStream(uri)).use {
+                            BankWorkbook.readLimited(it, 4_000_000)
                         }
-                        BankCsv.preview(csv, account.trim(), mapping)
+                        if (data.size >= 4 && data[0] == 80.toByte() && data[1] == 75.toByte()) {
+                            val rows = BankWorkbook.rows(data, mapping.date, mapping.amount,
+                                mapping.decimalSeparator, mapping.datePattern)
+                            BankCsv.previewRows(rows, account.trim(), mapping)
+                        } else {
+                            val csv = Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(data)).toString()
+                            BankCsv.preview(csv, account.trim(), mapping)
+                        }
                     }
                     val problem = result.problems.firstOrNull()
                     if (problem != null) {
@@ -70,7 +70,7 @@ internal fun BankImportForm(model: AppViewModel) {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    message = "Έλεγξε τη μορφή CSV, τις στήλες και το μέγεθος του αρχείου."
+                    message = "Έλεγξε τη μορφή CSV/XLSX, τις στήλες και το μέγεθος του αρχείου."
                 } finally {
                     busy = false
                 }
@@ -79,13 +79,13 @@ internal fun BankImportForm(model: AppViewModel) {
     }
     Text("Τραπεζικές κινήσεις σε ευρώ")
     OutlinedTextField(account, { account = it; preview = emptyList() }, enabled = !busy, label = { Text("Όνομα λογαριασμού") })
-    Text("CSV UTF-8 με επικεφαλίδες. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
+    Text("CSV UTF-8 ή XLSX ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
     OutlinedTextField(columns, { columns = it; preview = emptyList() }, enabled = !busy,
         label = { Text("Ημερομηνία, περιγραφή, ποσό, κωδικός") })
     OutlinedTextField(delimiter, { delimiter = it; preview = emptyList() }, enabled = !busy, label = { Text("Διαχωριστικό στηλών") })
     OutlinedTextField(decimal, { decimal = it; preview = emptyList() }, enabled = !busy, label = { Text("Δεκαδικό σύμβολο") })
     OutlinedTextField(pattern, { pattern = it; preview = emptyList() }, enabled = !busy, label = { Text("Μορφή ημερομηνίας") })
-    Button(enabled = !busy && account.isNotBlank(), onClick = { picker.launch(arrayOf("*/*")) }) { Text("Επιλογή CSV") }
+    Button(enabled = !busy && account.isNotBlank(), onClick = { picker.launch(arrayOf("*/*")) }) { Text("Επιλογή CSV ή XLSX") }
     Text(message)
     preview.take(10).forEach { Text(it.day + "   " + it.description + "   " + BigDecimal.valueOf(it.amount, 2) + " €") }
     if (preview.isNotEmpty()) {
