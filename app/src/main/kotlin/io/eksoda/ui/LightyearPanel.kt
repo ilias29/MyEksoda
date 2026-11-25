@@ -12,7 +12,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.eksoda.core.database.entity.PortfolioSnapshotRow
 import io.eksoda.engine.finance.BankLedger
-import io.eksoda.engine.finance.InvestmentTracking
+import io.eksoda.engine.finance.PortfolioAssessment
+import io.eksoda.engine.finance.PortfolioDirection
 import io.eksoda.engine.finance.PortfolioSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -38,7 +39,7 @@ internal fun LightyearPanel(model: AppViewModel) {
     var historyCount by remember { mutableIntStateOf(10) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Επενδύσεις · Lightyear", style = MaterialTheme.typography.headlineSmall)
-        Text("Χειροκίνητες αποτιμήσεις σε ευρώ, όχι ζωντανή σύνδεση.")
+        Text("Αποτιμήσεις από τα αρχεία σου, όχι ζωντανές τιμές.")
         LightyearFileImport(model)
         var showOptionalMarket by remember { mutableStateOf(false) }
         TextButton(onClick = { showOptionalMarket = !showOptionalMarket }) {
@@ -58,9 +59,34 @@ internal fun LightyearPanel(model: AppViewModel) {
                     Text(investEuro(BigDecimal.valueOf(latest.valueMinor)), style = MaterialTheme.typography.headlineMedium)
                     Text("Καθαρές καταθέσεις: " + investEuro(latest.netFundingMinor))
                     Text("Συνολικό αποτέλεσμα έναντι καθαρών καταθέσεων: " + investEuro(latest.gainMinor))
-                    portfolio.getOrNull(1)?.let { earlier ->
-                        val change = runCatching { InvestmentTracking.change(earlier.snapshot(), latest) }.getOrNull()
-                        change?.let { Text("Μεταβολή αποτελέσματος από ${earlier.day}: " + investEuro(it.gainChangeMinor)) }
+                    val previous = portfolio.getOrNull(1)?.snapshot()
+                    val status = runCatching { PortfolioAssessment.assess(latest, previous) }.getOrNull()
+                    if (status == null) {
+                        Text("Έλεγξε τη συνέπεια του ιστορικού.")
+                    } else {
+                        Text(when (status.totalDirection) {
+                            PortfolioDirection.UP -> "Συνολικά: θετικό αποτέλεσμα"
+                            PortfolioDirection.DOWN -> "Συνολικά: αρνητικό αποτέλεσμα"
+                            PortfolioDirection.FLAT -> "Συνολικά: χωρίς κέρδος ή ζημία"
+                        }, style = MaterialTheme.typography.titleMedium)
+                        if (previous == null) {
+                            Text("Πρώτη αποτίμηση. Χρειάζεται δεύτερο αρχείο για σύγκριση.")
+                        } else {
+                            val label = when (status.recentDirection) {
+                                PortfolioDirection.UP -> "Ανοδική πορεία"
+                                PortfolioDirection.DOWN -> "Πτωτική πορεία"
+                                PortfolioDirection.FLAT -> "Σταθερή πορεία"
+                                null -> "Ανεπαρκή στοιχεία"
+                            }
+                            Text("$label · από ${previous.date} έως ${latest.date}",
+                                style = MaterialTheme.typography.titleMedium)
+                            status.recentGainMinor?.let {
+                                Text("Μεταβολή χωρίς καθαρές καταθέσεις: " + investEuro(it))
+                            }
+                            status.recentPercent?.let { Text("Μεταβολή: ${it.toPlainString()}%") }
+                            if (status.hasCashFlows) Text("Υπήρξαν καταθέσεις ή αναλήψεις. Δεν υπολογίζεται ποσοστιαία απόδοση χωρίς τον χρόνο των κινήσεων.")
+                        }
+                        Text("Η ένδειξη περιγράφει το αποτέλεσμα, όχι την ποιότητα ή τον κίνδυνο της στρατηγικής.")
                     }
                     Text("Ιστορικό αποτιμήσεων")
                     portfolio.take(historyCount).forEach {
