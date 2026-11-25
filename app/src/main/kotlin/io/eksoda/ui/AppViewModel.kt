@@ -131,6 +131,26 @@ class AppViewModel @Inject constructor(
             database.get().cashDao().reviewTaxMovement(row, review.name)
         }
 
+    suspend fun importLightyearSnapshots(data: io.eksoda.engine.finance.LightyearSnapshotImport): Int =
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            val dao = database.get().cashDao()
+            when (data) {
+                is io.eksoda.engine.finance.LightyearSnapshotImport.Portfolio ->
+                    dao.importPortfolioSnapshots(data.rows.map {
+                        io.eksoda.core.database.entity.PortfolioSnapshotRow(
+                            "Lightyear", it.date.toString(), it.valueMinor, it.depositedMinor, it.withdrawnMinor,
+                        )
+                    })
+                is io.eksoda.engine.finance.LightyearSnapshotImport.Holdings ->
+                    dao.importHoldingSnapshots(data.rows.map {
+                        io.eksoda.core.database.entity.HoldingSnapshotRow(
+                            "Lightyear", it.instrument, it.day.toString(), it.quantity.stripTrailingZeros().toPlainString(),
+                            it.valueMinor, it.costMinor,
+                        )
+                    })
+            }
+        }
+
     val lightyearHistory = flow {
         val dao = database.get().cashDao()
         emitAll(kotlinx.coroutines.flow.combine(

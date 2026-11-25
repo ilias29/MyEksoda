@@ -39,7 +39,12 @@ internal fun LightyearPanel(model: AppViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Επενδύσεις · Lightyear", style = MaterialTheme.typography.headlineSmall)
         Text("Χειροκίνητες αποτιμήσεις σε ευρώ, όχι ζωντανή σύνδεση.")
-        MarketPricePanel()
+        LightyearFileImport(model)
+        var showOptionalMarket by remember { mutableStateOf(false) }
+        TextButton(onClick = { showOptionalMarket = !showOptionalMarket }) {
+            Text(if (showOptionalMarket) "Απόκρυψη προαιρετικού API" else "Προαιρετική παρακολούθηση μέσω API")
+        }
+        if (showOptionalMarket) MarketPricePanel()
         val result = state
         val data = result?.getOrNull()
         when {

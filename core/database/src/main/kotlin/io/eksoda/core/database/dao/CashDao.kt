@@ -12,6 +12,41 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Transaction
+    suspend fun importPortfolioSnapshots(rows: List<io.eksoda.core.database.entity.PortfolioSnapshotRow>): Int {
+        val existing = portfolioHistory("Lightyear").associateBy { it.day }
+        require(rows.all { it.broker == "Lightyear" })
+        require(rows.map { it.day }.distinct().size == rows.size)
+        val combined = (existing.values + rows.filter { it.day !in existing }).sortedBy { it.day }
+        require(rows.all { existing[it.day] == null || existing[it.day] == it }) { "Conflicting snapshot" }
+        require(combined.zipWithNext().all { (a, b) ->
+            a.depositedMinor <= b.depositedMinor && a.withdrawnMinor <= b.withdrawnMinor
+        })
+        val newRows = rows.filter { it.day !in existing }
+        newRows.forEach { upsertPortfolioSnapshot(it) }
+        return newRows.size
+    }
+
+    @Query("SELECT * FROM finance_holding_snapshot WHERE broker = :broker AND instrument = :instrument AND day = :day")
+    suspend fun findHolding(broker: String, instrument: String, day: String): io.eksoda.core.database.entity.HoldingSnapshotRow?
+
+    @Transaction
+    suspend fun importHoldingSnapshots(rows: List<io.eksoda.core.database.entity.HoldingSnapshotRow>): Int {
+        require(rows.all { it.broker == "Lightyear" })
+        require(rows.map { it.instrument to it.day }.distinct().size == rows.size)
+        var count = 0
+        for (row in rows) {
+            val existing = findHolding(row.broker, row.instrument, row.day)
+            if (existing == null) {
+                saveHoldingSnapshot(row)
+                count++
+            } else {
+                require(existing == row) { "Conflicting holding snapshot" }
+            }
+        }
+        return count
+    }
+
     @Query("SELECT * FROM finance_portfolio_snapshot WHERE broker = :broker ORDER BY day DESC")
     fun portfolioSnapshots(broker: String): Flow<List<io.eksoda.core.database.entity.PortfolioSnapshotRow>>
 

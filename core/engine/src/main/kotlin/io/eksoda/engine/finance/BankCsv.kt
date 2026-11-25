@@ -65,7 +65,7 @@ object BankCsv {
         return BankImportPreview(movements, problems)
     }
 
-    private fun rows(text: String, delimiter: Char): List<List<String>> {
+    internal fun rows(text: String, delimiter: Char): List<List<String>> {
         require(delimiter != '"' && delimiter != '\n' && delimiter != '\r')
         val result = mutableListOf<List<String>>()
         val row = mutableListOf<String>()
