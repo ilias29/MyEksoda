@@ -45,6 +45,11 @@ class QrImageDecoder @Inject constructor(
         }
     }
 
+    /** OCR fallback after QR decoding; the image stays on the device. */
+    suspend fun readText(uri: Uri): String? = withContext(ioDispatcher) {
+        ReceiptOcr.read(context, uri)
+    }
+
     /** Delete only a temporary image created by this app, never a user's gallery photo. */
     fun discardCapture(uri: Uri) {
         if (uri.authority == context.packageName + ".receipt.capture") {

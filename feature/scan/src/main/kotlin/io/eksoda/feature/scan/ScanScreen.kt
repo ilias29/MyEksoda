@@ -244,6 +244,31 @@ fun ScanScreen(
         }
     }
 
+    state.recognizedText?.let { recognized ->
+        // This preview is deliberately not a financial transaction.
+        var corrected by remember(recognized) { mutableStateOf(recognized) }
+        AlertDialog(
+            onDismissRequest = { onEvent(ScanEvent.OcrDismissed) },
+            title = { Text(stringResource(R.string.scan_ocr_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.scan_ocr_review))
+                    OutlinedTextField(
+                        value = corrected,
+                        onValueChange = { corrected = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 8,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onEvent(ScanEvent.OcrDismissed) }) {
+                    Text(stringResource(R.string.scan_close))
+                }
+            },
+        )
+    }
+
     if (state.pasteOpen) {
         PasteLinkDialog(
             onImport = { onEvent(ScanEvent.LinkPasted(it)) },

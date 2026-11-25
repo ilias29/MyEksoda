@@ -50,4 +50,6 @@
     <string name="scan_camera_settings">Open settings</string>
     <string name="scan_capture">Photograph receipt (QR)</string>
     <string name="scan_capture_failed">Camera could not open. Try a gallery photo.</string>
+    <string name="scan_ocr_title">Recognized receipt text</string>
+    <string name="scan_ocr_review">Check the text. This preview is not saved and does not create an expense.</string>
 </resources>

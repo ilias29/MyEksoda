@@ -24,6 +24,7 @@ data class ScanUiState(
     val torchOn: Boolean = false,
     val pasteOpen: Boolean = false,
     val readingPhoto: Boolean = false,
+    val recognizedText: String? = null,
 )
 
 sealed interface ScanEvent {
@@ -40,6 +41,8 @@ sealed interface ScanEvent {
     data class PhotoPicked(val uri: Uri, val temporaryCapture: Boolean = false) : ScanEvent
 
     data object FeedbackShown : ScanEvent
+
+    data object OcrDismissed : ScanEvent
 }
 
 sealed interface ScanEffect {
@@ -73,6 +76,7 @@ class ScanViewModel @Inject constructor(
             ScanEvent.PasteDismissed -> _state.update { it.copy(pasteOpen = false) }
             is ScanEvent.LinkPasted -> onPasted(event.text)
             is ScanEvent.PhotoPicked -> onPhoto(event.uri, event.temporaryCapture)
+            ScanEvent.OcrDismissed -> _state.update { it.copy(recognizedText = null) }
             ScanEvent.FeedbackShown -> _state.update { it.copy(feedback = null) }
         }
     }
@@ -98,10 +102,27 @@ class ScanViewModel @Inject constructor(
     }
 
     private fun onPhoto(uri: Uri, temporaryCapture: Boolean) {
-        _state.update { it.copy(readingPhoto = true) }
+        if (_state.value.readingPhoto) {
+            if (temporaryCapture) photoDecoder.discardCapture(uri)
+            return
+        }
+        _state.update { it.copy(readingPhoto = true, recognizedText = null) }
         viewModelScope.launch {
+            var recognized: String? = null
             val text = try {
-                photoDecoder.decode(uri)
+                val qr = photoDecoder.decode(uri)
+                if (qr == null) {
+                    recognized = try {
+                        photoDecoder.readText(uri)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    } catch (e: LinkageError) {
+                        null
+                    }
+                }
+                qr
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -111,6 +132,9 @@ class ScanViewModel @Inject constructor(
                 _state.update { it.copy(readingPhoto = false) }
             }
             when {
+                text == null && !recognized.isNullOrBlank() ->
+                    _state.update { it.copy(recognizedText = recognized, feedback = null) }
+
                 text == null -> show(ImportFeedback.NoCodeInPhoto)
 
                 ReceiptLinks.isHttpsLink(text) -> {
