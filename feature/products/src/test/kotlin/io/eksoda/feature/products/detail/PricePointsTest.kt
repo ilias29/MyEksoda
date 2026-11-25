@@ -35,6 +35,25 @@ class PricePointsTest {
         }.reversed()
 
     @Test
+    fun `observed change compares first and latest purchases`() {
+        val change = checkNotNull(observedPriceChange(entries("3.50", "4.20")))
+        assertThat(change.percent).isEqualTo(BigDecimal("20.00"))
+        assertThat(observedPriceChange(entries("3.50"))).isEqualTo(null)
+        assertThat(observedPriceChange(entries("0", "4.20"))).isEqualTo(null)
+    }
+
+    @Test
+    fun `merchant observations keep date and count and flag same time conflicts`() {
+        val base = entries("3.50", "4.20")
+        val other = base.first().copy(merchant = Merchant("other", "Other"))
+        val shops = latestShopObservations(base + other)
+        assertThat(shops.size).isEqualTo(2)
+        assertThat(shops.first { it.entry.merchant.id == "m" }.purchaseCount).isEqualTo(2)
+        val conflict = base.first().copy(normalizedUnitPrice = BigDecimal("4.50"))
+        assertThat(latestShopObservations(listOf(base.first(), conflict)).single().ambiguousLatest).isEqualTo(true)
+    }
+
+    @Test
     fun `a run of the same price is one point`() {
         val points = pricePoints(entries("1.20", "1.20", "1.25", "1.25", "1.20"))
         assertThat(points.map { it.price.toPlainString() }).containsExactly("1.20", "1.25", "1.20")
