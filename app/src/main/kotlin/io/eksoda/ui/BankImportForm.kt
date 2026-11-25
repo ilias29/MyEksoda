@@ -78,6 +78,25 @@ internal fun BankImportForm(model: AppViewModel) {
         }
     }
     Text("Τραπεζικές κινήσεις σε ευρώ")
+    val accounts by model.bankAccounts.collectAsStateWithLifecycle(initialValue = emptyList())
+    var showAccounts by remember { mutableStateOf(false) }
+    if (accounts.isNotEmpty()) {
+        androidx.compose.foundation.layout.Box {
+            androidx.compose.material3.TextButton(enabled = !busy, onClick = { showAccounts = true }) {
+                Text("Αποθηκευμένοι λογαριασμοί")
+            }
+            androidx.compose.material3.DropdownMenu(showAccounts, { showAccounts = false }) {
+                accounts.forEach { name ->
+                    androidx.compose.material3.DropdownMenuItem(text = { Text(name) }, onClick = {
+                        account = name
+                        preview = emptyList()
+                        message = ""
+                        showAccounts = false
+                    })
+                }
+            }
+        }
+    }
     OutlinedTextField(account, { account = it; preview = emptyList() }, enabled = !busy, label = { Text("Όνομα λογαριασμού") })
     Text("CSV UTF-8 ή XLSX ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
     OutlinedTextField(columns, { columns = it; preview = emptyList() }, enabled = !busy,
@@ -106,6 +125,5 @@ internal fun BankImportForm(model: AppViewModel) {
             }
         }) { Text("Αποθήκευση όλων (" + preview.size + ")") }
     }
-    if (history.isNotEmpty()) Text("Πρόσφατες τραπεζικές κινήσεις")
-    history.take(10).forEach { Text(it.day + "   " + it.description + "   " + BigDecimal.valueOf(it.amount, 2) + " €") }
+    if (history.isNotEmpty()) BankHistory(history, model)
 }

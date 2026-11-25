@@ -22,6 +22,23 @@ interface CashDao {
     @Query("SELECT * FROM finance_bank WHERE account = :account ORDER BY day DESC, reference")
     fun bankHistory(account: String): Flow<List<BankRow>>
 
+    @Query("SELECT DISTINCT account FROM finance_bank ORDER BY account")
+    fun accounts(): Flow<List<String>>
+
+    @Query(
+        """UPDATE finance_bank SET kind = :kind, category = :category
+           WHERE account = :account AND reference = :reference
+             AND kind = :previousKind AND category = :previousCategory""",
+    )
+    suspend fun classify(
+        account: String,
+        reference: String,
+        previousKind: String,
+        previousCategory: String,
+        kind: String,
+        category: String,
+    ): Int
+
     @Insert
     suspend fun insertBank(row: BankRow)
 

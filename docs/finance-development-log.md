@@ -27,3 +27,8 @@ A host SQLite experiment exercised duplicate keys, separate accounts and rollbac
 The Android picker detects an XLSX archive and passes its rows to the same bank preview and commit flow as CSV. This reader accepts a single sheet with literal values and a header. Amounts, numeric Excel dates (1900 and 1904 systems), shared or inline text and sparse columns are supported. Text bank references preserve leading zeros. Number-format masks are not applied, so references with meaningful leading zeros must be text. Legacy binary XLS, multiple sheets and formula cells remain unsupported.
 
 Executed python3 scripts/finance/check_xlsx.py on JDK 21 with synthetic openpyxl files. Both Excel date systems returned the expected date, negative amount, Greek description and text reference. The multiple-sheet sample was rejected. The Android Gradle build and unit test suite could not start because the wrapper could not fetch its distribution. No APK verified.
+
+## Bank corrections and backups
+Imported account names are selectable. Bank history now pages beyond ten records and allows sign-compatible corrections (including refunds and internal transfers). Account net spending subtracts refunds and excludes transfers. Re-import leaves the stored classification intact. The correction query checks the previous classification before writing. Both finance tables are included in the existing encrypted logical backup.
+
+Executed the DAO update SQL against synthetic SQLite records: account isolation and stale-edit rejection passed. Re-ran the production XLSX reader fixture checks successfully. Added a Room regression test for re-import. Gradle could not fetch its distribution, so the Room test, backup round trip on Android, full build and APK remain unverified.

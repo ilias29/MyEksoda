@@ -55,6 +55,18 @@ class AppViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
 
+    val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
+
+    suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,
+        category: io.eksoda.engine.finance.SpendingCategory) {
+        val movement = io.eksoda.engine.finance.BankMovement(row.account, java.time.LocalDate.parse(row.day),
+            row.description, row.amount, kind, row.reference, category)
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            check(database.get().cashDao().classify(row.account, row.reference, row.kind, row.category,
+                movement.kind.name, movement.category.name) == 1)
+        }
+    }
+
     fun bankHistory(account: String) = flow {
         emitAll(database.get().cashDao().bankHistory(account))
     }.flowOn(ioDispatcher)

@@ -52,6 +52,8 @@ internal object BackupArchive {
         "household",
         "category",
         "budget",
+        "finance_cash",
+        "finance_bank",
         "merchant",
         "store",
         "product",
