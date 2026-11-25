@@ -109,3 +109,5 @@ Verification: standalone kotlinc/JDK 21 compiled exact MarketPriceHistory.kt (Gi
 ## Manual Lightyear file import (unverified Android build)
 
 User prefers uploading files manually instead of requiring an API. Manual import is now the primary path; existing optional market API panel is collapsed. Local UTF-8 CSV snapshot import supports explicitly defined EUR portfolio or holdings headers, strict dates, cumulative flows, preview with pagination and atomic commit. Identical snapshots skipped; conflicting keys cancel batch, no automatic overwrite. No schema change. Native Lightyear statement header/transaction semantics remain unverified; this is a snapshot interchange format, not a native statement parser. No external upload, automatic FX, dividends, trade cost basis or background quote polling. Android build/Room execution pending.
+
+Added JUnit regression cases for sorted snapshots, funding-adjusted result, fractional holdings, missing cost, foreign currency, duplicate dates, future dates and decreasing cumulative deposits. Tests written, not executed here.

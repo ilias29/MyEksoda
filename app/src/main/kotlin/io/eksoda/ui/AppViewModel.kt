@@ -177,7 +177,7 @@ class AppViewModel @Inject constructor(
         require(valueMinor >= 0 && (costMinor == null || costMinor >= 0))
         require(quantity.signum() != 0 || (valueMinor == 0L && (costMinor == null || costMinor == 0L)))
         database.get().cashDao().saveHoldingSnapshot(io.eksoda.core.database.entity.HoldingSnapshotRow(
-            "Lightyear", id, day.toString(), quantity.toPlainString(), valueMinor, costMinor,
+            "Lightyear", id, day.toString(), quantity.stripTrailingZeros().toPlainString(), valueMinor, costMinor,
         ))
     }
 
