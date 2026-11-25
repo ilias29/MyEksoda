@@ -85,6 +85,7 @@ fun ScanRoute(
     onShowImports: () -> Unit,
     onViewReceipt: (String) -> Unit,
     viewModel: ScanViewModel = hiltViewModel(),
+    reviewed: ReviewedReceiptViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -125,6 +126,7 @@ fun ScanRoute(
         onDone = if (state.sentCount > 0) onShowImports else onClose,
         onShowImports = onShowImports,
         onViewReceipt = onViewReceipt,
+        onSaveReviewed = reviewed::save,
         onCapturePhoto = {
             if (pendingCapture == null) {
                 var file: File? = null
@@ -168,6 +170,7 @@ fun ScanScreen(
     onViewReceipt: (String) -> Unit,
     onPickPhoto: () -> Unit,
     onCapturePhoto: (() -> Unit)? = null,
+    onSaveReviewed: (suspend (io.eksoda.core.data.repository.ReviewedReceiptInput) -> io.eksoda.core.data.repository.ReviewedReceiptResult)? = null,
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -245,27 +248,13 @@ fun ScanScreen(
     }
 
     state.recognizedText?.let { recognized ->
-        // This preview is deliberately not a financial transaction.
-        var corrected by remember(recognized) { mutableStateOf(recognized) }
-        AlertDialog(
-            onDismissRequest = { onEvent(ScanEvent.OcrDismissed) },
-            title = { Text(stringResource(R.string.scan_ocr_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.scan_ocr_review))
-                    OutlinedTextField(
-                        value = corrected,
-                        onValueChange = { corrected = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 4,
-                    )
-                    ReceiptTextReview(corrected)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { onEvent(ScanEvent.OcrDismissed) }) {
-                    Text(stringResource(R.string.scan_close))
-                }
+        ReviewedReceiptDialog(
+            recognized = recognized,
+            save = onSaveReviewed,
+            onClose = { onEvent(ScanEvent.OcrDismissed) },
+            onSaved = { id ->
+                onEvent(ScanEvent.OcrDismissed)
+                onViewReceipt(id)
             },
         )
     }

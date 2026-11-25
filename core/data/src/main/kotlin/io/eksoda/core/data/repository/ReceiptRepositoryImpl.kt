@@ -188,7 +188,7 @@ class ReceiptRepositoryImpl @Inject constructor(
         itemCount = itemCount,
         needsReview = needsReview,
         hasWarnings = hasWarnings,
-        fromOtherPhone = receipt.sourceUrl == null,
+        fromOtherPhone = receipt.sourceUrl == null && receipt.providerCode != "reviewed_ocr",
     ).toModel(zone)
 
     private fun ReceiptListRow.toModel(zone: ZoneId): Receipt = Receipt(

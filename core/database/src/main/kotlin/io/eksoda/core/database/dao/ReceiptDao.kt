@@ -87,6 +87,12 @@ data class OptionRow(val id: String, val name: String)
 
 @Dao
 interface ReceiptDao {
+    @Query(
+        """SELECT EXISTS(SELECT 1 FROM receipt WHERE issuer_country = 'GR' AND issuer_vat = :vat
+           AND issued_local_date = :day AND gross_total_minor = :amount AND document_kind = 'sale')""",
+    )
+    suspend fun possibleReviewedDuplicate(vat: String, day: String, amount: Long): Boolean
+
     @Insert
     suspend fun insert(receipt: ReceiptEntity)
 
@@ -232,7 +238,7 @@ interface ReceiptDao {
             receipt.currency AS currency, receipt.gross_total_minor AS gross_total_minor,
             receipt.payment_method AS payment_method, receipt.document_kind AS document_kind,
             receipt.status AS status, receipt.excluded_from_analytics AS excluded_from_analytics,
-            (receipt.source_url IS NULL) AS from_other_phone,
+            (receipt.source_url IS NULL AND receipt.provider_code != 'reviewed_ocr') AS from_other_phone,
             $ROW_EXTRAS"""
     }
 }
