@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM finance_monthly_plan WHERE month = :month")
+    fun monthlyPlan(month: String): Flow<io.eksoda.core.database.entity.MonthlyPlanRow?>
+
+    @Upsert
+    suspend fun saveMonthlyPlan(row: io.eksoda.core.database.entity.MonthlyPlanRow)
+
     @Query(
         """SELECT 'BANK' AS source, account, day, description, amount AS amountMinor, kind, category
            FROM finance_bank WHERE day >= :start AND day <= :end

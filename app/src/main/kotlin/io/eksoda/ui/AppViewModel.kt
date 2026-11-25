@@ -55,6 +55,24 @@ class AppViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
 
+    fun monthlyPlan(month: java.time.YearMonth) = flow {
+        emitAll(database.get().cashDao().monthlyPlan(month.toString()))
+    }.map { row ->
+        Result.success(row?.let {
+            io.eksoda.engine.finance.MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
+        })
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
+    suspend fun saveMonthlyPlan(month: java.time.YearMonth, plan: io.eksoda.engine.finance.MonthlyPlan) {
+        kotlinx.coroutines.withContext(ioDispatcher) {
+            database.get().cashDao().saveMonthlyPlan(
+                io.eksoda.core.database.entity.MonthlyPlanRow(
+                    month.toString(), plan.spendingLimitMinor, plan.expectedIncomeMinor, plan.savingsGoalMinor,
+                ),
+            )
+        }
+    }
+
     fun monthlyOverview(month: java.time.YearMonth, today: java.time.LocalDate) = flow {
         val end = minOf(month.atEndOfMonth(), today)
         emitAll(database.get().cashDao().monthlyMovements(month.atDay(1).toString(), end.toString()))

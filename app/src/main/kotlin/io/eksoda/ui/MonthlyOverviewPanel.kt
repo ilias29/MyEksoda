@@ -61,6 +61,7 @@ internal fun MonthlyOverviewPanel(model: AppViewModel) {
                         Text("Καθαρά έξοδα: " + euro(overview.netExpensesMinor))
                         Text("Από τα έξοδα: ενοίκιο " + euro(overview.rentMinor) +
                             " · δάνεια " + euro(overview.loanPaymentsMinor))
+                        MonthlyPlanPanel(model, month, today, overview)
                         if (overview.movementCount == 0) Text("Δεν υπάρχουν καταχωρισμένες οικονομικές κινήσεις.")
                         Text("Δεν είναι υπόλοιπο λογαριασμού. Οι μεταφορές εξαιρούνται. " +
                             "Οι συνδρομές εμφανίζονται ξεχωριστά, χωρίς δεύτερη χρέωση.",
