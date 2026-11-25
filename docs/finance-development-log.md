@@ -143,3 +143,7 @@ Verification: standalone kotlinc compiled the exact FinanceAdvisor.kt Git blob w
 ## Stabilization pass 1
 
 Read actual failed GitHub CI run 45722811727, job 139585174531: Gradle 9.9.1 and JDK 25 succeeded; feature/scan/build.gradle.kts failed on java.net.URI because the Kotlin DSL java extension shadows the package. Imported URI explicitly. Also corrected cross-module nullable quantity access in reviewed OCR. Release run 45722811766 failed because version 0.3.6 equaled master; bumped candidate to 0.4.0 (code 12) with honest release notes. App label MyEksoda; application ID unchanged to avoid accidental data isolation; final distinct identity and icon still pending. Home gets a direct finance entry, finance screen gets fixed horizontal jump navigation to existing panels. Existing dark theme preserved. No gates disabled. These fixes require fresh CI confirmation; no APK or end-to-end verification claimed.
+
+## Stabilization pass 2
+
+Release check run 45723717408 succeeded. CI run 45723717412 failed during configuration: AGP rejects Provider in legacy Android SourceSet API. Replaced legacy assets registration and preBuild hook with a typed Gradle task (input revision, output directory) registered per variant through androidComponents and assets.addGeneratedSourceDirectory, following https://developer.android.com/build/extend-agp. No compatibility escape hatch or quality gate disabled. Fresh CI confirmation required; no verified APK yet.
