@@ -31,11 +31,16 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             TextButton(onClick = back) { Text("Πίσω") }
-            Text("Μετρητά", style = MaterialTheme.typography.headlineMedium)
+            Text("Οικονομικά", style = MaterialTheme.typography.headlineMedium)
+        }
+        item { MonthlyOverviewPanel(model) }
+        item {
+            Text("Μετρητά", style = MaterialTheme.typography.headlineSmall)
+            Text("Καταχώρισε μόνο πραγματικά έσοδα και έξοδα, όχι αναλήψεις ή καταθέσεις μεταξύ δικών σου λογαριασμών.")
             val income = rows.filter { it.amountMinor > 0 }.fold(BigDecimal.ZERO) { total, row ->
                 total + BigDecimal.valueOf(row.amountMinor, 2)
             }
-            Text("Σύνολο εσόδων μετρητών   €" + income.toPlainString())
+            Text("Σύνολο εσόδων μετρητών (όλες οι ημερομηνίες)   €" + income.toPlainString())
             Box {
                 TextButton(onClick = { expanded = true }) { Text(labels[choice]) }
                 DropdownMenu(expanded, { expanded = false }) {

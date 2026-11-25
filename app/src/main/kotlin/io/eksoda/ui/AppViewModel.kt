@@ -55,6 +55,26 @@ class AppViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
 
+    fun monthlyOverview(month: java.time.YearMonth, today: java.time.LocalDate) = flow {
+        val end = minOf(month.atEndOfMonth(), today)
+        emitAll(database.get().cashDao().monthlyMovements(month.atDay(1).toString(), end.toString()))
+    }.map { rows ->
+        val entries = rows.map { row ->
+            io.eksoda.engine.finance.LedgerEntry(
+                io.eksoda.engine.finance.FinanceSource.valueOf(row.source),
+                io.eksoda.engine.finance.BankMovement(
+                    row.account, java.time.LocalDate.parse(row.day), row.description, row.amountMinor,
+                    io.eksoda.engine.finance.MovementKind.valueOf(row.kind),
+                    category = io.eksoda.engine.finance.SpendingCategory.valueOf(row.category),
+                ),
+            )
+        }
+        val overview = io.eksoda.engine.finance.MonthlyLedger.summarize(month, entries)
+        // Evaluate derived totals here so any arithmetic failure reaches the error state.
+        overview.netFlowMinor
+        Result.success(overview)
+    }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
+
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
     suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,

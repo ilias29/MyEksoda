@@ -12,6 +12,16 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CashDao {
+    @Query(
+        """SELECT 'BANK' AS source, account, day, description, amount AS amountMinor, kind, category
+           FROM finance_bank WHERE day >= :start AND day <= :end
+           UNION ALL
+           SELECT 'CASH' AS source, 'cash' AS account, day, description, amountMinor,
+                  CASE WHEN amountMinor > 0 THEN 'INCOME' ELSE 'EXPENSE' END AS kind, category
+           FROM finance_cash WHERE day >= :start AND day <= :end""",
+    )
+    fun monthlyMovements(start: String, end: String): Flow<List<MonthlyMovementRow>>
+
     @Query("SELECT * FROM finance_subscription ORDER BY name")
     fun subscriptions(): Flow<List<SubscriptionRow>>
 
