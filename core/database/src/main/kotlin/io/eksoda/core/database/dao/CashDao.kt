@@ -18,8 +18,7 @@ interface CashDao {
         holdings: List<io.eksoda.core.database.entity.HoldingSnapshotRow>,
     ): Int {
         val count = importPortfolioSnapshots(portfolio)
-        importHoldingSnapshots(holdings)
-        return count
+        return count + importHoldingSnapshots(holdings)
     }
 
     @Query("SELECT * FROM finance_dividend WHERE broker = 'Lightyear' ORDER BY day DESC, reference")

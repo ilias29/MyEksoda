@@ -86,6 +86,8 @@ internal fun LightyearFileImport(model: AppViewModel) {
             val lines = when (data) {
                 is LightyearSnapshotImport.Valuations -> data.rows.map {
                     "${it.date} · υπολογισμένη αξία ${csvEuro(it.valueMinor)} · καταθέσεις ${csvEuro(it.depositedMinor)} · αναλήψεις ${csvEuro(it.withdrawnMinor)}"
+                } + data.holdings.map {
+                    "${it.day} · ${it.instrument} · ${it.quantity} · ${csvEuro(it.valueMinor)}"
                 }
                 is LightyearSnapshotImport.Dividends -> data.rows.map {
                     "${it.day} · ${it.instrument} · ${it.gross} ${it.currency} · καθαρό ${csvEuro(it.netMinor)}"
