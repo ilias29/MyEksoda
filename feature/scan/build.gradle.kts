@@ -1,4 +1,6 @@
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
@@ -48,7 +50,7 @@ abstract class PrepareReceiptOcrModels : DefaultTask() {
                     temp.outputStream().use { output -> input.copyTo(output) }
                 }
                 check(temp.length() > 0)
-                java.nio.file.Files.move(temp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
             } finally {
                 temp.delete()
             }

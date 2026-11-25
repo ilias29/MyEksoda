@@ -147,3 +147,7 @@ Read actual failed GitHub CI run 45722811727, job 139585174531: Gradle 9.9.1 and
 ## Stabilization pass 2
 
 Release check run 45723717408 succeeded. CI run 45723717412 failed during configuration: AGP rejects Provider in legacy Android SourceSet API. Replaced legacy assets registration and preBuild hook with a typed Gradle task (input revision, output directory) registered per variant through androidComponents and assets.addGeneratedSourceDirectory, following https://developer.android.com/build/extend-agp. No compatibility escape hatch or quality gate disabled. Fresh CI confirmation required; no verified APK yet.
+
+## Stabilization pass 3
+
+Release run 45724114509 succeeded; CI run 45724114520 (job 139589487685) failed in the OCR Gradle script on java.nio.file references shadowed by the Java plugin extension. Explicit imports for Files and StandardCopyOption remove the two reported errors; checked the entire scan Gradle script for remaining qualified java package expressions outside imports. New CI result required. No APK yet, no quality checks bypassed.
