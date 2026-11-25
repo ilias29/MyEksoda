@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.eksoda.android.feature)
 }
@@ -24,7 +26,7 @@ val prepareReceiptOcrModels = tasks.register("prepareReceiptOcrModels") {
         val target = ocrAssets.get().asFile.resolve("tessdata")
         check(target.isDirectory || target.mkdirs())
         for (name in listOf("ell.traineddata", "eng.traineddata", "LICENSE")) {
-            val url = java.net.URI("https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$revision/$name")
+            val url = URI("https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$revision/$name")
             val connection = url.toURL().openConnection().apply {
                 connectTimeout = 30_000
                 readTimeout = 60_000

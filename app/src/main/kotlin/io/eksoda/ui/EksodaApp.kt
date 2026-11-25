@@ -89,6 +89,7 @@ private fun MainNavHost(viewModel: AppViewModel, launch: AppLaunch?, onLaunchHan
                             onCategoriesClick = { navController.navigate(CategoriesDestination) },
                             onMerchantsClick = { navController.navigate(MerchantsDestination) },
                             onSettingsClick = { navController.navigate(SettingsDestination) },
+                            onFinanceClick = { navController.navigate(CashDestination) },
                             onBudgetsClick = { navController.navigate(BudgetsDestination) },
                             onCategoryClick = { categoryId, period ->
                                 navController.navigate(

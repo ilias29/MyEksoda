@@ -96,7 +96,7 @@ internal fun reviewedCanonical(input: ReviewedReceiptInput, zone: ZoneId): Canon
     require(total > 0)
     val lines = parsed.items.mapIndexed { index, item ->
         require(item.name.length <= 200)
-        require(item.quantity == null || item.quantity.scale() <= 4)
+        require((item.quantity?.scale() ?: 0) <= 4)
         // Do not retain possible card identifiers in an OCR product name.
         require(!Regex("[0-9](?:[ -]?[0-9]){12,18}").containsMatchIn(item.name))
         Line(

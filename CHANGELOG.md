@@ -3,6 +3,15 @@
 What changed in each release of Eksoda. Earlier releases are described on the
 [Releases](https://github.com/tsaklidis/MyEksoda/releases) page.
 
+## 0.4.0 - Personal finance candidate
+
+Development candidate, not a validated release. New personal finance screens for imported bank
+movements, cash, budgets, subscriptions, receipt reconciliation, reviewed electronic-spending
+estimates, Lightyear file-based valuation and dividends, dated net worth, payday planning and
+local financial observations. Includes reviewed receipt OCR and historical price insights.
+Native broker CSV compatibility, Android build, backup and migration tests must pass before
+distribution. No automatic bank or broker account access.
+
 ## 0.3.6 - Clearer receipt warnings
 
 A small update: fewer false warnings on receipts, and the ones that remain say what they mean.

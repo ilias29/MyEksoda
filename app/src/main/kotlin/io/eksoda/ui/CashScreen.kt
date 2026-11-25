@@ -1,6 +1,9 @@
 package io.eksoda.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -27,12 +30,22 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
     val labels = listOf("Έσοδο", "Έξοδο", "Ενοίκιο", "Δόση δανείου")
     val categories = listOf(SpendingCategory.UNCLASSIFIED, SpendingCategory.UNCLASSIFIED,
         SpendingCategory.RENT, SpendingCategory.LOAN_PAYMENT)
-    LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
+    val listState = rememberLazyListState()
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
+        Row {
             TextButton(onClick = back) { Text("Πίσω") }
             Text("Οικονομικά", style = MaterialTheme.typography.headlineMedium)
         }
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            val sections = listOf("Σύμβουλος", "Μήνας", "Περιουσία", "Μισθός", "Μετρητά",
+                "Τράπεζες", "Αποδείξεις", "Αφορολόγητο", "Lightyear", "Συνδρομές")
+            sections.forEachIndexed { index, label ->
+                OutlinedButton(onClick = { scope.launch { listState.scrollToItem(index) } }) { Text(label) }
+            }
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState,
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item { FinanceAdvisorPanel(model) }
         item { MonthlyOverviewPanel(model) }
         item { NetWorthPanel(model) }
@@ -91,6 +104,7 @@ internal fun CashScreen(model: AppViewModel, back: () -> Unit) {
         item { SubscriptionPanel(model) }
         items(rows, key = { it.id }) { row ->
             Text(row.day + "   " + row.description + "   €" + BigDecimal.valueOf(row.amountMinor, 2).toPlainString())
+        }
         }
     }
 }
