@@ -52,6 +52,7 @@ import io.eksoda.core.database.entity.TombstoneEntity
         TombstoneEntity::class,
         BudgetEntity::class,
         CashRow::class,
+        io.eksoda.core.database.entity.DividendRow::class,
         io.eksoda.core.database.entity.PortfolioSnapshotRow::class,
         io.eksoda.core.database.entity.HoldingSnapshotRow::class,
         io.eksoda.core.database.entity.AnnualTaxPlanRow::class,

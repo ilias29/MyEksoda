@@ -13,6 +13,38 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CashDao {
     @Transaction
+    suspend fun importValuations(
+        portfolio: List<io.eksoda.core.database.entity.PortfolioSnapshotRow>,
+        holdings: List<io.eksoda.core.database.entity.HoldingSnapshotRow>,
+    ): Int {
+        val count = importPortfolioSnapshots(portfolio)
+        importHoldingSnapshots(holdings)
+        return count
+    }
+
+    @Query("SELECT * FROM finance_dividend WHERE broker = 'Lightyear' ORDER BY day DESC, reference")
+    fun lightyearDividends(): Flow<List<io.eksoda.core.database.entity.DividendRow>>
+
+    @Query("SELECT * FROM finance_dividend WHERE broker = :broker AND reference = :reference")
+    suspend fun findDividend(broker: String, reference: String): io.eksoda.core.database.entity.DividendRow?
+
+    @Insert
+    suspend fun insertDividend(row: io.eksoda.core.database.entity.DividendRow)
+
+    @Transaction
+    suspend fun importDividends(rows: List<io.eksoda.core.database.entity.DividendRow>): Int {
+        require(rows.all { it.broker == "Lightyear" })
+        require(rows.map { it.reference }.distinct().size == rows.size)
+        var count = 0
+        for (row in rows) {
+            val existing = findDividend(row.broker, row.reference)
+            if (existing == null) { insertDividend(row); count++ }
+            else require(existing == row) { "Conflicting dividend" }
+        }
+        return count
+    }
+
+    @Transaction
     suspend fun importPortfolioSnapshots(rows: List<io.eksoda.core.database.entity.PortfolioSnapshotRow>): Int {
         val existing = portfolioHistory("Lightyear").associateBy { it.day }
         require(rows.all { it.broker == "Lightyear" })

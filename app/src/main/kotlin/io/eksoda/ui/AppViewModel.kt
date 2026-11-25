@@ -131,10 +131,31 @@ class AppViewModel @Inject constructor(
             database.get().cashDao().reviewTaxMovement(row, review.name)
         }
 
+    val lightyearDividends = flow { emitAll(database.get().cashDao().lightyearDividends()) }.flowOn(ioDispatcher)
+
     suspend fun importLightyearSnapshots(data: io.eksoda.engine.finance.LightyearSnapshotImport): Int =
         kotlinx.coroutines.withContext(ioDispatcher) {
             val dao = database.get().cashDao()
             when (data) {
+                is io.eksoda.engine.finance.LightyearSnapshotImport.Valuations ->
+                    dao.importValuations(data.rows.map {
+                        io.eksoda.core.database.entity.PortfolioSnapshotRow(
+                            "Lightyear", it.date.toString(), it.valueMinor, it.depositedMinor, it.withdrawnMinor,
+                        )
+                    }, data.holdings.map {
+                        io.eksoda.core.database.entity.HoldingSnapshotRow(
+                            "Lightyear", it.instrument, it.day.toString(), it.quantity.stripTrailingZeros().toPlainString(),
+                            it.valueMinor, it.costMinor,
+                        )
+                    })
+                is io.eksoda.engine.finance.LightyearSnapshotImport.Dividends ->
+                    dao.importDividends(data.rows.map {
+                        io.eksoda.core.database.entity.DividendRow(
+                            "Lightyear", it.reference, it.day.toString(), it.instrument, it.currency,
+                            it.gross.stripTrailingZeros().toPlainString(), it.withheld.stripTrailingZeros().toPlainString(),
+                            it.fee.stripTrailingZeros().toPlainString(), it.eurRate.stripTrailingZeros().toPlainString(), it.netMinor,
+                        )
+                    })
                 is io.eksoda.engine.finance.LightyearSnapshotImport.Portfolio ->
                     dao.importPortfolioSnapshots(data.rows.map {
                         io.eksoda.core.database.entity.PortfolioSnapshotRow(

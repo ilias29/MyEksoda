@@ -57,6 +57,7 @@ internal object BackupArchive {
         "finance_tax_plan",
         "finance_portfolio_snapshot",
         "finance_holding_snapshot",
+        "finance_dividend",
         "finance_tax_review",
         "finance_subscription",
         "finance_monthly_plan",

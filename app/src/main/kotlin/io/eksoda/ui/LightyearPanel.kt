@@ -41,6 +41,7 @@ internal fun LightyearPanel(model: AppViewModel) {
         Text("Επενδύσεις · Lightyear", style = MaterialTheme.typography.headlineSmall)
         Text("Αποτιμήσεις από τα αρχεία σου, όχι ζωντανές τιμές.")
         LightyearFileImport(model)
+        LightyearDividendSummary(model)
         var showOptionalMarket by remember { mutableStateOf(false) }
         TextButton(onClick = { showOptionalMarket = !showOptionalMarket }) {
             Text(if (showOptionalMarket) "Απόκρυψη προαιρετικού API" else "Προαιρετική παρακολούθηση μέσω API")
