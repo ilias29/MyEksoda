@@ -5,6 +5,8 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+private const val MAX_PAYMENT_NAME_LENGTH = 120
+
 public enum class PaymentType { RENT, LOAN, SUBSCRIPTION, OTHER }
 public enum class PaymentState { PENDING, PAID, CANCELLED }
 
@@ -17,7 +19,10 @@ public data class PlannedPayment(
     val state: PaymentState = PaymentState.PENDING,
 ) {
     init {
-        require(id.isNotBlank() && name.isNotBlank() && name.length <= 120 && amountMinor > 0)
+        require(
+            id.isNotBlank() && name.isNotBlank() &&
+                name.length <= MAX_PAYMENT_NAME_LENGTH && amountMinor > 0,
+        )
     }
 }
 
