@@ -4,6 +4,8 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 
+private const val MAX_BASELINE_AGE_DAYS = 7L
+
 public data class DailyMarketPrice(val day: LocalDate, val close: BigDecimal) {
     init {
         require(close.signum() > 0)
@@ -33,7 +35,7 @@ public class MarketPriceHistory(public val currency: String, prices: List<DailyM
         }
         val baseline = prices.firstOrNull { it.day <= cutoff } ?: return null
         // Avoid reporting a distant, stale price as a period comparison.
-        if (baseline.day.isBefore(cutoff.minusDays(7))) return null
+        if (baseline.day.isBefore(cutoff.minusDays(MAX_BASELINE_AGE_DAYS))) return null
         val percent = (latest.close - baseline.close).multiply(BigDecimal(100))
             .divide(baseline.close, 2, RoundingMode.HALF_UP)
         return MarketPriceChange(baseline.day, latest.day, percent)
