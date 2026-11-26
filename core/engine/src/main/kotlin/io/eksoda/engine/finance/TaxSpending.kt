@@ -3,9 +3,14 @@ package io.eksoda.engine.finance
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+private const val STANDARD_TARGET_PERCENT = 30
+private const val REDUCED_TARGET_PERCENT = 20
+private const val FIRST_SUPPORTED_TAX_YEAR = 2022
+private const val LAST_SUPPORTED_TAX_YEAR = 2027
+
 public enum class TaxTargetMode(public val percent: Int) {
-    STANDARD(30),
-    REDUCED(20),
+    STANDARD(STANDARD_TARGET_PERCENT),
+    REDUCED(REDUCED_TARGET_PERCENT),
     EXEMPT(0),
 }
 
@@ -18,7 +23,7 @@ public data class AnnualTaxPlan(
     val specialCap: Boolean,
 ) {
     init {
-        require(year in 2022..2027)
+        require(year in FIRST_SUPPORTED_TAX_YEAR..LAST_SUPPORTED_TAX_YEAR)
         require(incomeMinor >= 0)
     }
 }
