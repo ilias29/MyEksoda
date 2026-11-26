@@ -3,7 +3,7 @@ package io.eksoda.engine.finance
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-data class CsvMapping(
+public data class CsvMapping(
     val date: Int,
     val description: Int,
     val amount: Int,
@@ -14,24 +14,24 @@ data class CsvMapping(
     val hasHeader: Boolean = true,
 )
 
-data class ImportProblem(val line: Int, val reason: String)
-data class BankImportPreview(val movements: List<BankMovement>, val problems: List<ImportProblem>) {
-    val canCommit: Boolean get() = problems.isEmpty() && movements.isNotEmpty()
+public data class ImportProblem(val line: Int, val reason: String)
+public data class BankImportPreview(val movements: List<BankMovement>, val problems: List<ImportProblem>) {
+    public val canCommit: Boolean get() = problems.isEmpty() && movements.isNotEmpty()
 }
 
-object BankCsv {
-    fun parse(text: String, accountId: String, mapping: CsvMapping): List<BankMovement> {
+public object BankCsv {
+    public fun parse(text: String, accountId: String, mapping: CsvMapping): List<BankMovement> {
         val preview = preview(text, accountId, mapping)
         require(preview.problems.isEmpty()) { preview.problems.joinToString { "line ${it.line}: ${it.reason}" } }
         return preview.movements
     }
 
     /** Nothing should be persisted until every input row has passed validation. */
-    fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview {
+    public fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview {
         return previewRows(rows(text.removePrefix("\uFEFF"), mapping.delimiter), accountId, mapping)
     }
 
-    fun previewRows(rows: List<List<String>>, accountId: String, mapping: CsvMapping): BankImportPreview {
+    public fun previewRows(rows: List<List<String>>, accountId: String, mapping: CsvMapping): BankImportPreview {
         require(accountId.isNotBlank())
         require(listOf(mapping.date, mapping.description, mapping.amount).all { it >= 0 })
         require(mapping.sourceId == null || mapping.sourceId >= 0)
