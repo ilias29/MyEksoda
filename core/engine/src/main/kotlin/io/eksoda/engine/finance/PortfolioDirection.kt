@@ -23,9 +23,13 @@ public object PortfolioAssessment {
                 previous.withdrawnMinor != latest.withdrawnMinor
             )
         // Without cash-flow timing, a period return with external flows would be misleading.
-        val percent = if (previous != null && change != null && !flows && previous.valueMinor > 0) {
-            change.gainChangeMinor.multiply(BigDecimal(100))
-                .divide(BigDecimal.valueOf(previous.valueMinor), 2, RoundingMode.HALF_UP)
+        val percent = if (previous != null && change != null && !flows) {
+            if (previous.valueMinor > 0) {
+                change.gainChangeMinor.multiply(BigDecimal(100))
+                    .divide(BigDecimal.valueOf(previous.valueMinor), 2, RoundingMode.HALF_UP)
+            } else {
+                null
+            }
         } else {
             null
         }
