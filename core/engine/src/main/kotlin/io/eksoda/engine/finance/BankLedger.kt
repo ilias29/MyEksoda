@@ -3,12 +3,12 @@ package io.eksoda.engine.finance
 import java.math.BigDecimal
 import java.time.LocalDate
 
-enum class MovementKind { INCOME, EXPENSE, TRANSFER, REFUND }
+public enum class MovementKind { INCOME, EXPENSE, TRANSFER, REFUND }
 
 /** Categories are editable: an import suggestion must never replace a user's correction. */
-enum class SpendingCategory { UNCLASSIFIED, RENT, LOAN_PAYMENT, GROCERIES, UTILITIES }
+public enum class SpendingCategory { UNCLASSIFIED, RENT, LOAN_PAYMENT, GROCERIES, UTILITIES }
 
-data class BankMovement(
+public data class BankMovement(
     val accountId: String,
     val date: LocalDate,
     val description: String,
@@ -27,17 +27,17 @@ data class BankMovement(
     }
 }
 
-data class CashFlow(val incomeMinor: Long, val spendingMinor: Long)
+public data class CashFlow(val incomeMinor: Long, val spendingMinor: Long)
 
-object BankLedger {
-    fun amountMinor(value: String, decimalSeparator: Char): Long {
+public object BankLedger {
+    public fun amountMinor(value: String, decimalSeparator: Char): Long {
         require(decimalSeparator == '.' || decimalSeparator == ',')
         val normalized = value.trim().replace(decimalSeparator, '.')
         require(Regex("[+-]?[0-9]+(\\.[0-9]{1,2})?").matches(normalized))
         return BigDecimal(normalized).movePointRight(2).longValueExact()
     }
 
-    fun summarize(movements: Iterable<BankMovement>): CashFlow {
+    public fun summarize(movements: Iterable<BankMovement>): CashFlow {
         var income = 0L
         var spending = 0L
         for (movement in movements) {
@@ -52,9 +52,9 @@ object BankLedger {
     }
 }
 
-object SpendingClassifier {
+public object SpendingClassifier {
     /** Suggest only unmistakable descriptions; leave all other payments for manual review. */
-    fun suggest(movement: BankMovement): SpendingCategory {
+    public fun suggest(movement: BankMovement): SpendingCategory {
         if (movement.kind != MovementKind.EXPENSE) return SpendingCategory.UNCLASSIFIED
         val text = java.text.Normalizer.normalize(movement.description, java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{M}+"), "").uppercase(java.util.Locale.ROOT)

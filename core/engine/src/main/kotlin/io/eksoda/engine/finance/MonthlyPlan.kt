@@ -5,7 +5,7 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
 
-data class MonthlyPlan(
+public data class MonthlyPlan(
     val spendingLimitMinor: Long,
     val expectedIncomeMinor: Long,
     val savingsGoalMinor: Long,
@@ -16,9 +16,9 @@ data class MonthlyPlan(
     }
 }
 
-enum class BudgetStatus { WITHIN, NEAR, AT_LIMIT, OVER }
+public enum class BudgetStatus { WITHIN, NEAR, AT_LIMIT, OVER }
 
-data class PlanProgress(
+public data class PlanProgress(
     val budgetRemainingMinor: BigDecimal,
     val status: BudgetStatus,
     val spendingFraction: Double,
@@ -28,8 +28,8 @@ data class PlanProgress(
     val goalCompatibleWithPlan: Boolean,
 )
 
-object MonthlyPlanning {
-    fun evaluate(month: YearMonth, today: LocalDate, plan: MonthlyPlan, actual: MonthlyOverview): PlanProgress {
+public object MonthlyPlanning {
+    public fun evaluate(month: YearMonth, today: LocalDate, plan: MonthlyPlan, actual: MonthlyOverview): PlanProgress {
         require(!month.isAfter(YearMonth.from(today)))
         val limit = BigDecimal.valueOf(plan.spendingLimitMinor)
         val income = BigDecimal.valueOf(plan.expectedIncomeMinor)

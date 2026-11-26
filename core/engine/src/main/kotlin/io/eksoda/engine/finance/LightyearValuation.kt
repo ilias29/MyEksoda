@@ -4,9 +4,9 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 
-object LightyearValuation {
+public object LightyearValuation {
     /** Rate is EUR per ONE unit of original currency, explicitly provided for the observation. */
-    fun euroMinor(amount: BigDecimal, currency: String, rate: BigDecimal): Long {
+    public fun euroMinor(amount: BigDecimal, currency: String, rate: BigDecimal): Long {
         require(currency.matches(Regex("[A-Z]{3}")) && currency != "GBX")
         require(amount.signum() >= 0 && amount.precision() <= 40 && amount.scale() in 0..20)
         require(rate.signum() > 0 && rate.precision() <= 24 && rate.scale() in 0..12)
@@ -14,13 +14,13 @@ object LightyearValuation {
         return amount.multiply(rate).movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
     }
 
-    fun total(day: LocalDate, amounts: List<Long>, deposits: Long, withdrawals: Long): PortfolioSnapshot {
+    public fun total(day: LocalDate, amounts: List<Long>, deposits: Long, withdrawals: Long): PortfolioSnapshot {
         require(amounts.isNotEmpty() && amounts.all { it >= 0 })
         return PortfolioSnapshot(day, amounts.fold(0L, Math::addExact), deposits, withdrawals)
     }
 }
 
-data class ImportedDividend(
+public data class ImportedDividend(
     val reference: String,
     val day: LocalDate,
     val instrument: String,
@@ -38,5 +38,5 @@ data class ImportedDividend(
         LightyearValuation.euroMinor(withheld, currency, eurRate)
         LightyearValuation.euroMinor(fee, currency, eurRate)
     }
-    val netMinor: Long get() = LightyearValuation.euroMinor(gross - withheld - fee, currency, eurRate)
+    public val netMinor: Long get() = LightyearValuation.euroMinor(gross - withheld - fee, currency, eurRate)
 }

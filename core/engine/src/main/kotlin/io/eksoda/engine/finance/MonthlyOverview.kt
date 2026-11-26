@@ -2,11 +2,11 @@ package io.eksoda.engine.finance
 
 import java.time.YearMonth
 
-enum class FinanceSource { BANK, CASH }
+public enum class FinanceSource { BANK, CASH }
 
-data class LedgerEntry(val source: FinanceSource, val movement: BankMovement)
+public data class LedgerEntry(val source: FinanceSource, val movement: BankMovement)
 
-data class MonthlyOverview(
+public data class MonthlyOverview(
     val bankIncomeMinor: Long,
     val cashIncomeMinor: Long,
     val bankExpensesMinor: Long,
@@ -16,15 +16,15 @@ data class MonthlyOverview(
     val loanPaymentsMinor: Long,
     val movementCount: Int,
 ) {
-    val incomeMinor: Long get() = Math.addExact(bankIncomeMinor, cashIncomeMinor)
-    val grossExpensesMinor: Long get() = Math.addExact(bankExpensesMinor, cashExpensesMinor)
-    val netExpensesMinor: Long get() = Math.subtractExact(grossExpensesMinor, refundsMinor)
-    val netFlowMinor: Long get() = Math.subtractExact(incomeMinor, netExpensesMinor)
+    public val incomeMinor: Long get() = Math.addExact(bankIncomeMinor, cashIncomeMinor)
+    public val grossExpensesMinor: Long get() = Math.addExact(bankExpensesMinor, cashExpensesMinor)
+    public val netExpensesMinor: Long get() = Math.subtractExact(grossExpensesMinor, refundsMinor)
+    public val netFlowMinor: Long get() = Math.subtractExact(incomeMinor, netExpensesMinor)
 }
 
 /** Cash flow, not an account balance. Subscription forecasts are deliberately not movements. */
-object MonthlyLedger {
-    fun summarize(month: YearMonth, entries: Iterable<LedgerEntry>): MonthlyOverview {
+public object MonthlyLedger {
+    public fun summarize(month: YearMonth, entries: Iterable<LedgerEntry>): MonthlyOverview {
         var bankIncome = 0L
         var cashIncome = 0L
         var bankExpenses = 0L

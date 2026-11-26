@@ -4,7 +4,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.Locale
 
-data class ImportedHolding(
+public data class ImportedHolding(
     val day: LocalDate,
     val instrument: String,
     val quantity: BigDecimal,
@@ -12,16 +12,16 @@ data class ImportedHolding(
     val costMinor: Long?,
 )
 
-sealed interface LightyearSnapshotImport {
-    data class Portfolio(val rows: List<PortfolioSnapshot>) : LightyearSnapshotImport
-    data class Holdings(val rows: List<ImportedHolding>) : LightyearSnapshotImport
-    data class Valuations(val rows: List<PortfolioSnapshot>, val holdings: List<ImportedHolding>) : LightyearSnapshotImport
-    data class Dividends(val rows: List<ImportedDividend>) : LightyearSnapshotImport
+public sealed interface LightyearSnapshotImport {
+    public data class Portfolio(val rows: List<PortfolioSnapshot>) : LightyearSnapshotImport
+    public data class Holdings(val rows: List<ImportedHolding>) : LightyearSnapshotImport
+    public data class Valuations(val rows: List<PortfolioSnapshot>, val holdings: List<ImportedHolding>) : LightyearSnapshotImport
+    public data class Dividends(val rows: List<ImportedDividend>) : LightyearSnapshotImport
 }
 
 /** Explicit EUR snapshot interchange format. Not a claim about Lightyear's native export headers. */
-object LightyearSnapshotCsv {
-    fun parse(text: String, today: LocalDate): LightyearSnapshotImport {
+public object LightyearSnapshotCsv {
+    public fun parse(text: String, today: LocalDate): LightyearSnapshotImport {
         require(text.length <= 4_000_000)
         val clean = text.removePrefix("\uFEFF")
         val header = clean.lineSequence().firstOrNull().orEmpty()

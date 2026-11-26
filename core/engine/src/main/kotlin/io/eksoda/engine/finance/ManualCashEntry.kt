@@ -3,7 +3,7 @@ package io.eksoda.engine.finance
 import java.time.LocalDate
 
 /** A user-entered cash movement contributes to the personal ledger without a bank connection. */
-data class ManualCashEntry(
+public data class ManualCashEntry(
     val date: LocalDate,
     val description: String,
     val amountMinor: Long,
@@ -17,7 +17,7 @@ data class ManualCashEntry(
         require(kind == MovementKind.EXPENSE || category == SpendingCategory.UNCLASSIFIED)
     }
 
-    fun toMovement(cashAccountId: String): BankMovement = BankMovement(
+    public fun toMovement(cashAccountId: String): BankMovement = BankMovement(
         accountId = cashAccountId,
         date = date,
         description = description,

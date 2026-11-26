@@ -3,9 +3,9 @@ package io.eksoda.engine.finance
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-enum class PortfolioDirection { UP, DOWN, FLAT }
+public enum class PortfolioDirection { UP, DOWN, FLAT }
 
-data class PortfolioStatus(
+public data class PortfolioStatus(
     val totalGainMinor: BigDecimal,
     val totalDirection: PortfolioDirection,
     val recentGainMinor: BigDecimal?,
@@ -15,8 +15,8 @@ data class PortfolioStatus(
 )
 
 /** Descriptive status, not a suitability assessment or recommendation. */
-object PortfolioAssessment {
-    fun assess(latest: PortfolioSnapshot, previous: PortfolioSnapshot?): PortfolioStatus {
+public object PortfolioAssessment {
+    public fun assess(latest: PortfolioSnapshot, previous: PortfolioSnapshot?): PortfolioStatus {
         val change = previous?.let { InvestmentTracking.change(it, latest) }
         val flows = previous != null && (previous.depositedMinor != latest.depositedMinor ||
             previous.withdrawnMinor != latest.withdrawnMinor)

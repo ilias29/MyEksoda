@@ -5,10 +5,10 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-enum class PaymentType { RENT, LOAN, SUBSCRIPTION, OTHER }
-enum class PaymentState { PENDING, PAID, CANCELLED }
+public enum class PaymentType { RENT, LOAN, SUBSCRIPTION, OTHER }
+public enum class PaymentState { PENDING, PAID, CANCELLED }
 
-data class PlannedPayment(
+public data class PlannedPayment(
     val id: String,
     val name: String,
     val due: LocalDate,
@@ -21,11 +21,11 @@ data class PlannedPayment(
     }
 }
 
-data class PaydayPlan(val balanceDay: LocalDate, val balanceMinor: Long, val payday: LocalDate) {
+public data class PaydayPlan(val balanceDay: LocalDate, val balanceMinor: Long, val payday: LocalDate) {
     init { require(payday.isAfter(balanceDay)) }
 }
 
-data class PaydayForecast(
+public data class PaydayForecast(
     val reservedMinor: BigDecimal,
     val remainingMinor: BigDecimal,
     val dailyAllowanceMinor: BigDecimal,
@@ -33,9 +33,9 @@ data class PaydayForecast(
     val overdueCount: Int,
 )
 
-object PaydayCalendar {
+public object PaydayCalendar {
     /** Balance is the user's current liquid funds, not monthly income or portfolio value. */
-    fun forecast(plan: PaydayPlan, today: LocalDate, payments: List<PlannedPayment>): PaydayForecast {
+    public fun forecast(plan: PaydayPlan, today: LocalDate, payments: List<PlannedPayment>): PaydayForecast {
         require(plan.balanceDay == today && plan.payday.isAfter(today))
         require(payments.map { it.id }.distinct().size == payments.size)
         val due = payments.filter { it.state == PaymentState.PENDING && it.due.isBefore(plan.payday) }

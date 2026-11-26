@@ -70,10 +70,12 @@ jobs:
         if: failure()
         run: |
           mkdir -p "${{ runner.temp }}/finance-diagnostics"
-          ./gradlew spotlessApply --continue
+          format_status=0
+          ./gradlew spotlessApply --continue || format_status=$?
           git diff --no-ext-diff --binary > "${{ runner.temp }}/finance-diagnostics/spotless.patch"
           git diff --stat
           git diff --no-ext-diff
+          exit "$format_status"
         continue-on-error: true
 
       - name: Upload formatter patch

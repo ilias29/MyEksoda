@@ -4,14 +4,14 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
 
-data class SubscriptionSuggestion(
+public data class SubscriptionSuggestion(
     val description: String,
     val paymentAmountMinor: Long,
     val monthsObserved: Int,
 )
 
 /** Explicit subscriptions are separate from automated suggestions and never create a second expense. */
-data class SubscriptionRecord(
+public data class SubscriptionRecord(
     val name: String,
     val expectedMonthlyMinor: Long,
     val confirmedByUser: Boolean,
@@ -22,11 +22,11 @@ data class SubscriptionRecord(
     }
 }
 
-object Subscriptions {
-    fun key(name: String): String = name.trim().uppercase(Locale.ROOT)
+public object Subscriptions {
+    public fun key(name: String): String = name.trim().uppercase(Locale.ROOT)
 
     /** Two equal debits in different months within a rolling three-month window prompt a question. */
-    fun suggest(
+    public fun suggest(
         movements: Iterable<BankMovement>,
         asOf: LocalDate? = null,
     ): List<SubscriptionSuggestion> = movements

@@ -5,14 +5,14 @@ import java.math.RoundingMode
 import java.text.Normalizer
 import java.util.Locale
 
-data class ReceiptTextItem(
+public data class ReceiptTextItem(
     val name: String,
     val lineMinor: Long,
     val quantity: BigDecimal? = null,
     val unitPriceMinor: Long? = null,
 )
 
-data class ReceiptTextPreview(
+public data class ReceiptTextPreview(
     val items: List<ReceiptTextItem>,
     val discountsMinor: List<Long>,
     val vatMinor: Long?,
@@ -20,12 +20,12 @@ data class ReceiptTextPreview(
     val calculatedMinor: Long,
     val warnings: List<String>,
 ) {
-    val reconciles: Boolean
+    public val reconciles: Boolean
         get() = totalMinor != null && totalMinor == calculatedMinor && warnings.isEmpty() && items.isNotEmpty()
 }
 
 /** Conservative parser for OCR text. It never creates a transaction or invents a discount. */
-object ReceiptTextParser {
+public object ReceiptTextParser {
     private val money = Regex("""(?<![\d.,])(-?\d+[,.]\d{2})\s*(?:€|EUR)?\s*$""", RegexOption.IGNORE_CASE)
     private val quantity = Regex("""^(.+?)\s+(\d+(?:[,.]\d+)?)\s*[xX×*]\s*(\d+[,.]\d{2})\s*$""")
     private val total = Regex("""^(?:ΓΕΝΙΚΟ ΣΥΝΟΛΟ|ΤΕΛΙΚΟ ΣΥΝΟΛΟ|ΣΥΝΟΛΟ|ΠΛΗΡΩΤΕΟ|TOTAL|AMOUNT DUE)$""")
@@ -34,7 +34,7 @@ object ReceiptTextParser {
     private val subtotal = Regex("""^(?:ΥΠΟΣΥΝΟΛΟ|SUBTOTAL|ΣΥΝΟΛΟ ΠΡΙΝ ΕΚΠΤΩΣΕΙΣ)$""")
     private val payment = Regex("""^(?:ΜΕΤΡΗΤΑ|ΚΑΡΤΑ|ΡΕΣΤΑ|CASH|CARD|CHANGE|VISA|MASTERCARD)(?:\s.*)?$""")
 
-    fun parse(text: String): ReceiptTextPreview {
+    public fun parse(text: String): ReceiptTextPreview {
         val items = mutableListOf<ReceiptTextItem>()
         val discounts = mutableListOf<Long>()
         val totals = mutableListOf<Long>()

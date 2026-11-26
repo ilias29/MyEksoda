@@ -4,23 +4,23 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.YearMonth
 
-enum class AdviceKind {
+public enum class AdviceKind {
     NO_MOVEMENTS, NEGATIVE_FLOW, BUDGET_EXCEEDED, BUDGET_NEAR, FORECAST_OVER,
     SAVINGS_GAP, SAVINGS_ON_TRACK, PLAN_CONFLICT, UNCLASSIFIED, SPENDING_UP, SPENDING_DOWN,
     SUBSCRIPTIONS, WORTH_UP, WORTH_DOWN, PAYDAY_SHORTFALL, PAYDAY_REVIEW,
 }
 
-data class FinanceObservation(val kind: AdviceKind, val amountMinor: BigDecimal? = null)
-data class CategoryExpense(val category: SpendingCategory, val amountMinor: BigDecimal)
-data class FinanceAdvice(
+public data class FinanceObservation(val kind: AdviceKind, val amountMinor: BigDecimal? = null)
+public data class CategoryExpense(val category: SpendingCategory, val amountMinor: BigDecimal)
+public data class FinanceAdvice(
     val observations: List<FinanceObservation>,
     val categories: List<CategoryExpense>,
     val comparedDays: Int,
 )
 
 /** Observations about recorded data, not a prediction of unrecorded transactions. */
-object FinanceAdvisor {
-    fun evaluate(
+public object FinanceAdvisor {
+    public fun evaluate(
         today: LocalDate,
         entries: List<LedgerEntry>,
         plan: MonthlyPlan?,

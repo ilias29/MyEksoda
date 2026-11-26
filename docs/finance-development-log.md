@@ -155,3 +155,7 @@ Release run 45724114509 succeeded; CI run 45724114520 (job 139589487685) failed 
 ## Stabilization pass 4
 
 CI run 45724641620 passed Gradle configuration and stopped at :core:database:spotlessKotlinCheck; formatting violations in EksodaDatabase.kt, BankTaxReviewRow.kt, ReceiptBankLink.kt, BankCorrectionTest.kt. Release run 45724641524 succeeded. Host has no Gradle/ktlint or DNS access to download them. Added failure-only CI diagnostics: run project's own spotlessApply, print and upload patch, then independently diagnose assembleDebug to expose compilation errors. Original make check remains mandatory; diagnostics never publish an APK as verified or push changes. Formatter patch must be reviewed and applied to the feature branch, then CI rerun. No APK yet.
+
+## Stabilization: explicit Kotlin API and diagnostics
+
+CI run 45851638060 revealed explicit API visibility errors across fifteen finance engine files. Declare exported types, methods and non-data-class properties explicitly, preserving their existing visibility and keeping strict API checks enabled. Rename ManualCash.kt to match its class. Fix diagnostic shell to emit formatter patch even when spotlessApply exits nonzero. This is not an APK or verified build; next CI must confirm compilation and style.
