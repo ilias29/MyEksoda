@@ -37,8 +37,12 @@ class BankCorrectionTest {
         val debit = BankRow("A", "1", "2026-03-01", "payment", -1234, "EXPENSE", "UNCLASSIFIED")
         val other = debit.copy(account = "B")
         dao.importBank(listOf(debit, other))
-        assertThat(dao.classify("A", "1", "EXPENSE", "UNCLASSIFIED", "TRANSFER", "UNCLASSIFIED")).isEqualTo(1)
-        assertThat(dao.classify("A", "1", "EXPENSE", "UNCLASSIFIED", "EXPENSE", "RENT")).isEqualTo(0)
+        assertThat(
+            dao.classify("A", "1", "EXPENSE", "UNCLASSIFIED", "TRANSFER", "UNCLASSIFIED"),
+        ).isEqualTo(1)
+        assertThat(
+            dao.classify("A", "1", "EXPENSE", "UNCLASSIFIED", "EXPENSE", "RENT"),
+        ).isEqualTo(0)
         assertThat(dao.importBank(listOf(debit, other))).isEqualTo(0)
         assertThat(dao.bankHistory("A").first().single()).isEqualTo(debit.copy(kind = "TRANSFER"))
         assertThat(dao.bankHistory("B").first().single()).isEqualTo(other)

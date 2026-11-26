@@ -48,24 +48,38 @@ internal fun SubscriptionPanel(model: AppViewModel) {
         suggestions.filter {
             it.description !in keys && (it.description to it.paymentAmountMinor) !in dismissed
         }.forEach { suggestion ->
-            Text("Πιθανή συνδρομή: ${suggestion.description} · €" +
-                BigDecimal.valueOf(suggestion.paymentAmountMinor, 2).toPlainString() +
-                " · ${suggestion.monthsObserved} μήνες")
+            Text(
+                "Πιθανή συνδρομή: ${suggestion.description} · €" +
+                    BigDecimal.valueOf(suggestion.paymentAmountMinor, 2).toPlainString() +
+                    " · ${suggestion.monthsObserved} μήνες",
+            )
             Row {
                 TextButton(enabled = !busy, onClick = {
                     name = suggestion.description
                     monthly = ""
-                    message = "Είναι συνδρομή; Συμπλήρωσε το πραγματικό μηνιαίο κόστος και επιβεβαίωσε."
+                    message =
+                        "Είναι συνδρομή; Συμπλήρωσε το πραγματικό μηνιαίο κόστος και επιβεβαίωσε."
                 }) { Text("Εξέταση") }
                 TextButton(enabled = !busy, onClick = {
-                    dismissed = dismissed + (suggestion.description to suggestion.paymentAmountMinor)
+                    dismissed =
+                        dismissed + (suggestion.description to suggestion.paymentAmountMinor)
                 }) { Text("Όχι τώρα") }
             }
         }
-        OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("Όνομα συνδρομής") }, singleLine = true)
-        OutlinedTextField(monthly, { monthly = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("Μηνιαίο κόστος σε ευρώ") }, singleLine = true)
+        OutlinedTextField(
+            name,
+            { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Όνομα συνδρομής") },
+            singleLine = true,
+        )
+        OutlinedTextField(
+            monthly,
+            { monthly = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Μηνιαίο κόστος σε ευρώ") },
+            singleLine = true,
+        )
         Button(enabled = !busy, onClick = {
             val amount = runCatching {
                 BankLedger.amountMinor(monthly, if (',' in monthly) ',' else '.')
@@ -93,7 +107,13 @@ internal fun SubscriptionPanel(model: AppViewModel) {
         }) { Text("Επιβεβαίωση / ενημέρωση") }
         Text(message)
         rows.forEach { row ->
-            Text(row.name + " · €" + BigDecimal.valueOf(row.expectedMonthlyMinor, 2).toPlainString() + " / μήνα")
+            Text(
+                row.name + " · €" + BigDecimal.valueOf(
+                    row.expectedMonthlyMinor,
+                    2,
+                ).toPlainString() +
+                    " / μήνα",
+            )
             Row {
                 TextButton(enabled = !busy, onClick = {
                     name = row.name

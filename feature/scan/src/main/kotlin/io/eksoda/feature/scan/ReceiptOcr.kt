@@ -53,7 +53,14 @@ internal object ReceiptOcr {
         var sample = 1
         while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 4096) sample *= 2
         return resolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+            BitmapFactory.decodeStream(
+                it,
+                null,
+                BitmapFactory.Options().apply {
+                    inSampleSize =
+                        sample
+                },
+            )
         }
     }
 }

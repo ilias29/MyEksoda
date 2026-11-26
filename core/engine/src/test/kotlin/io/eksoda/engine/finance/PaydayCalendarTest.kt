@@ -9,17 +9,26 @@ import java.time.LocalDate
 class PaydayCalendarTest {
     private val today = LocalDate.of(2026, 11, 26)
     private val plan = PaydayPlan(today, 80_000, today.plusDays(10))
-    private fun payment(id: String, days: Long, amount: Long, state: PaymentState = PaymentState.PENDING) =
-        PlannedPayment(id, id, today.plusDays(days), amount, PaymentType.OTHER, state)
+    private fun payment(
+        id: String,
+        days: Long,
+        amount: Long,
+        state: PaymentState = PaymentState.PENDING,
+    ) = PlannedPayment(id, id, today.plusDays(days), amount, PaymentType.OTHER, state)
 
     @Test
     fun includesOverdueButNotPaidCancelledOrPayday() {
-        val result = PaydayCalendar.forecast(plan, today, listOf(
-            payment("rent", -2, 30_000), payment("bill", 2, 10_000),
-            payment("paid", 1, 20_000, PaymentState.PAID),
-            payment("cancelled", 1, 10_000, PaymentState.CANCELLED),
-            payment("payday", 10, 50_000),
-        ))
+        val result = PaydayCalendar.forecast(
+            plan,
+            today,
+            listOf(
+                payment("rent", -2, 30_000),
+                payment("bill", 2, 10_000),
+                payment("paid", 1, 20_000, PaymentState.PAID),
+                payment("cancelled", 1, 10_000, PaymentState.CANCELLED),
+                payment("payday", 10, 50_000),
+            ),
+        )
         assertEquals(BigDecimal("40000"), result.reservedMinor)
         assertEquals(BigDecimal("40000"), result.remainingMinor)
         assertEquals(BigDecimal("4000"), result.dailyAllowanceMinor)

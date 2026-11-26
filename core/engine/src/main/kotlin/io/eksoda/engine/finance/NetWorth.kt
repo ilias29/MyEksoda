@@ -15,7 +15,19 @@ public data class NetWorthSnapshot(
     val fromLightyear: Boolean,
 ) {
     init {
-        require(listOf(bankMinor, cashMinor, lightyearMinor, otherAssetsMinor, loanMinor, otherDebtsMinor).all { it >= 0 })
+        require(
+            listOf(
+                bankMinor,
+                cashMinor,
+                lightyearMinor,
+                otherAssetsMinor,
+                loanMinor,
+                otherDebtsMinor,
+            ).all {
+                it >=
+                    0
+            },
+        )
     }
 
     public val assetsMinor: BigDecimal
@@ -27,15 +39,24 @@ public data class NetWorthSnapshot(
 
     public val netWorthMinor: BigDecimal get() = assetsMinor - debtsMinor
 
-    public val liquidMinor: BigDecimal get() = BigDecimal.valueOf(bankMinor) + BigDecimal.valueOf(cashMinor)
+    public val liquidMinor: BigDecimal get() = BigDecimal.valueOf(bankMinor) +
+        BigDecimal.valueOf(cashMinor)
 }
 
-public data class NetWorthChange(val from: LocalDate, val to: LocalDate, val amountMinor: BigDecimal)
+public data class NetWorthChange(
+    val from: LocalDate,
+    val to: LocalDate,
+    val amountMinor: BigDecimal,
+)
 
 public object NetWorth {
     public fun change(previous: NetWorthSnapshot, latest: NetWorthSnapshot): NetWorthChange {
         require(previous.day < latest.day)
-        return NetWorthChange(previous.day, latest.day, latest.netWorthMinor - previous.netWorthMinor)
+        return NetWorthChange(
+            previous.day,
+            latest.day,
+            latest.netWorthMinor - previous.netWorthMinor,
+        )
     }
 
     /** Never fabricate a zero or reuse a price from a different date. */

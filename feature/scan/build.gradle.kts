@@ -1,6 +1,3 @@
-import java.net.URI
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
@@ -8,6 +5,9 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 plugins {
     alias(libs.plugins.eksoda.android.feature)
@@ -38,7 +38,10 @@ abstract class PrepareReceiptOcrModels : DefaultTask() {
         val target = outputDirectory.get().asFile.resolve("tessdata")
         check(target.isDirectory || target.mkdirs())
         for (name in listOf("ell.traineddata", "eng.traineddata", "LICENSE")) {
-            val url = URI("https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/${revision.get()}/$name")
+            val url =
+                URI(
+                    "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/${revision.get()}/$name",
+                )
             val connection = url.toURL().openConnection().apply {
                 connectTimeout = 30_000
                 readTimeout = 60_000
@@ -65,6 +68,8 @@ androidComponents {
         ) {
             revision.set("65727574dfcd264acbb0c3e07860e4e9e9b22185")
         }
-        checkNotNull(variant.sources.assets).addGeneratedSourceDirectory(task, PrepareReceiptOcrModels::outputDirectory)
+        checkNotNull(
+            variant.sources.assets,
+        ).addGeneratedSourceDirectory(task, PrepareReceiptOcrModels::outputDirectory)
     }
 }

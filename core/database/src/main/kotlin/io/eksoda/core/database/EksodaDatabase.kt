@@ -1,12 +1,11 @@
 package io.eksoda.core.database
 
 import androidx.room.AutoMigration
-import io.eksoda.core.database.entity.CashRow
-import io.eksoda.core.database.dao.CashDao
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import io.eksoda.core.database.dao.AnalyticsDao
 import io.eksoda.core.database.dao.BudgetDao
+import io.eksoda.core.database.dao.CashDao
 import io.eksoda.core.database.dao.CategoryDao
 import io.eksoda.core.database.dao.HouseholdDao
 import io.eksoda.core.database.dao.ImportJobDao
@@ -16,6 +15,7 @@ import io.eksoda.core.database.dao.ReceiptDao
 import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.database.dao.TombstoneDao
 import io.eksoda.core.database.entity.BudgetEntity
+import io.eksoda.core.database.entity.CashRow
 import io.eksoda.core.database.entity.CategoryEntity
 import io.eksoda.core.database.entity.HouseholdEntity
 import io.eksoda.core.database.entity.ImportJobEntity

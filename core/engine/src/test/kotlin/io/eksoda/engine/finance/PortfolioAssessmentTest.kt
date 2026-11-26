@@ -20,7 +20,11 @@ class PortfolioAssessmentTest {
 
     @Test
     fun depositsAreNotGainsAndPercentIsNotInvented() {
-        val latest = first.copy(date = first.date.plusDays(7), valueMinor = 120_000, depositedMinor = 110_000)
+        val latest = first.copy(
+            date = first.date.plusDays(7),
+            valueMinor = 120_000,
+            depositedMinor = 110_000,
+        )
         val status = PortfolioAssessment.assess(latest, first)
         assertEquals(PortfolioDirection.FLAT, status.recentDirection)
         assertEquals(BigDecimal.ZERO, status.recentGainMinor)

@@ -50,7 +50,9 @@ class PricePointsTest {
         assertThat(shops.size).isEqualTo(2)
         assertThat(shops.first { it.entry.merchant.id == "m" }.purchaseCount).isEqualTo(2)
         val conflict = base.first().copy(normalizedUnitPrice = BigDecimal("4.50"))
-        assertThat(latestShopObservations(listOf(base.first(), conflict)).single().ambiguousLatest).isEqualTo(true)
+        assertThat(
+            latestShopObservations(listOf(base.first(), conflict)).single().ambiguousLatest,
+        ).isEqualTo(true)
     }
 
     @Test

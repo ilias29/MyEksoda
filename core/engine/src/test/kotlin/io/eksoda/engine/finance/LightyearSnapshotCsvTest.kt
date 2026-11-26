@@ -17,7 +17,10 @@ class LightyearSnapshotCsvTest {
         ) as LightyearSnapshotImport.Portfolio
         assertEquals(2, parsed.rows.size)
         assertEquals(120_000L, parsed.rows.last().valueMinor)
-        assertEquals(BigDecimal("5000"), InvestmentTracking.change(parsed.rows.first(), parsed.rows.last()).gainChangeMinor)
+        assertEquals(
+            BigDecimal("5000"),
+            InvestmentTracking.change(parsed.rows.first(), parsed.rows.last()).gainChangeMinor,
+        )
     }
 
     @Test
@@ -40,7 +43,9 @@ class LightyearSnapshotCsvTest {
             "2026-11-26,EUR,100,100,0\n2026-11-26,EUR,100,100,0",
             "2026-11-01,EUR,100,100,0\n2026-11-26,EUR,100,90,0",
         ).forEach { rows ->
-            assertThrows(IllegalArgumentException::class.java) { LightyearSnapshotCsv.parse(header + rows, today) }
+            assertThrows(IllegalArgumentException::class.java) {
+                LightyearSnapshotCsv.parse(header + rows, today)
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 package io.eksoda.engine.finance
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -17,13 +17,21 @@ class MonthlyPlanTest {
 
     @Test
     fun thresholdsAndRefunds() {
-        fun check(spent: Long) = MonthlyPlanning.evaluate(month, month.atDay(15), plan, actual(spent))
+        fun check(spent: Long) =
+            MonthlyPlanning.evaluate(month, month.atDay(15), plan, actual(spent))
         assertEquals(BudgetStatus.WITHIN, check(79_999).status)
         assertEquals(BudgetStatus.NEAR, check(80_000).status)
         assertEquals(BudgetStatus.AT_LIMIT, check(100_000).status)
         assertEquals(BudgetStatus.OVER, check(100_001).status)
-        assertEquals(BigDecimal("20000"), MonthlyPlanning.evaluate(month, month.atDay(15),
-            plan, actual(90_000, 10_000)).budgetRemainingMinor)
+        assertEquals(
+            BigDecimal("20000"),
+            MonthlyPlanning.evaluate(
+                month,
+                month.atDay(15),
+                plan,
+                actual(90_000, 10_000),
+            ).budgetRemainingMinor,
+        )
     }
 
     @Test
@@ -31,11 +39,31 @@ class MonthlyPlanTest {
         val progress = MonthlyPlanning.evaluate(month, month.atDay(15), plan, actual(60_000))
         assertEquals(BigDecimal("120000"), progress.projectedExpensesMinor)
         assertEquals(BigDecimal("30000"), progress.projectedSavingsMinor)
-        assertNull(MonthlyPlanning.evaluate(month, month.atDay(6), plan, actual(60_000)).projectedExpensesMinor)
-        assertEquals(BigDecimal("40000"), MonthlyPlanning.evaluate(month, month.atEndOfMonth(),
-            plan, actual(60_000)).projectedSavingsMinor)
-        assertFalse(MonthlyPlanning.evaluate(month, month.atDay(15), MonthlyPlan(120_000, 150_000, 40_000),
-            actual(60_000)).goalCompatibleWithPlan)
+        assertNull(
+            MonthlyPlanning.evaluate(
+                month,
+                month.atDay(6),
+                plan,
+                actual(60_000),
+            ).projectedExpensesMinor,
+        )
+        assertEquals(
+            BigDecimal("40000"),
+            MonthlyPlanning.evaluate(
+                month,
+                month.atEndOfMonth(),
+                plan,
+                actual(60_000),
+            ).projectedSavingsMinor,
+        )
+        assertFalse(
+            MonthlyPlanning.evaluate(
+                month,
+                month.atDay(15),
+                MonthlyPlan(120_000, 150_000, 40_000),
+                actual(60_000),
+            ).goalCompatibleWithPlan,
+        )
         assertThrows(IllegalArgumentException::class.java) { MonthlyPlan(0, 100, 0) }
     }
 }

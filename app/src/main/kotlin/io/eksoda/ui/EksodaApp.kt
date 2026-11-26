@@ -61,7 +61,11 @@ fun EksodaApp(viewModel: AppViewModel) {
             AppState.ONBOARDING -> OnboardingRoute()
 
             AppState.READY ->
-                MainNavHost(viewModel = viewModel, launch = launch, onLaunchHandled = viewModel::onLaunchHandled)
+                MainNavHost(
+                    viewModel = viewModel,
+                    launch = launch,
+                    onLaunchHandled = viewModel::onLaunchHandled,
+                )
         }
     }
 }

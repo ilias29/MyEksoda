@@ -30,7 +30,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 @Composable
-internal fun MonthlyPlanPanel(model: AppViewModel, month: YearMonth, today: LocalDate, actual: MonthlyOverview) {
+internal fun MonthlyPlanPanel(
+    model: AppViewModel,
+    month: YearMonth,
+    today: LocalDate,
+    actual: MonthlyOverview,
+) {
     val stream = remember(model, month) { model.monthlyPlan(month) }
     val result by stream.collectAsStateWithLifecycle(initialValue = null)
     val state = result
@@ -47,13 +52,21 @@ internal fun MonthlyPlanPanel(model: AppViewModel, month: YearMonth, today: Loca
         Text("Μηνιαίος προϋπολογισμός", style = MaterialTheme.typography.titleMedium)
         when {
             state == null -> Text("Φόρτωση πλάνου…")
+
             state.isFailure -> Text("Αδυναμία φόρτωσης προϋπολογισμού.")
+
             else -> {
                 if (plan != null) {
                     val progress = MonthlyPlanning.evaluate(month, today, plan, actual)
                     Text("Όριο εξόδων: " + planEuro(BigDecimal.valueOf(plan.spendingLimitMinor)))
-                    Text("Αναμενόμενα έσοδα: " + planEuro(BigDecimal.valueOf(plan.expectedIncomeMinor)))
-                    Text("Στόχος αποταμίευσης: " + planEuro(BigDecimal.valueOf(plan.savingsGoalMinor)))
+                    Text(
+                        "Αναμενόμενα έσοδα: " +
+                            planEuro(BigDecimal.valueOf(plan.expectedIncomeMinor)),
+                    )
+                    Text(
+                        "Στόχος αποταμίευσης: " +
+                            planEuro(BigDecimal.valueOf(plan.savingsGoalMinor)),
+                    )
                     LinearProgressIndicator(
                         progress = { progress.spendingFraction.coerceIn(0.0, 1.0).toFloat() },
                         modifier = Modifier.fillMaxWidth(),
@@ -64,31 +77,72 @@ internal fun MonthlyPlanPanel(model: AppViewModel, month: YearMonth, today: Loca
                         BudgetStatus.AT_LIMIT -> "Έφτασες στο όριο"
                         BudgetStatus.OVER -> "Υπέρβαση ορίου"
                     }
-                    Text(status, color = if (progress.status == BudgetStatus.OVER)
-                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        status,
+                        color = if (progress.status == BudgetStatus.OVER) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
                     Text("Διαφορά από όριο: " + planEuro(progress.budgetRemainingMinor))
-                    Text("Απόσταση από στόχο καθαρής ροής: " + planEuro(progress.savingsGapMinor.max(BigDecimal.ZERO)))
-                    if (!progress.goalCompatibleWithPlan) Text("Το όριο δαπανών και τα αναμενόμενα έσοδα δεν εξασφαλίζουν τον στόχο.")
-                    progress.projectedExpensesMinor?.let { Text("Έξοδα τέλους μήνα (εκτίμηση / τελικό): " + planEuro(it)) }
-                    progress.projectedSavingsMinor?.let { Text("Καθαρή ροή τέλους μήνα (εκτίμηση / τελικό): " + planEuro(it)) }
-                    Text("Η πρόβλεψη βασίζεται στον μέχρι τώρα ρυθμό εξόδων και στα έσοδα του πλάνου, όχι σε μελλοντικές χρεώσεις ή ημερομηνία μισθού.",
-                        style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "Απόσταση από στόχο καθαρής ροής: " +
+                            planEuro(progress.savingsGapMinor.max(BigDecimal.ZERO)),
+                    )
+                    if (!progress.goalCompatibleWithPlan) {
+                        Text(
+                            "Το όριο δαπανών και τα αναμενόμενα έσοδα δεν εξασφαλίζουν τον στόχο.",
+                        )
+                    }
+                    progress.projectedExpensesMinor?.let {
+                        Text("Έξοδα τέλους μήνα (εκτίμηση / τελικό): " + planEuro(it))
+                    }
+                    progress.projectedSavingsMinor?.let {
+                        Text("Καθαρή ροή τέλους μήνα (εκτίμηση / τελικό): " + planEuro(it))
+                    }
+                    Text(
+                        "Η πρόβλεψη βασίζεται στον μέχρι τώρα ρυθμό εξόδων και στα έσοδα του πλάνου, όχι σε μελλοντικές χρεώσεις ή ημερομηνία μισθού.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 if (!editing) {
                     TextButton(onClick = {
-                        limit = plan?.let { BigDecimal.valueOf(it.spendingLimitMinor, 2).toPlainString() } ?: ""
-                        income = plan?.let { BigDecimal.valueOf(it.expectedIncomeMinor, 2).toPlainString() } ?: ""
-                        goal = plan?.let { BigDecimal.valueOf(it.savingsGoalMinor, 2).toPlainString() } ?: ""
+                        limit =
+                            plan?.let {
+                                BigDecimal.valueOf(it.spendingLimitMinor, 2).toPlainString()
+                            }
+                                ?: ""
+                        income =
+                            plan?.let {
+                                BigDecimal.valueOf(it.expectedIncomeMinor, 2).toPlainString()
+                            }
+                                ?: ""
+                        goal =
+                            plan?.let { BigDecimal.valueOf(it.savingsGoalMinor, 2).toPlainString() }
+                                ?: ""
                         editing = true
                     }) { Text(if (plan == null) "Ορισμός πλάνου" else "Αλλαγή πλάνου") }
                 } else {
-                    OutlinedTextField(limit, { limit = it }, label = { Text("Όριο εξόδων €") }, singleLine = true)
-                    OutlinedTextField(income, { income = it }, label = { Text("Αναμενόμενα συνολικά έσοδα €") }, singleLine = true)
-                    OutlinedTextField(goal, { goal = it }, label = { Text("Στόχος αποταμίευσης €") }, singleLine = true)
+                    OutlinedTextField(limit, {
+                        limit = it
+                    }, label = { Text("Όριο εξόδων €") }, singleLine = true)
+                    OutlinedTextField(income, {
+                        income = it
+                    }, label = { Text("Αναμενόμενα συνολικά έσοδα €") }, singleLine = true)
+                    OutlinedTextField(goal, {
+                        goal = it
+                    }, label = { Text("Στόχος αποταμίευσης €") }, singleLine = true)
                     Button(enabled = !busy, onClick = {
-                        val candidate = runCatching { MonthlyPlan(planAmount(limit), planAmount(income), planAmount(goal)) }.getOrNull()
-                        if (candidate == null) message = "Έλεγξε τα ποσά: θετικό όριο και μη αρνητικά έσοδα / στόχος."
-                        else {
+                        val candidate = runCatching {
+                            MonthlyPlan(planAmount(limit), planAmount(income), planAmount(goal))
+                        }.getOrNull()
+                        if (candidate ==
+                            null
+                        ) {
+                            message =
+                                "Έλεγξε τα ποσά: θετικό όριο και μη αρνητικά έσοδα / στόχος."
+                        } else {
                             busy = true
                             scope.launch {
                                 try {
@@ -105,7 +159,10 @@ internal fun MonthlyPlanPanel(model: AppViewModel, month: YearMonth, today: Loca
                             }
                         }
                     }) { Text("Αποθήκευση πλάνου") }
-                    TextButton(enabled = !busy, onClick = { editing = false; message = "" }) { Text("Ακύρωση") }
+                    TextButton(enabled = !busy, onClick = {
+                        editing = false
+                        message = ""
+                    }) { Text("Ακύρωση") }
                 }
                 Text(message)
             }

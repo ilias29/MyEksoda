@@ -34,27 +34,54 @@ public object MonthlyLedger {
         var loans = 0L
         var count = 0
         for ((source, movement) in entries) {
-            if (YearMonth.from(movement.date) != month || movement.kind == MovementKind.TRANSFER) continue
+            if (YearMonth.from(movement.date) != month ||
+                movement.kind == MovementKind.TRANSFER
+            ) {
+                continue
+            }
             count = Math.incrementExact(count)
             when (movement.kind) {
                 MovementKind.INCOME -> {
-                    if (source == FinanceSource.BANK) bankIncome = Math.addExact(bankIncome, movement.amountMinor)
-                    else cashIncome = Math.addExact(cashIncome, movement.amountMinor)
+                    if (source ==
+                        FinanceSource.BANK
+                    ) {
+                        bankIncome =
+                            Math.addExact(bankIncome, movement.amountMinor)
+                    } else {
+                        cashIncome = Math.addExact(cashIncome, movement.amountMinor)
+                    }
                 }
+
                 MovementKind.EXPENSE -> {
                     val debit = Math.negateExact(movement.amountMinor)
-                    if (source == FinanceSource.BANK) bankExpenses = Math.addExact(bankExpenses, debit)
-                    else cashExpenses = Math.addExact(cashExpenses, debit)
+                    if (source ==
+                        FinanceSource.BANK
+                    ) {
+                        bankExpenses = Math.addExact(bankExpenses, debit)
+                    } else {
+                        cashExpenses = Math.addExact(cashExpenses, debit)
+                    }
                     when (movement.category) {
                         SpendingCategory.RENT -> rent = Math.addExact(rent, debit)
                         SpendingCategory.LOAN_PAYMENT -> loans = Math.addExact(loans, debit)
                         else -> Unit
                     }
                 }
+
                 MovementKind.REFUND -> refunds = Math.addExact(refunds, movement.amountMinor)
+
                 MovementKind.TRANSFER -> Unit
             }
         }
-        return MonthlyOverview(bankIncome, cashIncome, bankExpenses, cashExpenses, refunds, rent, loans, count)
+        return MonthlyOverview(
+            bankIncome,
+            cashIncome,
+            bankExpenses,
+            cashExpenses,
+            refunds,
+            rent,
+            loans,
+            count,
+        )
     }
 }

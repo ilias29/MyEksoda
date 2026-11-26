@@ -15,26 +15,37 @@ class MonthlyOverviewTest {
         kind: MovementKind,
         category: SpendingCategory = SpendingCategory.UNCLASSIFIED,
         date: LocalDate = month.atDay(1),
-    ) = LedgerEntry(source, BankMovement("account", date, "sample", amount, kind, category = category))
+    ) = LedgerEntry(
+        source,
+        BankMovement("account", date, "sample", amount, kind, category = category),
+    )
 
     @Test
     fun combinesSourcesAndExcludesTransfersAndOtherMonths() {
-        val overview = MonthlyLedger.summarize(month, listOf(
-            entry(FinanceSource.BANK, 120_000, MovementKind.INCOME),
-            entry(FinanceSource.CASH, 10_000, MovementKind.INCOME),
-            entry(FinanceSource.BANK, -45_000, MovementKind.EXPENSE, SpendingCategory.RENT),
-            entry(FinanceSource.BANK, -12_000, MovementKind.EXPENSE, SpendingCategory.LOAN_PAYMENT),
-            entry(FinanceSource.CASH, -3_000, MovementKind.EXPENSE),
-            entry(FinanceSource.BANK, 2_000, MovementKind.REFUND),
-            entry(FinanceSource.BANK, -20_000, MovementKind.TRANSFER),
-            entry(FinanceSource.BANK, 20_000, MovementKind.TRANSFER),
-            entry(
-                FinanceSource.BANK,
-                99_999,
-                MovementKind.INCOME,
-                date = month.minusMonths(1).atEndOfMonth(),
+        val overview = MonthlyLedger.summarize(
+            month,
+            listOf(
+                entry(FinanceSource.BANK, 120_000, MovementKind.INCOME),
+                entry(FinanceSource.CASH, 10_000, MovementKind.INCOME),
+                entry(FinanceSource.BANK, -45_000, MovementKind.EXPENSE, SpendingCategory.RENT),
+                entry(
+                    FinanceSource.BANK,
+                    -12_000,
+                    MovementKind.EXPENSE,
+                    SpendingCategory.LOAN_PAYMENT,
+                ),
+                entry(FinanceSource.CASH, -3_000, MovementKind.EXPENSE),
+                entry(FinanceSource.BANK, 2_000, MovementKind.REFUND),
+                entry(FinanceSource.BANK, -20_000, MovementKind.TRANSFER),
+                entry(FinanceSource.BANK, 20_000, MovementKind.TRANSFER),
+                entry(
+                    FinanceSource.BANK,
+                    99_999,
+                    MovementKind.INCOME,
+                    date = month.minusMonths(1).atEndOfMonth(),
+                ),
             ),
-        ))
+        )
         assertEquals(130_000L, overview.incomeMinor)
         assertEquals(10_000L, overview.cashIncomeMinor)
         assertEquals(60_000L, overview.grossExpensesMinor)
@@ -48,20 +59,35 @@ class MonthlyOverviewTest {
     @Test
     fun emptyAndNegativeMonthsAreNotBalances() {
         assertEquals(0L, MonthlyLedger.summarize(month, emptyList()).netFlowMinor)
-        assertEquals(-100L, MonthlyLedger.summarize(month, listOf(
-            entry(FinanceSource.CASH, -100, MovementKind.EXPENSE),
-        )).netFlowMinor)
-        assertEquals(-100L, MonthlyLedger.summarize(month, listOf(
-            entry(FinanceSource.BANK, 100, MovementKind.REFUND),
-        )).netExpensesMinor)
+        assertEquals(
+            -100L,
+            MonthlyLedger.summarize(
+                month,
+                listOf(
+                    entry(FinanceSource.CASH, -100, MovementKind.EXPENSE),
+                ),
+            ).netFlowMinor,
+        )
+        assertEquals(
+            -100L,
+            MonthlyLedger.summarize(
+                month,
+                listOf(
+                    entry(FinanceSource.BANK, 100, MovementKind.REFUND),
+                ),
+            ).netExpensesMinor,
+        )
     }
 
     @Test
     fun overflowIsNotSilentlyWrapped() {
         assertThrows(ArithmeticException::class.java) {
-            MonthlyLedger.summarize(month, listOf(
-                entry(FinanceSource.BANK, Long.MIN_VALUE, MovementKind.EXPENSE),
-            ))
+            MonthlyLedger.summarize(
+                month,
+                listOf(
+                    entry(FinanceSource.BANK, Long.MIN_VALUE, MovementKind.EXPENSE),
+                ),
+            )
         }
     }
 }

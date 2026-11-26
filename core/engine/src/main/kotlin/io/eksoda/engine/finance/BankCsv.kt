@@ -15,23 +15,31 @@ public data class CsvMapping(
 )
 
 public data class ImportProblem(val line: Int, val reason: String)
-public data class BankImportPreview(val movements: List<BankMovement>, val problems: List<ImportProblem>) {
+public data class BankImportPreview(
+    val movements: List<BankMovement>,
+    val problems: List<ImportProblem>,
+) {
     public val canCommit: Boolean get() = problems.isEmpty() && movements.isNotEmpty()
 }
 
 public object BankCsv {
     public fun parse(text: String, accountId: String, mapping: CsvMapping): List<BankMovement> {
         val preview = preview(text, accountId, mapping)
-        require(preview.problems.isEmpty()) { preview.problems.joinToString { "line ${it.line}: ${it.reason}" } }
+        require(preview.problems.isEmpty()) {
+            preview.problems.joinToString { "line ${it.line}: ${it.reason}" }
+        }
         return preview.movements
     }
 
     /** Nothing should be persisted until every input row has passed validation. */
-    public fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview {
-        return previewRows(rows(text.removePrefix("\uFEFF"), mapping.delimiter), accountId, mapping)
-    }
+    public fun preview(text: String, accountId: String, mapping: CsvMapping): BankImportPreview =
+        previewRows(rows(text.removePrefix("\uFEFF"), mapping.delimiter), accountId, mapping)
 
-    public fun previewRows(rows: List<List<String>>, accountId: String, mapping: CsvMapping): BankImportPreview {
+    public fun previewRows(
+        rows: List<List<String>>,
+        accountId: String,
+        mapping: CsvMapping,
+    ): BankImportPreview {
         require(accountId.isNotBlank())
         require(listOf(mapping.date, mapping.description, mapping.amount).all { it >= 0 })
         require(mapping.sourceId == null || mapping.sourceId >= 0)
@@ -42,7 +50,12 @@ public object BankCsv {
         rows.drop(if (mapping.hasHeader) 1 else 0).forEachIndexed { index, row ->
             if (row.all { it.isBlank() }) return@forEachIndexed
             val line = index + if (mapping.hasHeader) 2 else 1
-            val requiredIndex = maxOf(mapping.date, mapping.description, mapping.amount, mapping.sourceId ?: 0)
+            val requiredIndex = maxOf(
+                mapping.date,
+                mapping.description,
+                mapping.amount,
+                mapping.sourceId ?: 0,
+            )
             if (row.size <= requiredIndex) {
                 problems.add(ImportProblem(line, "missing mapped column"))
                 return@forEachIndexed
@@ -85,12 +98,15 @@ public object BankCsv {
                         closed = true
                     }
                 }
+
                 quoted -> field.append(c)
+
                 c == delimiter -> {
                     row.add(field.toString())
                     field.clear()
                     closed = false
                 }
+
                 c == '\n' || c == '\r' -> {
                     if (c == '\r' && i < text.length && text[i] == '\n') i++
                     row.add(field.toString())
@@ -99,10 +115,12 @@ public object BankCsv {
                     field.clear()
                     closed = false
                 }
+
                 c == '"' -> {
                     require(field.isEmpty() && !closed)
                     quoted = true
                 }
+
                 else -> {
                     require(!closed)
                     field.append(c)

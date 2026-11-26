@@ -15,17 +15,28 @@ class InvestmentTrackingTest {
         val deposit = PortfolioSnapshot(date.plusDays(1), 160_000, 150_000, 0)
         val withdrawal = PortfolioSnapshot(date.plusDays(2), 150_000, 150_000, 10_000)
         assertEquals(BigDecimal.ZERO, InvestmentTracking.change(initial, deposit).gainChangeMinor)
-        assertEquals(BigDecimal.ZERO, InvestmentTracking.change(deposit, withdrawal).gainChangeMinor)
+        assertEquals(
+            BigDecimal.ZERO,
+            InvestmentTracking.change(deposit, withdrawal).gainChangeMinor,
+        )
         assertEquals(BigDecimal("10000"), withdrawal.gainMinor)
         val loss = withdrawal.copy(date = date.plusDays(3), valueMinor = 145_000)
-        assertEquals(BigDecimal("-5000"), InvestmentTracking.change(withdrawal, loss).gainChangeMinor)
+        assertEquals(
+            BigDecimal("-5000"),
+            InvestmentTracking.change(withdrawal, loss).gainChangeMinor,
+        )
     }
 
     @Test
     fun rejectsInconsistentHistory() {
-        assertThrows(IllegalArgumentException::class.java) { InvestmentTracking.change(initial, initial) }
         assertThrows(IllegalArgumentException::class.java) {
-            InvestmentTracking.change(initial, initial.copy(date = date.plusDays(1), depositedMinor = 10))
+            InvestmentTracking.change(initial, initial)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            InvestmentTracking.change(
+                initial,
+                initial.copy(date = date.plusDays(1), depositedMinor = 10),
+            )
         }
         assertThrows(IllegalArgumentException::class.java) { initial.copy(valueMinor = -1) }
     }

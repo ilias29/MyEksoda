@@ -31,7 +31,13 @@ class ReviewedReceiptSaverTest {
         assertEquals(BigDecimal("0.20"), receipt.totals.discount)
         assertEquals(BigDecimal("0.40"), receipt.totals.vat)
         assertEquals(BigDecimal("-0.20"), receipt.lines.last().gross)
-        assertEquals(receipt.totals.gross, receipt.lines.fold(BigDecimal.ZERO) { sum, line -> sum + line.gross })
+        assertEquals(
+            receipt.totals.gross,
+            receipt.lines.fold(BigDecimal.ZERO) { sum, line ->
+                sum +
+                    line.gross
+            },
+        )
         assertNull(receipt.lines.first().unit)
         assertNull(receipt.lines[1].quantity)
         assertEquals("", receipt.sourceUrl)
@@ -46,7 +52,9 @@ class ReviewedReceiptSaverTest {
         val third = reviewedCanonical(input.copy(documentNumber = "A-002"), zone)
         assertEquals(first.identity.sourceKey, second.identity.sourceKey)
         assertNotEquals(first.identity.sourceKey, third.identity.sourceKey)
-        assertTrue(reviewedCanonical(input.copy(payment = PaymentMethod.UNKNOWN), zone).payments.isEmpty())
+        assertTrue(
+            reviewedCanonical(input.copy(payment = PaymentMethod.UNKNOWN), zone).payments.isEmpty(),
+        )
     }
 
     @Test(expected = IllegalArgumentException::class)

@@ -31,8 +31,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FlashlightOff
 import androidx.compose.material.icons.filled.FlashlightOn
@@ -134,7 +134,11 @@ fun ScanRoute(
                     val dir = File(context.cacheDir, "receipt_capture")
                     check(dir.isDirectory || dir.mkdirs())
                     file = File.createTempFile("receipt_", ".jpg", dir)
-                    val uri = FileProvider.getUriForFile(context, context.packageName + ".receipt.capture", file)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        context.packageName + ".receipt.capture",
+                        file,
+                    )
                     pendingCapture = uri.toString()
                     camera.launch(uri)
                 } catch (e: Exception) {
@@ -154,7 +158,11 @@ fun ScanRoute(
         AlertDialog(
             onDismissRequest = { captureFailed = false },
             title = { Text(stringResource(R.string.scan_capture_failed)) },
-            confirmButton = { TextButton(onClick = { captureFailed = false }) { Text(stringResource(R.string.ok)) } },
+            confirmButton = {
+                TextButton(onClick = {
+                    captureFailed = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
         )
     }
 }
@@ -170,7 +178,11 @@ fun ScanScreen(
     onViewReceipt: (String) -> Unit,
     onPickPhoto: () -> Unit,
     onCapturePhoto: (() -> Unit)? = null,
-    onSaveReviewed: (suspend (io.eksoda.core.data.repository.ReviewedReceiptInput) -> io.eksoda.core.data.repository.ReviewedReceiptResult)? = null,
+    onSaveReviewed: (
+        suspend (
+            io.eksoda.core.data.repository.ReviewedReceiptInput,
+        ) -> io.eksoda.core.data.repository.ReviewedReceiptResult
+    )? = null,
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -381,7 +393,11 @@ private fun BottomBar(
             }
             if (onCapturePhoto != null) {
                 IconButton(onClick = onCapturePhoto, enabled = !state.readingPhoto) {
-                    Icon(Icons.Default.CameraAlt, stringResource(R.string.scan_capture), tint = Color.White)
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        stringResource(R.string.scan_capture),
+                        tint = Color.White,
+                    )
                 }
             }
             IconButton(onClick = onPickPhoto, enabled = !state.readingPhoto) {

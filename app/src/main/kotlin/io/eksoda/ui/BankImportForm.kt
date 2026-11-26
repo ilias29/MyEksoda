@@ -7,17 +7,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.eksoda.core.database.entity.BankRow
-import io.eksoda.engine.finance.LegacyBankWorkbook
-import io.eksoda.engine.finance.BankWorkbook
 import io.eksoda.engine.finance.BankCsv
+import io.eksoda.engine.finance.BankWorkbook
 import io.eksoda.engine.finance.CsvMapping
+import io.eksoda.engine.finance.LegacyBankWorkbook
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,23 +45,46 @@ internal fun BankImportForm(model: AppViewModel) {
             scope.launch {
                 try {
                     val indices = columns.split(',').map { it.trim().toInt() - 1 }
-                    require(indices.size == 4 && indices.distinct().size == 4 && indices.all { it >= 0 })
-                    val mapping = CsvMapping(indices[0], indices[1], indices[2], indices[3],
-                        delimiter.single(), decimal.single(), pattern)
+                    require(
+                        indices.size == 4 && indices.distinct().size == 4 && indices.all {
+                            it >= 0
+                        },
+                    )
+                    val mapping = CsvMapping(
+                        indices[0],
+                        indices[1],
+                        indices[2],
+                        indices[3],
+                        delimiter.single(),
+                        decimal.single(),
+                        pattern,
+                    )
                     val result = withContext(Dispatchers.IO) {
                         val data = requireNotNull(resolver.openInputStream(uri)).use {
                             BankWorkbook.readLimited(it, 4_000_000)
                         }
                         if (data.size >= 4 && data[0] == 80.toByte() && data[1] == 75.toByte()) {
-                            val rows = BankWorkbook.rows(data, mapping.date, mapping.amount,
-                                mapping.decimalSeparator, mapping.datePattern)
+                            val rows = BankWorkbook.rows(
+                                data,
+                                mapping.date,
+                                mapping.amount,
+                                mapping.decimalSeparator,
+                                mapping.datePattern,
+                            )
                             BankCsv.previewRows(rows, account.trim(), mapping)
                         } else if (LegacyBankWorkbook.matches(data)) {
-                            val rows = LegacyBankWorkbook.rows(data, mapping.date, mapping.amount,
-                                mapping.decimalSeparator, mapping.datePattern)
+                            val rows = LegacyBankWorkbook.rows(
+                                data,
+                                mapping.date,
+                                mapping.amount,
+                                mapping.decimalSeparator,
+                                mapping.datePattern,
+                            )
                             BankCsv.previewRows(rows, account.trim(), mapping)
                         } else {
-                            val csv = Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(data)).toString()
+                            val csv = Charsets.UTF_8.newDecoder().decode(
+                                java.nio.ByteBuffer.wrap(data),
+                            ).toString()
                             BankCsv.preview(csv, account.trim(), mapping)
                         }
                     }
@@ -72,8 +95,15 @@ internal fun BankImportForm(model: AppViewModel) {
                         message = "Απαιτείται αναγνωριστικό τράπεζας σε κάθε εγγραφή."
                     } else {
                         preview = result.movements.map {
-                            BankRow(it.accountId, requireNotNull(it.sourceId), it.date.toString(), it.description,
-                                it.amountMinor, it.kind.name, it.category.name)
+                            BankRow(
+                                it.accountId,
+                                requireNotNull(it.sourceId),
+                                it.date.toString(),
+                                it.description,
+                                it.amountMinor,
+                                it.kind.name,
+                                it.category.name,
+                            )
                         }
                         message = "Εγγραφές για έλεγχο   " + preview.size
                     }
@@ -92,7 +122,9 @@ internal fun BankImportForm(model: AppViewModel) {
     var showAccounts by remember { mutableStateOf(false) }
     if (accounts.isNotEmpty()) {
         androidx.compose.foundation.layout.Box {
-            androidx.compose.material3.TextButton(enabled = !busy, onClick = { showAccounts = true }) {
+            androidx.compose.material3.TextButton(enabled = !busy, onClick = {
+                showAccounts = true
+            }) {
                 Text("Αποθηκευμένοι λογαριασμοί")
             }
             androidx.compose.material3.DropdownMenu(showAccounts, { showAccounts = false }) {
@@ -107,23 +139,50 @@ internal fun BankImportForm(model: AppViewModel) {
             }
         }
     }
-    OutlinedTextField(account, { account = it; preview = emptyList() }, enabled = !busy, label = { Text("Όνομα λογαριασμού") })
-    Text("CSV UTF-8 ή Excel (XLS/XLSX) ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.")
-    OutlinedTextField(columns, { columns = it; preview = emptyList() }, enabled = !busy,
-        label = { Text("Ημερομηνία, περιγραφή, ποσό, κωδικός") })
-    OutlinedTextField(delimiter, { delimiter = it; preview = emptyList() }, enabled = !busy, label = { Text("Διαχωριστικό στηλών") })
-    OutlinedTextField(decimal, { decimal = it; preview = emptyList() }, enabled = !busy, label = { Text("Δεκαδικό σύμβολο") })
-    OutlinedTextField(pattern, { pattern = it; preview = emptyList() }, enabled = !busy, label = { Text("Μορφή ημερομηνίας") })
-    Button(enabled = !busy && account.isNotBlank(), onClick = { picker.launch(arrayOf("*/*")) }) { Text("Επιλογή CSV ή Excel") }
+    OutlinedTextField(account, {
+        account = it
+        preview = emptyList()
+    }, enabled = !busy, label = { Text("Όνομα λογαριασμού") })
+    Text(
+        "CSV UTF-8 ή Excel (XLS/XLSX) ενός φύλλου, με επικεφαλίδες και τιμές χωρίς τύπους. Δώσε τις θέσεις των στηλών ξεκινώντας από το 1.",
+    )
+    OutlinedTextField(
+        columns,
+        {
+            columns = it
+            preview = emptyList()
+        },
+        enabled = !busy,
+        label = { Text("Ημερομηνία, περιγραφή, ποσό, κωδικός") },
+    )
+    OutlinedTextField(delimiter, {
+        delimiter = it
+        preview = emptyList()
+    }, enabled = !busy, label = { Text("Διαχωριστικό στηλών") })
+    OutlinedTextField(decimal, {
+        decimal = it
+        preview = emptyList()
+    }, enabled = !busy, label = { Text("Δεκαδικό σύμβολο") })
+    OutlinedTextField(pattern, {
+        pattern = it
+        preview = emptyList()
+    }, enabled = !busy, label = { Text("Μορφή ημερομηνίας") })
+    Button(enabled = !busy && account.isNotBlank(), onClick = {
+        picker.launch(arrayOf("*/*"))
+    }) { Text("Επιλογή CSV ή Excel") }
     Text(message)
-    preview.take(10).forEach { Text(it.day + "   " + it.description + "   " + BigDecimal.valueOf(it.amount, 2) + " €") }
+    preview.take(10).forEach {
+        Text(it.day + "   " + it.description + "   " + BigDecimal.valueOf(it.amount, 2) + " €")
+    }
     if (preview.isNotEmpty()) {
         Button(enabled = !busy, onClick = {
             busy = true
             scope.launch {
                 try {
                     val count = model.saveBank(preview)
-                    message = "Νέες κινήσεις   " + count + "   Ήδη καταχωρισμένες   " + (preview.size - count)
+                    message =
+                        "Νέες κινήσεις   " + count + "   Ήδη καταχωρισμένες   " +
+                        (preview.size - count)
                     preview = emptyList()
                 } catch (e: CancellationException) {
                     throw e

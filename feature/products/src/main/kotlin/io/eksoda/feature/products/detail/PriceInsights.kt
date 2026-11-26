@@ -106,7 +106,6 @@ internal fun cheapestGap(merchants: List<MerchantPrices>): CheapestGap? {
 /** The most points the price chart draws before close prices are merged. */
 internal const val MAX_POINTS = 24
 
-
 /** Compare actual observations, not advertised or current shelf prices. */
 internal data class ObservedPriceChange(
     val oldest: PriceEntry,
@@ -119,11 +118,17 @@ internal fun observedPriceChange(priced: List<PriceEntry>): ObservedPriceChange?
     if (valid.size < 2) return null
     val latest = valid.first()
     val oldest = valid.last()
-    if (latest.receiptId == oldest.receiptId || !latest.issuedAt.isAfter(oldest.issuedAt)) return null
+    if (latest.receiptId == oldest.receiptId ||
+        !latest.issuedAt.isAfter(oldest.issuedAt)
+    ) {
+        return null
+    }
     val firstPrice = checkNotNull(oldest.normalizedUnitPrice)
     val lastPrice = checkNotNull(latest.normalizedUnitPrice)
     return ObservedPriceChange(
-        oldest, latest, (lastPrice - firstPrice).multiply(BigDecimal(100))
+        oldest,
+        latest,
+        (lastPrice - firstPrice).multiply(BigDecimal(100))
             .divide(firstPrice, 2, RoundingMode.HALF_UP),
     )
 }
@@ -140,8 +145,11 @@ internal fun latestShopObservations(priced: List<PriceEntry>): List<ShopObservat
         .groupBy { it.merchant.id }
         .map { (_, entries) ->
             val latest = entries.first()
-            val ambiguous = entries.takeWhile { it.issuedAt.toInstant() == latest.issuedAt.toInstant() }
-                .mapNotNull { it.normalizedUnitPrice?.stripTrailingZeros() }.distinct().size > 1
+            val ambiguous =
+                entries.takeWhile { it.issuedAt.toInstant() == latest.issuedAt.toInstant() }
+                    .mapNotNull { it.normalizedUnitPrice?.stripTrailingZeros() }.distinct().size > 1
             ShopObservation(latest, entries.map { it.receiptId }.distinct().size, ambiguous)
-        }.sortedWith(compareByDescending<ShopObservation> { it.entry.issuedAt.toInstant() }
-            .thenBy { it.entry.merchant.name })
+        }.sortedWith(
+            compareByDescending<ShopObservation> { it.entry.issuedAt.toInstant() }
+                .thenBy { it.entry.merchant.name },
+        )

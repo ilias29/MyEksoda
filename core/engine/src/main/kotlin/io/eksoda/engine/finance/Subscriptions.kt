@@ -35,16 +35,21 @@ public object Subscriptions {
                 it.amountMinor != Long.MIN_VALUE &&
                 it.category != SpendingCategory.RENT &&
                 it.category != SpendingCategory.LOAN_PAYMENT &&
-                (asOf == null || (!it.date.isAfter(asOf) &&
-                    !YearMonth.from(it.date).isBefore(YearMonth.from(asOf).minusMonths(2))))
+                (
+                    asOf == null || (
+                        !it.date.isAfter(asOf) &&
+                            !YearMonth.from(it.date).isBefore(YearMonth.from(asOf).minusMonths(2))
+                        )
+                    )
         }
         .groupBy { key(it.description) to it.amountMinor }
         .mapNotNull { (key, payments) ->
             val byMonth = payments.groupBy { YearMonth.from(it.date) }
             if (byMonth.size < 2) return@mapNotNull null
             val months = byMonth.keys.sorted()
-            if (months.zipWithNext().none { (a, b) -> !a.plusMonths(2).isBefore(b) })
+            if (months.zipWithNext().none { (a, b) -> !a.plusMonths(2).isBefore(b) }) {
                 return@mapNotNull null
+            }
             SubscriptionSuggestion(key.first, Math.negateExact(key.second), months.size)
         }
         .sortedWith(compareBy({ it.description }, { it.paymentAmountMinor }))

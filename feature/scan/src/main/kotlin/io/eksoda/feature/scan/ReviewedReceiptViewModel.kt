@@ -7,6 +7,7 @@ import io.eksoda.core.data.repository.ReviewedReceiptSaver
 import javax.inject.Inject
 
 @HiltViewModel
-class ReviewedReceiptViewModel @Inject constructor(private val saver: ReviewedReceiptSaver) : ViewModel() {
+class ReviewedReceiptViewModel @Inject constructor(private val saver: ReviewedReceiptSaver) :
+    ViewModel() {
     suspend fun save(input: ReviewedReceiptInput) = saver.save(input)
 }

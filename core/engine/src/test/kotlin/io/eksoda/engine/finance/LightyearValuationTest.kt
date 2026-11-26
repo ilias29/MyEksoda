@@ -37,7 +37,8 @@ class LightyearValuationTest {
 
     @Test
     fun netDividendSubtractsWithholdingAndFees() {
-        val dividend = ImportedDividend("ref", day, "ABC", "USD", b("20"), b("3"), b("1"), b("0.92"))
+        val dividend =
+            ImportedDividend("ref", day, "ABC", "USD", b("20"), b("3"), b("1"), b("0.92"))
         assertEquals(1472L, dividend.netMinor)
         assertThrows(IllegalArgumentException::class.java) { dividend.copy(withheld = b("21")) }
     }

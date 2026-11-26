@@ -15,7 +15,10 @@ public data class ImportedHolding(
 public sealed interface LightyearSnapshotImport {
     public data class Portfolio(val rows: List<PortfolioSnapshot>) : LightyearSnapshotImport
     public data class Holdings(val rows: List<ImportedHolding>) : LightyearSnapshotImport
-    public data class Valuations(val rows: List<PortfolioSnapshot>, val holdings: List<ImportedHolding>) : LightyearSnapshotImport
+    public data class Valuations(
+        val rows: List<PortfolioSnapshot>,
+        val holdings: List<ImportedHolding>,
+    ) : LightyearSnapshotImport
     public data class Dividends(val rows: List<ImportedDividend>) : LightyearSnapshotImport
 }
 
@@ -32,9 +35,32 @@ public object LightyearSnapshotCsv {
         require(columns.distinct().size == columns.size)
         val portfolioFields = setOf("date", "currency", "value", "deposits", "withdrawals")
         val holdingFields = setOf("date", "currency", "instrument", "quantity", "value", "cost")
-        val valuationFields = setOf("date", "currency", "instrument", "quantity", "unit_price", "eur_rate", "deposits_eur", "withdrawals_eur")
-        val dividendFields = setOf("date", "reference", "instrument", "currency", "gross", "withheld", "fee", "eur_rate")
-        require(columns.toSet() in setOf(portfolioFields, holdingFields, valuationFields, dividendFields)) {
+        val valuationFields =
+            setOf(
+                "date",
+                "currency",
+                "instrument",
+                "quantity",
+                "unit_price",
+                "eur_rate",
+                "deposits_eur",
+                "withdrawals_eur",
+            )
+        val dividendFields =
+            setOf(
+                "date",
+                "reference",
+                "instrument",
+                "currency",
+                "gross",
+                "withheld",
+                "fee",
+                "eur_rate",
+            )
+        require(
+            columns.toSet() in
+                setOf(portfolioFields, holdingFields, valuationFields, dividendFields),
+        ) {
             "Unsupported snapshot headers"
         }
         val entries = rows.drop(1).map { row ->
@@ -53,13 +79,22 @@ public object LightyearSnapshotCsv {
             require(text.matches(Regex("[0-9]+(\\.[0-9]{1,12})?")))
             return BigDecimal(text).also { require(it.precision() <= 24) }
         }
-        fun id(row: Map<String, String>): String = row.getValue("instrument").uppercase(Locale.ROOT).also {
-            require(it.isNotBlank() && it.length <= 100 && it.none { c -> c.isISOControl() })
-        }
+        fun id(row: Map<String, String>): String =
+            row.getValue("instrument").uppercase(Locale.ROOT).also {
+                require(it.isNotBlank() && it.length <= 100 && it.none { c -> c.isISOControl() })
+            }
         if (columns.toSet() == dividendFields) {
             val dividends = entries.map { row ->
-                ImportedDividend(row.getValue("reference"), date(row), id(row), row.getValue("currency"),
-                    decimal(row, "gross"), decimal(row, "withheld"), decimal(row, "fee"), decimal(row, "eur_rate"))
+                ImportedDividend(
+                    row.getValue("reference"),
+                    date(row),
+                    id(row),
+                    row.getValue("currency"),
+                    decimal(row, "gross"),
+                    decimal(row, "withheld"),
+                    decimal(row, "fee"),
+                    decimal(row, "eur_rate"),
+                )
             }
             require(dividends.map { it.reference }.distinct().size == dividends.size)
             return LightyearSnapshotImport.Dividends(dividends)
@@ -69,11 +104,20 @@ public object LightyearSnapshotCsv {
             val holdings = mutableListOf<ImportedHolding>()
             for ((day, group) in entries.groupBy { date(it) }.toSortedMap()) {
                 require(group.map { id(it) }.distinct().size == group.size)
-                require(group.any { id(it).startsWith("CASH:") }) { "Explicit cash balance required" }
+                require(
+                    group.any {
+                        id(it).startsWith("CASH:")
+                    },
+                ) { "Explicit cash balance required" }
                 val deposits = group.map { money(it, "deposits_eur") }.distinct().single()
                 val withdrawals = group.map { money(it, "withdrawals_eur") }.distinct().single()
                 for ((_, rates) in group.groupBy { it.getValue("currency") }) {
-                    require(rates.map { decimal(it, "eur_rate").stripTrailingZeros() }.distinct().size == 1)
+                    require(
+                        rates.map {
+                            decimal(it, "eur_rate").stripTrailingZeros()
+                        }.distinct().size ==
+                            1,
+                    )
                 }
                 val amounts = group.map { row ->
                     val instrument = id(row)
@@ -81,10 +125,21 @@ public object LightyearSnapshotCsv {
                     val quantity = decimal(row, "quantity")
                     val price = decimal(row, "unit_price")
                     if (instrument.startsWith("CASH:")) {
-                        require(instrument == "CASH:$currency" && price.compareTo(BigDecimal.ONE) == 0)
-                    } else require(price.signum() > 0)
-                    val amount = LightyearValuation.euroMinor(quantity.multiply(price), currency, decimal(row, "eur_rate"))
-                    if (!instrument.startsWith("CASH:")) holdings += ImportedHolding(day, instrument, quantity, amount, null)
+                        require(
+                            instrument == "CASH:$currency" && price.compareTo(BigDecimal.ONE) == 0,
+                        )
+                    } else {
+                        require(price.signum() > 0)
+                    }
+                    val amount = LightyearValuation.euroMinor(
+                        quantity.multiply(price),
+                        currency,
+                        decimal(row, "eur_rate"),
+                    )
+                    if (!instrument.startsWith("CASH:")) {
+                        holdings +=
+                            ImportedHolding(day, instrument, quantity, amount, null)
+                    }
                     amount
                 }
                 snapshots += LightyearValuation.total(day, amounts, deposits, withdrawals)
@@ -95,7 +150,12 @@ public object LightyearSnapshotCsv {
         require(entries.all { it.getValue("currency") == "EUR" })
         return if (columns.toSet() == portfolioFields) {
             val result = entries.map { row ->
-                PortfolioSnapshot(date(row), money(row, "value"), money(row, "deposits"), money(row, "withdrawals"))
+                PortfolioSnapshot(
+                    date(row),
+                    money(row, "value"),
+                    money(row, "deposits"),
+                    money(row, "withdrawals"),
+                )
             }.sortedBy { it.date }
             require(result.map { it.date }.distinct().size == result.size)
             result.zipWithNext().forEach { (a, b) -> InvestmentTracking.change(a, b) }
@@ -104,12 +164,19 @@ public object LightyearSnapshotCsv {
             val result = entries.map { row ->
                 val id = row.getValue("instrument").uppercase(Locale.ROOT)
                 require(id.isNotBlank() && id.length <= 100 && id.none { it.isISOControl() })
-                val quantity = BigDecimal(row.getValue("quantity").let {
-                    if (delimiter == ';') it.replace(',', '.') else it
-                })
-                require(quantity.signum() >= 0 && quantity.scale() in 0..12 && quantity.precision() <= 30)
+                val quantity = BigDecimal(
+                    row.getValue("quantity").let {
+                        if (delimiter == ';') it.replace(',', '.') else it
+                    },
+                )
+                require(
+                    quantity.signum() >= 0 && quantity.scale() in 0..12 &&
+                        quantity.precision() <= 30,
+                )
                 val value = money(row, "value")
-                val cost = row.getValue("cost").takeIf { it.isNotEmpty() }?.let { money(row, "cost") }
+                val cost = row.getValue("cost").takeIf {
+                    it.isNotEmpty()
+                }?.let { money(row, "cost") }
                 require(quantity.signum() != 0 || (value == 0L && (cost == null || cost == 0L)))
                 ImportedHolding(date(row), id, quantity, value, cost)
             }

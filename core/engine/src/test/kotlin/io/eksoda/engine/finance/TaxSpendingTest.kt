@@ -18,7 +18,8 @@ class TaxSpendingTest {
         year: Int = 2026,
         account: String = "A",
     ) = TaxPayment(
-        BankMovement(account, LocalDate.of(year, 3, 1), "sample", amount, kind, id, category), review,
+        BankMovement(account, LocalDate.of(year, 3, 1), "sample", amount, kind, id, category),
+        review,
     )
 
     private fun calculate(p: AnnualTaxPlan = plan, vararg rows: TaxPayment) =
@@ -33,7 +34,10 @@ class TaxSpendingTest {
         money(300_000, calculate(plan.copy(mode = TaxTargetMode.REDUCED)).targetMinor)
         money(0, calculate(plan.copy(mode = TaxTargetMode.EXEMPT)).targetMinor)
         money(2_000_000, calculate(plan.copy(incomeMinor = 10_000_000)).targetMinor)
-        money(500_000, calculate(plan.copy(incomeMinor = 10_000_000, specialCap = true)).targetMinor)
+        money(
+            500_000,
+            calculate(plan.copy(incomeMinor = 10_000_000, specialCap = true)).targetMinor,
+        )
     }
 
     @Test

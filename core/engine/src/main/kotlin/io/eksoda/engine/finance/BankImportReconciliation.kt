@@ -10,7 +10,10 @@ public data class ImportReconciliation(
 }
 
 public object BankImportReconciliation {
-    public fun reconcile(existing: Iterable<BankMovement>, incoming: Iterable<BankMovement>): ImportReconciliation {
+    public fun reconcile(
+        existing: Iterable<BankMovement>,
+        incoming: Iterable<BankMovement>,
+    ): ImportReconciliation {
         val byId = mutableMapOf<Pair<String, String>, BankMovement>()
         existing.forEach { movement ->
             movement.sourceId?.let { id -> byId[movement.accountId to id] = movement }
@@ -30,9 +33,11 @@ public object BankImportReconciliation {
                         fresh.add(movement)
                         byId[key] = movement
                     }
+
                     previous.date == movement.date &&
                         previous.description == movement.description &&
                         previous.amountMinor == movement.amountMinor -> duplicates.add(movement)
+
                     else -> conflicts.add(movement)
                 }
             }

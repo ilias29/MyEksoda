@@ -11,7 +11,8 @@ class BankImportPreviewTest {
     fun invalidRowsBlockCommitAndIdentifyTheirLine() {
         val preview = BankCsv.preview(
             "date;description;amount;id\n25/11/2026;Ενοίκιο;-500,00;one\nwrong;Δόση δανείου;-200,00;two\n",
-            "bank", CsvMapping(0, 1, 2, 3),
+            "bank",
+            CsvMapping(0, 1, 2, 3),
         )
         assertFalse(preview.canCommit)
         assertEquals(3, preview.problems.single().line)
@@ -25,8 +26,10 @@ class BankImportPreviewTest {
         assertTrue(preview.canCommit)
         assertEquals(SpendingCategory.LOAN_PAYMENT, preview.movements.first().category)
         assertEquals(SpendingCategory.UNCLASSIFIED, preview.movements.last().category)
-        assertEquals(SpendingCategory.UTILITIES,
-            preview.movements.first().copy(category = SpendingCategory.UTILITIES).category)
+        assertEquals(
+            SpendingCategory.UTILITIES,
+            preview.movements.first().copy(category = SpendingCategory.UTILITIES).category,
+        )
     }
 
     @Test
@@ -37,8 +40,14 @@ class BankImportPreviewTest {
         val original = payment("account1", "bank-id")
         val result = BankImportReconciliation.reconcile(
             listOf(original),
-            listOf(original, original, payment("account1", "bank-id", -600),
-                payment("account2", "bank-id"), payment("account1", null), payment("account1", null)),
+            listOf(
+                original,
+                original,
+                payment("account1", "bank-id", -600),
+                payment("account2", "bank-id"),
+                payment("account1", null),
+                payment("account1", null),
+            ),
         )
         assertEquals(2, result.alreadyImported.size)
         assertEquals(1, result.conflicts.size)

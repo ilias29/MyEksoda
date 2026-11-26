@@ -19,8 +19,10 @@ internal object TwelveDataPrices {
             require(mic.matches(Regex("[A-Z0-9]{4}")))
             require(apiKey.matches(Regex("[A-Za-z0-9_-]{8,128}")))
             val encoded = URLEncoder.encode(symbol, "UTF-8")
-            val uri = URI("https://api.twelvedata.com/time_series?symbol=$encoded&mic_code=$mic" +
-                "&interval=1day&outputsize=400&adjust=splits")
+            val uri = URI(
+                "https://api.twelvedata.com/time_series?symbol=$encoded&mic_code=$mic" +
+                    "&interval=1day&outputsize=400&adjust=splits",
+            )
             val connection = uri.toURL().openConnection() as HttpsURLConnection
             try {
                 connection.instanceFollowRedirects = false
@@ -46,7 +48,12 @@ internal object TwelveDataPrices {
             }
         }
 
-    internal fun parse(body: String, symbol: String, mic: String, today: LocalDate): MarketPriceHistory {
+    internal fun parse(
+        body: String,
+        symbol: String,
+        mic: String,
+        today: LocalDate,
+    ): MarketPriceHistory {
         val root = JSONObject(body)
         check(root.optString("status") == "ok") { "Data not available" }
         val meta = root.getJSONObject("meta")

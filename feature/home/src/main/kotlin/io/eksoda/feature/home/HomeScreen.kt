@@ -140,9 +140,14 @@ fun HomeScreen(
         ) {
             if (onFinanceClick != null) {
                 SectionCard(modifier = Modifier.clickable(onClick = onFinanceClick)) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         Text("Τα οικονομικά μου", style = MaterialTheme.typography.titleLarge)
-                        Text("Κινήσεις, προϋπολογισμός, αφορολόγητο, Lightyear και καθαρή περιουσία")
+                        Text(
+                            "Κινήσεις, προϋπολογισμός, αφορολόγητο, Lightyear και καθαρή περιουσία",
+                        )
                         TextButton(onClick = onFinanceClick) { Text("Άνοιγμα οικονομικών") }
                     }
                 }

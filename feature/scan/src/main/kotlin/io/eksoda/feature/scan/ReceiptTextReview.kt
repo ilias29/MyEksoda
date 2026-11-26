@@ -28,16 +28,26 @@ internal fun ReceiptTextReview(text: String) {
             val unit = item.unitPriceMinor
             val detail = if (item.quantity != null && unit != null) {
                 " · ${item.quantity} × ${receiptEuro(unit)}"
-            } else ""
+            } else {
+                ""
+            }
             Text(item.name + detail + " · " + receiptEuro(item.lineMinor))
         }
-        parsed.discountsMinor.forEach { Text(stringResource(R.string.scan_ocr_discount, receiptEuro(it))) }
+        parsed.discountsMinor.forEach {
+            Text(stringResource(R.string.scan_ocr_discount, receiptEuro(it)))
+        }
         parsed.vatMinor?.let { Text(stringResource(R.string.scan_ocr_vat, receiptEuro(it))) }
         Text(stringResource(R.string.scan_ocr_calculated, receiptEuro(parsed.calculatedMinor)))
         Text(stringResource(R.string.scan_ocr_total, parsed.totalMinor?.let(::receiptEuro) ?: "—"))
         Text(
-            stringResource(if (parsed.reconciles) R.string.scan_ocr_reconciles else R.string.scan_ocr_mismatch),
-            color = if (parsed.reconciles) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            stringResource(
+                if (parsed.reconciles) R.string.scan_ocr_reconciles else R.string.scan_ocr_mismatch,
+            ),
+            color = if (parsed.reconciles) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            },
         )
         if (parsed.warnings.isNotEmpty()) {
             Text(stringResource(R.string.scan_ocr_warnings, parsed.warnings.size))

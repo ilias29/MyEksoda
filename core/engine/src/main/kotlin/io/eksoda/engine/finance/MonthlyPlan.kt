@@ -29,7 +29,12 @@ public data class PlanProgress(
 )
 
 public object MonthlyPlanning {
-    public fun evaluate(month: YearMonth, today: LocalDate, plan: MonthlyPlan, actual: MonthlyOverview): PlanProgress {
+    public fun evaluate(
+        month: YearMonth,
+        today: LocalDate,
+        plan: MonthlyPlan,
+        actual: MonthlyOverview,
+    ): PlanProgress {
         require(!month.isAfter(YearMonth.from(today)))
         val limit = BigDecimal.valueOf(plan.spendingLimitMinor)
         val income = BigDecimal.valueOf(plan.expectedIncomeMinor)
@@ -42,15 +47,31 @@ public object MonthlyPlanning {
             spent * BigDecimal.TEN >= limit * BigDecimal.valueOf(8) -> BudgetStatus.NEAR
             else -> BudgetStatus.WITHIN
         }
-        val elapsed = if (month == YearMonth.from(today)) today.dayOfMonth else month.lengthOfMonth()
+        val elapsed = if (month ==
+            YearMonth.from(today)
+        ) {
+            today.dayOfMonth
+        } else {
+            month.lengthOfMonth()
+        }
         // A partial month needs at least seven days of recorded history before displaying a pace estimate.
         val forecast = when {
             elapsed == month.lengthOfMonth() -> spent
+
             elapsed < 7 || actual.movementCount == 0 -> null
-            else -> spent.max(BigDecimal.ZERO).multiply(BigDecimal.valueOf(month.lengthOfMonth().toLong()))
+
+            else -> spent.max(
+                BigDecimal.ZERO,
+            ).multiply(BigDecimal.valueOf(month.lengthOfMonth().toLong()))
                 .divide(BigDecimal.valueOf(elapsed.toLong()), 0, RoundingMode.HALF_UP)
         }
-        val estimatedIncome = if (elapsed == month.lengthOfMonth()) BigDecimal.valueOf(actual.incomeMinor) else income
+        val estimatedIncome = if (elapsed ==
+            month.lengthOfMonth()
+        ) {
+            BigDecimal.valueOf(actual.incomeMinor)
+        } else {
+            income
+        }
         return PlanProgress(
             limit - spent,
             status,

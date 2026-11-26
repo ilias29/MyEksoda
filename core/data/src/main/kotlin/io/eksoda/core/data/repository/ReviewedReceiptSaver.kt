@@ -57,25 +57,46 @@ class ReviewedReceiptSaver @Inject constructor(
         val canonical = reviewedCanonical(input, zone)
         return coordinator.write {
             val identity = canonical.identity
-            val existing = receipts.findExisting(identity.mark, "GR", canonical.issuer.vatNumber, null, identity.sourceKey)
+            val existing = receipts.findExisting(
+                identity.mark,
+                "GR",
+                canonical.issuer.vatNumber,
+                null,
+                identity.sourceKey,
+            )
             if (existing != null) {
-                check(existing.issuerVat == canonical.issuer.vatNumber &&
-                    existing.issuedLocalDate == input.date.toString() &&
-                    existing.grossTotalMinor == canonical.totals.gross.movePointRight(2).longValueExact())
+                check(
+                    existing.issuerVat == canonical.issuer.vatNumber &&
+                        existing.issuedLocalDate == input.date.toString() &&
+                        existing.grossTotalMinor ==
+                        canonical.totals.gross.movePointRight(2).longValueExact(),
+                )
                 return@write ReviewedReceiptResult.Saved(existing.id, true)
             }
             val possible = receipts.possibleReviewedDuplicate(
-                canonical.issuer.vatNumber, input.date.toString(),
+                canonical.issuer.vatNumber,
+                input.date.toString(),
                 canonical.totals.gross.movePointRight(2).longValueExact(),
             )
-            if (possible && !input.confirmedDistinct) return@write ReviewedReceiptResult.PossibleDuplicate
+            if (possible &&
+                !input.confirmedDistinct
+            ) {
+                return@write ReviewedReceiptResult.PossibleDuplicate
+            }
             // A user-entered merchant name must not overwrite the legal name imported from QR.
             val merchant = merchants.find("GR", canonical.issuer.vatNumber)
-            val safe = if (merchant == null) canonical else canonical.copy(
-                issuer = canonical.issuer.copy(legalName = merchant.legalName),
-            )
+            val safe = if (merchant == null) {
+                canonical
+            } else {
+                canonical.copy(
+                    issuer = canonical.issuer.copy(legalName = merchant.legalName),
+                )
+            }
             val saved = persister.persist(safe, validate(safe), zone)
-            ReviewedReceiptResult.Saved(saved.receiptId, saved.outcome == Persister.OUTCOME_DUPLICATE)
+            ReviewedReceiptResult.Saved(
+                saved.receiptId,
+                saved.outcome == Persister.OUTCOME_DUPLICATE,
+            )
         }
     }
 }
@@ -105,12 +126,24 @@ internal fun reviewedCanonical(input: ReviewedReceiptInput, zone: ZoneId): Canon
             gross = minor(item.lineMinor),
             quantity = item.quantity,
             unitPrice = item.unitPriceMinor?.let(::minor),
-            unitPriceBasis = if (item.unitPriceMinor == null) PriceBasis.UNKNOWN else PriceBasis.GROSS,
+            unitPriceBasis = if (item.unitPriceMinor ==
+                null
+            ) {
+                PriceBasis.UNKNOWN
+            } else {
+                PriceBasis.GROSS
+            },
         )
     } + parsed.discountsMinor.mapIndexed { index, amount ->
-        Line(lineNumber = parsed.items.size + index + 1, description = "ΕΚΠΤΩΣΗ", gross = minor(-amount))
+        Line(
+            lineNumber = parsed.items.size + index + 1,
+            description = "ΕΚΠΤΩΣΗ",
+            gross = minor(-amount),
+        )
     }
-    val discounts = parsed.discountsMinor.fold(BigDecimal.ZERO) { sum, amount -> sum + minor(amount) }
+    val discounts = parsed.discountsMinor.fold(BigDecimal.ZERO) { sum, amount ->
+        sum + minor(amount)
+    }
     val gross = minor(total)
     val sourceKey = "reviewed-ocr:" + fingerprint("GR|$vat|${input.date}|$number")
     return CanonicalReceipt(
@@ -141,7 +174,13 @@ internal fun reviewedCanonical(input: ReviewedReceiptInput, zone: ZoneId): Canon
             issueTime = IssueTime.DATE_ONLY,
             crossChecked = false,
         ),
-        payments = if (input.payment == PaymentMethod.UNKNOWN) emptyList() else listOf(Payment(gross, input.payment)),
+        payments = if (input.payment ==
+            PaymentMethod.UNKNOWN
+        ) {
+            emptyList()
+        } else {
+            listOf(Payment(gross, input.payment))
+        },
     )
 }
 

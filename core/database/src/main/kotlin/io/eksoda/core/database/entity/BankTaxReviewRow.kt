@@ -6,8 +6,14 @@ import androidx.room.ForeignKey
 @Entity(
     tableName = "finance_tax_review",
     primaryKeys = ["account", "reference"],
-    foreignKeys = [ForeignKey(entity = BankRow::class, parentColumns = ["account", "reference"],
-        childColumns = ["account", "reference"], onDelete = ForeignKey.CASCADE)],
+    foreignKeys = [
+        ForeignKey(
+            entity = BankRow::class,
+            parentColumns = ["account", "reference"],
+            childColumns = ["account", "reference"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
 )
 data class BankTaxReviewRow(
     val account: String,

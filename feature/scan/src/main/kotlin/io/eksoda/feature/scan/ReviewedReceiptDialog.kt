@@ -64,20 +64,71 @@ internal fun ReviewedReceiptDialog(
                 Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("Απόδειξη αγοράς σε ευρώ. Έλεγξε κάθε γραμμή και μη συμπεριλάβεις στοιχεία κάρτας ή προσωπικά στοιχεία.")
-                OutlinedTextField(text, { text = it; reset() }, enabled = !busy, maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Κείμενο") })
+                Text(
+                    "Απόδειξη αγοράς σε ευρώ. Έλεγξε κάθε γραμμή και μη συμπεριλάβεις στοιχεία κάρτας ή προσωπικά στοιχεία.",
+                )
+                OutlinedTextField(
+                    text,
+                    {
+                        text = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Κείμενο") },
+                )
                 ReceiptTextReview(text)
-                OutlinedTextField(merchant, { merchant = it; reset() }, enabled = !busy,
-                    label = { Text("Επωνυμία καταστήματος") }, singleLine = true)
-                OutlinedTextField(vat, { vat = it; reset() }, enabled = !busy,
-                    label = { Text("ΑΦΜ καταστήματος (9 ψηφία)") }, singleLine = true)
-                OutlinedTextField(date, { date = it; reset() }, enabled = !busy,
-                    label = { Text("Ημερομηνία ΕΕΕΕ-ΜΜ-ΗΗ") }, singleLine = true)
-                OutlinedTextField(number, { number = it; reset() }, enabled = !busy,
-                    label = { Text("Σειρά και αριθμός απόδειξης") }, singleLine = true)
-                OutlinedTextField(mark, { mark = it; reset() }, enabled = !busy,
-                    label = { Text("MARK (αν αναγράφεται)") }, singleLine = true)
+                OutlinedTextField(
+                    merchant,
+                    {
+                        merchant = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    label = { Text("Επωνυμία καταστήματος") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    vat,
+                    {
+                        vat = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    label = { Text("ΑΦΜ καταστήματος (9 ψηφία)") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    date,
+                    {
+                        date = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    label = { Text("Ημερομηνία ΕΕΕΕ-ΜΜ-ΗΗ") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    number,
+                    {
+                        number = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    label = { Text("Σειρά και αριθμός απόδειξης") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    mark,
+                    {
+                        mark = it
+                        reset()
+                    },
+                    enabled = !busy,
+                    label = { Text("MARK (αν αναγράφεται)") },
+                    singleLine = true,
+                )
                 val method = when (payment) {
                     PaymentMethod.CASH -> "Μετρητά"
                     PaymentMethod.CARD -> "Κάρτα"
@@ -94,12 +145,20 @@ internal fun ReviewedReceiptDialog(
                 Text("Επιβεβαιώνω ότι όλα τα είδη και τα ποσά συμφωνούν με τη φωτογραφία.")
                 Checkbox(checked, { checked = it }, enabled = !busy)
                 if (possible) {
-                    Text("Υπάρχει απόδειξη του ίδιου καταστήματος με ίδια ημερομηνία και ποσό. Συνέχισε μόνο αν είναι διαφορετική αγορά.")
+                    Text(
+                        "Υπάρχει απόδειξη του ίδιου καταστήματος με ίδια ημερομηνία και ποσό. Συνέχισε μόνο αν είναι διαφορετική αγορά.",
+                    )
                     Checkbox(distinct, { distinct = it }, enabled = !busy)
                     Text("Επιβεβαιώνω ότι είναι διαφορετική απόδειξη.")
                 }
-                if (error) Text("Δεν αποθηκεύτηκε. Έλεγξε ΑΦΜ, ημερομηνία, αριθμό και ποσά ή πιθανή σύγκρουση MARK.")
-                Text("Δεν δημιουργείται τραπεζική ή ταμειακή κίνηση. Η αντιστοίχιση πληρωμής θα γίνει χωριστά.")
+                if (error) {
+                    Text(
+                        "Δεν αποθηκεύτηκε. Έλεγξε ΑΦΜ, ημερομηνία, αριθμό και ποσά ή πιθανή σύγκρουση MARK.",
+                    )
+                }
+                Text(
+                    "Δεν δημιουργείται τραπεζική ή ταμειακή κίνηση. Η αντιστοίχιση πληρωμής θα γίνει χωριστά.",
+                )
             }
         },
         confirmButton = {
@@ -111,7 +170,17 @@ internal fun ReviewedReceiptDialog(
                         if (day == null) {
                             error = true
                         } else {
-                            val input = ReviewedReceiptInput(text, merchant, vat, day, number, mark, payment, distinct)
+                            val input =
+                                ReviewedReceiptInput(
+                                    text,
+                                    merchant,
+                                    vat,
+                                    day,
+                                    number,
+                                    mark,
+                                    payment,
+                                    distinct,
+                                )
                             busy = true
                             error = false
                             scope.launch {
@@ -134,7 +203,9 @@ internal fun ReviewedReceiptDialog(
             }
         },
         dismissButton = {
-            TextButton(enabled = !busy, onClick = onClose) { Text(stringResource(R.string.scan_close)) }
+            TextButton(enabled = !busy, onClick = onClose) {
+                Text(stringResource(R.string.scan_close))
+            }
         },
     )
 }

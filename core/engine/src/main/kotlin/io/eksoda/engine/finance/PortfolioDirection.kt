@@ -18,16 +18,24 @@ public data class PortfolioStatus(
 public object PortfolioAssessment {
     public fun assess(latest: PortfolioSnapshot, previous: PortfolioSnapshot?): PortfolioStatus {
         val change = previous?.let { InvestmentTracking.change(it, latest) }
-        val flows = previous != null && (previous.depositedMinor != latest.depositedMinor ||
-            previous.withdrawnMinor != latest.withdrawnMinor)
+        val flows = previous != null && (
+            previous.depositedMinor != latest.depositedMinor ||
+                previous.withdrawnMinor != latest.withdrawnMinor
+            )
         // Without cash-flow timing, a period return with external flows would be misleading.
         val percent = if (previous != null && change != null && !flows && previous.valueMinor > 0) {
             change.gainChangeMinor.multiply(BigDecimal(100))
                 .divide(BigDecimal.valueOf(previous.valueMinor), 2, RoundingMode.HALF_UP)
-        } else null
+        } else {
+            null
+        }
         return PortfolioStatus(
-            latest.gainMinor, direction(latest.gainMinor), change?.gainChangeMinor,
-            change?.gainChangeMinor?.let(::direction), percent, flows,
+            latest.gainMinor,
+            direction(latest.gainMinor),
+            change?.gainChangeMinor,
+            change?.gainChangeMinor?.let(::direction),
+            percent,
+            flows,
         )
     }
 

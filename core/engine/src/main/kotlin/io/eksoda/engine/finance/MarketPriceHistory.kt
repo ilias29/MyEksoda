@@ -5,17 +5,16 @@ import java.math.RoundingMode
 import java.time.LocalDate
 
 public data class DailyMarketPrice(val day: LocalDate, val close: BigDecimal) {
-    init { require(close.signum() > 0) }
+    init {
+        require(close.signum() > 0)
+    }
 }
 
 public enum class MarketPeriod { DAY, WEEK, MONTH, YEAR }
 
 public data class MarketPriceChange(val from: LocalDate, val to: LocalDate, val percent: BigDecimal)
 
-public class MarketPriceHistory(
-    public val currency: String,
-    prices: List<DailyMarketPrice>,
-) {
+public class MarketPriceHistory(public val currency: String, prices: List<DailyMarketPrice>) {
     public val prices: List<DailyMarketPrice> = prices.sortedByDescending { it.day }
     init {
         require(currency.matches(Regex("[A-Z]{3}")))

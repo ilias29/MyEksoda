@@ -9,23 +9,45 @@ import java.time.LocalDate
 
 class FinanceAdvisorTest {
     private val today = LocalDate.parse("2026-03-31")
-    private fun row(date: String, amount: Long, kind: MovementKind = MovementKind.EXPENSE,
-                    category: SpendingCategory = SpendingCategory.UNCLASSIFIED) =
-        LedgerEntry(FinanceSource.BANK, BankMovement("A", LocalDate.parse(date), "sample",
-            amount, kind, category = category))
+    private fun row(
+        date: String,
+        amount: Long,
+        kind: MovementKind = MovementKind.EXPENSE,
+        category: SpendingCategory = SpendingCategory.UNCLASSIFIED,
+    ) = LedgerEntry(
+        FinanceSource.BANK,
+        BankMovement(
+            "A",
+            LocalDate.parse(date),
+            "sample",
+            amount,
+            kind,
+            category = category,
+        ),
+    )
 
     private val rows = listOf(
         row("2026-03-02", -30000, category = SpendingCategory.GROCERIES),
-        row("2026-03-03", -10000), row("2026-03-31", -5000),
+        row("2026-03-03", -10000),
+        row("2026-03-31", -5000),
         row("2026-03-04", 5000, MovementKind.REFUND),
         row("2026-03-01", 10000, MovementKind.INCOME),
         row("2026-03-01", -99999, MovementKind.TRANSFER),
-        row("2026-02-01", -20000), row("2026-04-01", -99999),
+        row("2026-02-01", -20000),
+        row("2026-04-01", -99999),
     )
 
     private fun advice(confirmed: Boolean, entries: List<LedgerEntry> = rows) =
-        FinanceAdvisor.evaluate(today, entries, MonthlyPlan(35000, 50000, 20000),
-            listOf(1000, 2000), emptyList(), null, false, confirmed)
+        FinanceAdvisor.evaluate(
+            today,
+            entries,
+            MonthlyPlan(35000, 50000, 20000),
+            listOf(1000, 2000),
+            emptyList(),
+            null,
+            false,
+            confirmed,
+        )
 
     @Test
     fun equalDaysAndRecordedAmounts() {

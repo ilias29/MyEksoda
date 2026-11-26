@@ -9,10 +9,18 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "finance_receipt_bank",
     foreignKeys = [
-        ForeignKey(entity = ReceiptEntity::class, parentColumns = ["id"],
-            childColumns = ["receiptId"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = BankRow::class, parentColumns = ["account", "reference"],
-            childColumns = ["account", "reference"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(
+            entity = ReceiptEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["receiptId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = BankRow::class,
+            parentColumns = ["account", "reference"],
+            childColumns = ["account", "reference"],
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
     indices = [Index(value = ["account", "reference"], unique = true)],
 )

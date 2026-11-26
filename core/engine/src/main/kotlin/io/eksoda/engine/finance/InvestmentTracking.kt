@@ -22,14 +22,20 @@ public data class PortfolioSnapshot(
         get() = BigDecimal.valueOf(valueMinor) - netFundingMinor
 }
 
-public data class PortfolioChange(val valueChangeMinor: BigDecimal, val fundingChangeMinor: BigDecimal) {
+public data class PortfolioChange(
+    val valueChangeMinor: BigDecimal,
+    val fundingChangeMinor: BigDecimal,
+) {
     public val gainChangeMinor: BigDecimal get() = valueChangeMinor - fundingChangeMinor
 }
 
 public object InvestmentTracking {
     public fun change(earlier: PortfolioSnapshot, later: PortfolioSnapshot): PortfolioChange {
         require(earlier.date < later.date)
-        require(later.depositedMinor >= earlier.depositedMinor && later.withdrawnMinor >= earlier.withdrawnMinor)
+        require(
+            later.depositedMinor >= earlier.depositedMinor &&
+                later.withdrawnMinor >= earlier.withdrawnMinor,
+        )
         return PortfolioChange(
             BigDecimal.valueOf(later.valueMinor) - BigDecimal.valueOf(earlier.valueMinor),
             later.netFundingMinor - earlier.netFundingMinor,

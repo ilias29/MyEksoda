@@ -43,8 +43,10 @@ public object BankLedger {
         for (movement in movements) {
             when (movement.kind) {
                 MovementKind.INCOME -> income = Math.addExact(income, movement.amountMinor)
+
                 MovementKind.EXPENSE, MovementKind.REFUND ->
                     spending = Math.subtractExact(spending, movement.amountMinor)
+
                 MovementKind.TRANSFER -> Unit
             }
         }
@@ -56,12 +58,19 @@ public object SpendingClassifier {
     /** Suggest only unmistakable descriptions; leave all other payments for manual review. */
     public fun suggest(movement: BankMovement): SpendingCategory {
         if (movement.kind != MovementKind.EXPENSE) return SpendingCategory.UNCLASSIFIED
-        val text = java.text.Normalizer.normalize(movement.description, java.text.Normalizer.Form.NFD)
+        val text = java.text.Normalizer.normalize(
+            movement.description,
+            java.text.Normalizer.Form.NFD,
+        )
             .replace(Regex("\\p{M}+"), "").uppercase(java.util.Locale.ROOT)
         return when {
             Regex("\\b(ΕΝΟΙΚΙΟ|ΕΝΟΙΚΙΑ|RENT)\\b").containsMatchIn(text) -> SpendingCategory.RENT
-            Regex("\\b(ΔΟΣΗ ΔΑΝΕΙΟΥ|ΔΟΣΗ ΣΤΕΓΑΣΤΙΚΟΥ|LOAN PAYMENT|LOAN INSTALMENT|LOAN INSTALLMENT)\\b")
+
+            Regex(
+                "\\b(ΔΟΣΗ ΔΑΝΕΙΟΥ|ΔΟΣΗ ΣΤΕΓΑΣΤΙΚΟΥ|LOAN PAYMENT|LOAN INSTALMENT|LOAN INSTALLMENT)\\b",
+            )
                 .containsMatchIn(text) -> SpendingCategory.LOAN_PAYMENT
+
             else -> SpendingCategory.UNCLASSIFIED
         }
     }

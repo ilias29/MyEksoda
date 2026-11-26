@@ -28,9 +28,11 @@ internal fun PriceObservatory(stats: PriceStats, priced: List<PriceEntry>) {
         ) {
             change?.let {
                 val sign = if (it.percent.signum() > 0) "+" else ""
-                Text("Μεταβολή από την πρώτη καταγεγραμμένη αγορά: " +
-                    sign + it.percent.toPlainString() + "%",
-                    style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Μεταβολή από την πρώτη καταγεγραμμένη αγορά: " +
+                        sign + it.percent.toPlainString() + "%",
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Text("${it.oldest.issuedAt.format(date)} → ${it.latest.issuedAt.format(date)}")
             }
             Text("Τελευταία καταγεγραμμένη τιμή ανά έμπορο")
@@ -40,15 +42,24 @@ internal fun PriceObservatory(stats: PriceStats, priced: List<PriceEntry>) {
                 if (shop.ambiguousLatest) {
                     Text("Διαφορετικές τιμές την ίδια στιγμή · έλεγξε τις αποδείξεις.")
                 } else {
-                    val value = pricePerUnit(checkNotNull(entry.normalizedUnitPrice), stats.currency, stats.normalizedUnit)
+                    val value =
+                        pricePerUnit(
+                            checkNotNull(entry.normalizedUnitPrice),
+                            stats.currency,
+                            stats.normalizedUnit,
+                        )
                     Text("$value · ${entry.issuedAt.format(date)}")
                 }
-                Text("Αποδείξεις με συγκρίσιμη τιμή: ${shop.purchaseCount}",
-                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Αποδείξεις με συγκρίσιμη τιμή: ${shop.purchaseCount}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
-            Text("Ιστορικές τιμές από αγορές, όχι σημερινές τιμές ραφιού. " +
-                "Οι εκπτώσεις ολόκληρης της απόδειξης δεν επιμερίζονται στα προϊόντα.",
-                style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Ιστορικές τιμές από αγορές, όχι σημερινές τιμές ραφιού. " +
+                    "Οι εκπτώσεις ολόκληρης της απόδειξης δεν επιμερίζονται στα προϊόντα.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

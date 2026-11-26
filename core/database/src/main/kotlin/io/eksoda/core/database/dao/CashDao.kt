@@ -1,23 +1,23 @@
 package io.eksoda.core.database.dao
 
-import io.eksoda.core.database.entity.MonthlyPlanRow
-import io.eksoda.core.database.entity.ReceiptBankLink
-import io.eksoda.core.database.entity.BankTaxReviewRow
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Upsert
 import io.eksoda.core.database.entity.AnnualTaxPlanRow
+import io.eksoda.core.database.entity.BankRow
+import io.eksoda.core.database.entity.BankTaxReviewRow
+import io.eksoda.core.database.entity.CashRow
 import io.eksoda.core.database.entity.DividendRow
 import io.eksoda.core.database.entity.HoldingSnapshotRow
-import io.eksoda.core.database.entity.PortfolioSnapshotRow
+import io.eksoda.core.database.entity.MonthlyPlanRow
 import io.eksoda.core.database.entity.NetWorthRow
-import io.eksoda.core.database.entity.PlannedPaymentRow
 import io.eksoda.core.database.entity.PaydayPlanRow
-import androidx.room.Dao
-import androidx.room.Upsert
+import io.eksoda.core.database.entity.PlannedPaymentRow
+import io.eksoda.core.database.entity.PortfolioSnapshotRow
+import io.eksoda.core.database.entity.ReceiptBankLink
 import io.eksoda.core.database.entity.SubscriptionRow
-import androidx.room.Insert
-import io.eksoda.core.database.entity.BankRow
-import androidx.room.Transaction
-import androidx.room.Query
-import io.eksoda.core.database.entity.CashRow
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -94,8 +94,12 @@ interface CashDao {
         var count = 0
         for (row in rows) {
             val existing = findDividend(row.broker, row.reference)
-            if (existing == null) { insertDividend(row); count++ }
-            else require(existing == row) { "Conflicting dividend" }
+            if (existing == null) {
+                insertDividend(row)
+                count++
+            } else {
+                require(existing == row) { "Conflicting dividend" }
+            }
         }
         return count
     }
@@ -106,16 +110,24 @@ interface CashDao {
         require(rows.all { it.broker == "Lightyear" })
         require(rows.map { it.day }.distinct().size == rows.size)
         val combined = (existing.values + rows.filter { it.day !in existing }).sortedBy { it.day }
-        require(rows.all { existing[it.day] == null || existing[it.day] == it }) { "Conflicting snapshot" }
-        require(combined.zipWithNext().all { (a, b) ->
-            a.depositedMinor <= b.depositedMinor && a.withdrawnMinor <= b.withdrawnMinor
-        })
+        require(
+            rows.all {
+                existing[it.day] == null || existing[it.day] == it
+            },
+        ) { "Conflicting snapshot" }
+        require(
+            combined.zipWithNext().all { (a, b) ->
+                a.depositedMinor <= b.depositedMinor && a.withdrawnMinor <= b.withdrawnMinor
+            },
+        )
         val newRows = rows.filter { it.day !in existing }
         newRows.forEach { upsertPortfolioSnapshot(it) }
         return newRows.size
     }
 
-    @Query("SELECT * FROM finance_holding_snapshot WHERE broker = :broker AND instrument = :instrument AND day = :day")
+    @Query(
+        "SELECT * FROM finance_holding_snapshot WHERE broker = :broker AND instrument = :instrument AND day = :day",
+    )
     suspend fun findHolding(broker: String, instrument: String, day: String): HoldingSnapshotRow?
 
     @Transaction
@@ -147,14 +159,25 @@ interface CashDao {
     @Transaction
     suspend fun savePortfolioSnapshot(row: PortfolioSnapshotRow) {
         val history = portfolioHistory(row.broker).filter { it.day != row.day }
-        require(history.all {
-            if (it.day < row.day) it.depositedMinor <= row.depositedMinor && it.withdrawnMinor <= row.withdrawnMinor
-            else it.depositedMinor >= row.depositedMinor && it.withdrawnMinor >= row.withdrawnMinor
-        }) { "Cumulative deposits or withdrawals contradict existing history" }
+        require(
+            history.all {
+                if (it.day <
+                    row.day
+                ) {
+                    it.depositedMinor <= row.depositedMinor &&
+                        it.withdrawnMinor <= row.withdrawnMinor
+                } else {
+                    it.depositedMinor >= row.depositedMinor &&
+                        it.withdrawnMinor >= row.withdrawnMinor
+                }
+            },
+        ) { "Cumulative deposits or withdrawals contradict existing history" }
         upsertPortfolioSnapshot(row)
     }
 
-    @Query("SELECT * FROM finance_holding_snapshot WHERE broker = :broker ORDER BY day DESC, instrument")
+    @Query(
+        "SELECT * FROM finance_holding_snapshot WHERE broker = :broker ORDER BY day DESC, instrument",
+    )
     fun holdingSnapshots(broker: String): Flow<List<HoldingSnapshotRow>>
 
     @Upsert
@@ -191,21 +214,40 @@ interface CashDao {
     suspend fun reviewTaxMovement(row: TaxBankMovement, review: String) {
         require(review in setOf("PENDING", "EXCLUDED", "ELIGIBLE", "DOUBLE_HEALTH"))
         val current = checkNotNull(findBank(row.account, row.reference))
-        check(current.kind == row.kind && current.category == row.category &&
-            current.amount == row.amount && current.day == row.day)
-        check((current.kind == "EXPENSE" && current.amount < 0 &&
-            current.category !in setOf("RENT", "LOAN_PAYMENT")) ||
-            (current.kind == "REFUND" && current.amount > 0))
-        if (review == "PENDING") clearTaxReview(row.account, row.reference)
-        else upsertTaxReview(BankTaxReviewRow(
-            row.account, row.reference, row.kind, row.category, review,
-        ))
+        check(
+            current.kind == row.kind && current.category == row.category &&
+                current.amount == row.amount && current.day == row.day,
+        )
+        check(
+            (
+                current.kind == "EXPENSE" && current.amount < 0 &&
+                    current.category !in setOf("RENT", "LOAN_PAYMENT")
+                ) ||
+                (current.kind == "REFUND" && current.amount > 0),
+        )
+        if (review == "PENDING") {
+            clearTaxReview(row.account, row.reference)
+        } else {
+            upsertTaxReview(
+                BankTaxReviewRow(
+                    row.account,
+                    row.reference,
+                    row.kind,
+                    row.category,
+                    review,
+                ),
+            )
+        }
     }
 
     @Transaction
     suspend fun classifyAndResetTax(
-        account: String, reference: String, previousKind: String, previousCategory: String,
-        kind: String, category: String,
+        account: String,
+        reference: String,
+        previousKind: String,
+        previousCategory: String,
+        kind: String,
+        category: String,
     ) {
         check(classify(account, reference, previousKind, previousCategory, kind, category) == 1)
         if (previousKind != kind || previousCategory != category) clearTaxReview(account, reference)
@@ -261,10 +303,16 @@ interface CashDao {
     suspend fun linkReceipt(match: ReceiptBankMatch) {
         confirmReceiptBank(match.receiptId, match.account, match.reference)
         val actual = receiptBankLink(match.receiptId)
-        check(actual != null && actual.account == match.account && actual.reference == match.reference)
+        check(
+            actual != null &&
+                actual.account == match.account &&
+                actual.reference == match.reference,
+        )
     }
 
-    @Query("DELETE FROM finance_receipt_bank WHERE receiptId = :receiptId AND account = :account AND reference = :reference")
+    @Query(
+        "DELETE FROM finance_receipt_bank WHERE receiptId = :receiptId AND account = :account AND reference = :reference",
+    )
     suspend fun unlinkReceipt(receiptId: String, account: String, reference: String): Int
 
     @Query("SELECT * FROM finance_monthly_plan WHERE month = :month")
@@ -339,8 +387,10 @@ interface CashDao {
                 insertBank(row)
                 inserted++
             } else {
-                require(existing.day == row.day && existing.description == row.description &&
-                    existing.amount == row.amount) { "Conflicting bank reference" }
+                require(
+                    existing.day == row.day && existing.description == row.description &&
+                        existing.amount == row.amount,
+                ) { "Conflicting bank reference" }
             }
         }
         return inserted

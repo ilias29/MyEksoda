@@ -32,7 +32,11 @@ class LegacyBankWorkbookTest {
             row.createCell(2).setCellValue(-510.25)
             row.createCell(3).apply {
                 setCellValue(1.0)
-                cellStyle = book.createCellStyle().apply { dataFormat = book.createDataFormat().getFormat("0000") }
+                cellStyle =
+                    book.createCellStyle().apply {
+                        dataFormat =
+                            book.createDataFormat().getFormat("0000")
+                    }
             }
         }
         val mapping = CsvMapping(0, 1, 2, 3)
