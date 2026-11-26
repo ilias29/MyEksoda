@@ -28,7 +28,12 @@ class MonthlyOverviewTest {
             entry(FinanceSource.BANK, 2_000, MovementKind.REFUND),
             entry(FinanceSource.BANK, -20_000, MovementKind.TRANSFER),
             entry(FinanceSource.BANK, 20_000, MovementKind.TRANSFER),
-            entry(FinanceSource.BANK, 99_999, MovementKind.INCOME, date = month.minusMonths(1).atEndOfMonth()),
+            entry(
+                FinanceSource.BANK,
+                99_999,
+                MovementKind.INCOME,
+                date = month.minusMonths(1).atEndOfMonth(),
+            ),
         ))
         assertEquals(130_000L, overview.incomeMinor)
         assertEquals(10_000L, overview.cashIncomeMinor)

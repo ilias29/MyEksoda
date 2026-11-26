@@ -1,5 +1,42 @@
 package io.eksoda.ui
 
+import io.eksoda.core.database.entity.CashRow
+import io.eksoda.engine.finance.ManualCashEntry
+import io.eksoda.core.database.entity.SubscriptionRow
+import io.eksoda.engine.finance.SubscriptionRecord
+import io.eksoda.engine.finance.Subscriptions
+import io.eksoda.core.database.entity.BankRow
+import io.eksoda.engine.finance.FinanceAdvisor
+import io.eksoda.engine.finance.PaymentType
+import io.eksoda.engine.finance.PaydayCalendar
+import io.eksoda.core.database.entity.PlannedPaymentRow
+import io.eksoda.engine.finance.PaymentState
+import io.eksoda.engine.finance.PlannedPayment
+import io.eksoda.core.database.entity.PaydayPlanRow
+import io.eksoda.engine.finance.PaydayPlan
+import io.eksoda.core.database.entity.NetWorthRow
+import io.eksoda.engine.finance.NetWorthSnapshot
+import java.math.BigDecimal
+import io.eksoda.engine.finance.PortfolioSnapshot
+import io.eksoda.core.database.entity.DividendRow
+import io.eksoda.core.database.entity.HoldingSnapshotRow
+import io.eksoda.core.database.entity.PortfolioSnapshotRow
+import io.eksoda.engine.finance.LightyearSnapshotImport
+import io.eksoda.engine.finance.TaxReview
+import io.eksoda.core.database.dao.TaxBankMovement
+import io.eksoda.core.database.entity.AnnualTaxPlanRow
+import io.eksoda.engine.finance.AnnualTaxPlan
+import io.eksoda.core.database.dao.ReceiptBankMatch
+import io.eksoda.engine.finance.MonthlyLedger
+import io.eksoda.engine.finance.SpendingCategory
+import io.eksoda.engine.finance.MovementKind
+import io.eksoda.engine.finance.BankMovement
+import io.eksoda.engine.finance.FinanceSource
+import io.eksoda.engine.finance.LedgerEntry
+import java.time.LocalDate
+import io.eksoda.core.database.entity.MonthlyPlanRow
+import io.eksoda.engine.finance.MonthlyPlan
+import java.time.YearMonth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.Lazy
@@ -55,45 +92,45 @@ class AppViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppState.LOADING)
 
-    fun monthlyPlan(month: java.time.YearMonth) = flow {
+    fun monthlyPlan(month: YearMonth) = flow {
         emitAll(database.get().cashDao().monthlyPlan(month.toString()))
     }.map { row ->
         Result.success(row?.let {
-            io.eksoda.engine.finance.MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
+            MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
         })
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    suspend fun saveMonthlyPlan(month: java.time.YearMonth, plan: io.eksoda.engine.finance.MonthlyPlan) {
+    suspend fun saveMonthlyPlan(month: YearMonth, plan: MonthlyPlan) {
         kotlinx.coroutines.withContext(ioDispatcher) {
             database.get().cashDao().saveMonthlyPlan(
-                io.eksoda.core.database.entity.MonthlyPlanRow(
+                MonthlyPlanRow(
                     month.toString(), plan.spendingLimitMinor, plan.expectedIncomeMinor, plan.savingsGoalMinor,
                 ),
             )
         }
     }
 
-    fun monthlyOverview(month: java.time.YearMonth, today: java.time.LocalDate) = flow {
+    fun monthlyOverview(month: YearMonth, today: LocalDate) = flow {
         val end = minOf(month.atEndOfMonth(), today)
         emitAll(database.get().cashDao().monthlyMovements(month.atDay(1).toString(), end.toString()))
     }.map { rows ->
         val entries = rows.map { row ->
-            io.eksoda.engine.finance.LedgerEntry(
-                io.eksoda.engine.finance.FinanceSource.valueOf(row.source),
-                io.eksoda.engine.finance.BankMovement(
-                    row.account, java.time.LocalDate.parse(row.day), row.description, row.amountMinor,
-                    io.eksoda.engine.finance.MovementKind.valueOf(row.kind),
-                    category = io.eksoda.engine.finance.SpendingCategory.valueOf(row.category),
+            LedgerEntry(
+                FinanceSource.valueOf(row.source),
+                BankMovement(
+                    row.account, LocalDate.parse(row.day), row.description, row.amountMinor,
+                    MovementKind.valueOf(row.kind),
+                    category = SpendingCategory.valueOf(row.category),
                 ),
             )
         }
-        val overview = io.eksoda.engine.finance.MonthlyLedger.summarize(month, entries)
+        val overview = MonthlyLedger.summarize(month, entries)
         // Evaluate derived totals here so any arithmetic failure reaches the error state.
         overview.netFlowMinor
         Result.success(overview)
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    fun receiptMatches(month: java.time.YearMonth) = flow {
+    fun receiptMatches(month: YearMonth) = flow {
         val dao = database.get().cashDao()
         val start = month.atDay(1).toString()
         val end = month.atEndOfMonth().toString()
@@ -102,69 +139,69 @@ class AppViewModel @Inject constructor(
         ) { candidates, links -> Result.success(candidates to links) })
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    suspend fun linkReceipt(match: io.eksoda.core.database.dao.ReceiptBankMatch) =
+    suspend fun linkReceipt(match: ReceiptBankMatch) =
         kotlinx.coroutines.withContext(ioDispatcher) { database.get().cashDao().linkReceipt(match) }
 
-    suspend fun unlinkReceipt(match: io.eksoda.core.database.dao.ReceiptBankMatch) =
+    suspend fun unlinkReceipt(match: ReceiptBankMatch) =
         kotlinx.coroutines.withContext(ioDispatcher) {
             check(database.get().cashDao().unlinkReceipt(match.receiptId, match.account, match.reference) == 1)
         }
 
-    fun taxData(year: Int, today: java.time.LocalDate) = flow {
+    fun taxData(year: Int, today: LocalDate) = flow {
         val dao = database.get().cashDao()
-        val start = java.time.LocalDate.of(year, 1, 1)
-        val end = minOf(java.time.LocalDate.of(year, 12, 31), today)
+        val start = LocalDate.of(year, 1, 1)
+        val end = minOf(LocalDate.of(year, 12, 31), today)
         emitAll(kotlinx.coroutines.flow.combine(
             dao.taxPlan(year), dao.taxMovements(start.toString(), end.toString()),
         ) { plan, rows -> Result.success(plan to rows) })
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    suspend fun saveTaxPlan(plan: io.eksoda.engine.finance.AnnualTaxPlan) =
+    suspend fun saveTaxPlan(plan: AnnualTaxPlan) =
         kotlinx.coroutines.withContext(ioDispatcher) {
-            database.get().cashDao().saveTaxPlan(io.eksoda.core.database.entity.AnnualTaxPlanRow(
+            database.get().cashDao().saveTaxPlan(AnnualTaxPlanRow(
                 plan.year, plan.incomeMinor, plan.mode.name, plan.specialCap,
             ))
         }
 
-    suspend fun reviewTax(row: io.eksoda.core.database.dao.TaxBankMovement, review: io.eksoda.engine.finance.TaxReview) =
+    suspend fun reviewTax(row: TaxBankMovement, review: TaxReview) =
         kotlinx.coroutines.withContext(ioDispatcher) {
             database.get().cashDao().reviewTaxMovement(row, review.name)
         }
 
     val lightyearDividends = flow { emitAll(database.get().cashDao().lightyearDividends()) }.flowOn(ioDispatcher)
 
-    suspend fun importLightyearSnapshots(data: io.eksoda.engine.finance.LightyearSnapshotImport): Int =
+    suspend fun importLightyearSnapshots(data: LightyearSnapshotImport): Int =
         kotlinx.coroutines.withContext(ioDispatcher) {
             val dao = database.get().cashDao()
             when (data) {
-                is io.eksoda.engine.finance.LightyearSnapshotImport.Valuations ->
+                is LightyearSnapshotImport.Valuations ->
                     dao.importValuations(data.rows.map {
-                        io.eksoda.core.database.entity.PortfolioSnapshotRow(
+                        PortfolioSnapshotRow(
                             "Lightyear", it.date.toString(), it.valueMinor, it.depositedMinor, it.withdrawnMinor,
                         )
                     }, data.holdings.map {
-                        io.eksoda.core.database.entity.HoldingSnapshotRow(
+                        HoldingSnapshotRow(
                             "Lightyear", it.instrument, it.day.toString(), it.quantity.stripTrailingZeros().toPlainString(),
                             it.valueMinor, it.costMinor,
                         )
                     })
-                is io.eksoda.engine.finance.LightyearSnapshotImport.Dividends ->
+                is LightyearSnapshotImport.Dividends ->
                     dao.importDividends(data.rows.map {
-                        io.eksoda.core.database.entity.DividendRow(
+                        DividendRow(
                             "Lightyear", it.reference, it.day.toString(), it.instrument, it.currency,
                             it.gross.stripTrailingZeros().toPlainString(), it.withheld.stripTrailingZeros().toPlainString(),
                             it.fee.stripTrailingZeros().toPlainString(), it.eurRate.stripTrailingZeros().toPlainString(), it.netMinor,
                         )
                     })
-                is io.eksoda.engine.finance.LightyearSnapshotImport.Portfolio ->
+                is LightyearSnapshotImport.Portfolio ->
                     dao.importPortfolioSnapshots(data.rows.map {
-                        io.eksoda.core.database.entity.PortfolioSnapshotRow(
+                        PortfolioSnapshotRow(
                             "Lightyear", it.date.toString(), it.valueMinor, it.depositedMinor, it.withdrawnMinor,
                         )
                     })
-                is io.eksoda.engine.finance.LightyearSnapshotImport.Holdings ->
+                is LightyearSnapshotImport.Holdings ->
                     dao.importHoldingSnapshots(data.rows.map {
-                        io.eksoda.core.database.entity.HoldingSnapshotRow(
+                        HoldingSnapshotRow(
                             "Lightyear", it.instrument, it.day.toString(), it.quantity.stripTrailingZeros().toPlainString(),
                             it.valueMinor, it.costMinor,
                         )
@@ -179,25 +216,25 @@ class AppViewModel @Inject constructor(
         ) { portfolio, holdings -> Result.success(portfolio to holdings) })
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    suspend fun saveLightyearSnapshot(snapshot: io.eksoda.engine.finance.PortfolioSnapshot) =
+    suspend fun saveLightyearSnapshot(snapshot: PortfolioSnapshot) =
         kotlinx.coroutines.withContext(ioDispatcher) {
-            require(!snapshot.date.isAfter(java.time.LocalDate.now()))
-            database.get().cashDao().savePortfolioSnapshot(io.eksoda.core.database.entity.PortfolioSnapshotRow(
+            require(!snapshot.date.isAfter(LocalDate.now()))
+            database.get().cashDao().savePortfolioSnapshot(PortfolioSnapshotRow(
                 "Lightyear", snapshot.date.toString(), snapshot.valueMinor,
                 snapshot.depositedMinor, snapshot.withdrawnMinor,
             ))
         }
 
     suspend fun saveLightyearHolding(
-        instrument: String, day: java.time.LocalDate, quantity: java.math.BigDecimal,
+        instrument: String, day: LocalDate, quantity: BigDecimal,
         valueMinor: Long, costMinor: Long?,
     ) = kotlinx.coroutines.withContext(ioDispatcher) {
         val id = instrument.trim().uppercase(java.util.Locale.ROOT)
-        require(id.isNotBlank() && id.length <= 100 && !day.isAfter(java.time.LocalDate.now()))
+        require(id.isNotBlank() && id.length <= 100 && !day.isAfter(LocalDate.now()))
         require(quantity.signum() >= 0 && quantity.scale() in 0..12 && quantity.precision() <= 30)
         require(valueMinor >= 0 && (costMinor == null || costMinor >= 0))
         require(quantity.signum() != 0 || (valueMinor == 0L && (costMinor == null || costMinor == 0L)))
-        database.get().cashDao().saveHoldingSnapshot(io.eksoda.core.database.entity.HoldingSnapshotRow(
+        database.get().cashDao().saveHoldingSnapshot(HoldingSnapshotRow(
             "Lightyear", id, day.toString(), quantity.stripTrailingZeros().toPlainString(), valueMinor, costMinor,
         ))
     }
@@ -210,12 +247,12 @@ class AppViewModel @Inject constructor(
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
     suspend fun saveNetWorth(
-        snapshot: io.eksoda.engine.finance.NetWorthSnapshot,
-        expected: io.eksoda.core.database.entity.NetWorthRow?,
+        snapshot: NetWorthSnapshot,
+        expected: NetWorthRow?,
     ) = kotlinx.coroutines.withContext(ioDispatcher) {
-        require(!snapshot.day.isAfter(java.time.LocalDate.now()))
+        require(!snapshot.day.isAfter(LocalDate.now()))
         database.get().cashDao().saveNetWorth(
-            io.eksoda.core.database.entity.NetWorthRow(
+            NetWorthRow(
                 snapshot.day.toString(), snapshot.bankMinor, snapshot.cashMinor, snapshot.lightyearMinor,
                 snapshot.otherAssetsMinor, snapshot.loanMinor, snapshot.otherDebtsMinor, snapshot.fromLightyear,
             ), expected,
@@ -229,32 +266,32 @@ class AppViewModel @Inject constructor(
         })
     }.catch { emit(Result.failure(it)) }.flowOn(ioDispatcher)
 
-    suspend fun savePaydayPlan(plan: io.eksoda.engine.finance.PaydayPlan) =
+    suspend fun savePaydayPlan(plan: PaydayPlan) =
         kotlinx.coroutines.withContext(ioDispatcher) {
-            require(plan.balanceDay == java.time.LocalDate.now())
-            database.get().cashDao().savePaydayPlan(io.eksoda.core.database.entity.PaydayPlanRow(
+            require(plan.balanceDay == LocalDate.now())
+            database.get().cashDao().savePaydayPlan(PaydayPlanRow(
                 balanceDay = plan.balanceDay.toString(), balanceMinor = plan.balanceMinor,
                 payday = plan.payday.toString(),
             ))
         }
 
-    suspend fun addPlannedPayment(payment: io.eksoda.engine.finance.PlannedPayment) =
+    suspend fun addPlannedPayment(payment: PlannedPayment) =
         kotlinx.coroutines.withContext(ioDispatcher) {
-            require(payment.state == io.eksoda.engine.finance.PaymentState.PENDING)
-            database.get().cashDao().insertPlannedPayment(io.eksoda.core.database.entity.PlannedPaymentRow(
+            require(payment.state == PaymentState.PENDING)
+            database.get().cashDao().insertPlannedPayment(PlannedPaymentRow(
                 payment.id, payment.name, payment.due.toString(), payment.amountMinor,
                 payment.type.name, payment.state.name,
             ))
         }
 
-    suspend fun resolvePlannedPayment(row: io.eksoda.core.database.entity.PlannedPaymentRow, paid: Boolean) =
+    suspend fun resolvePlannedPayment(row: PlannedPaymentRow, paid: Boolean) =
         kotlinx.coroutines.withContext(ioDispatcher) {
             database.get().cashDao().changePaymentState(row.id, row.state, if (paid) "PAID" else "CANCELLED")
         }
 
-    fun financeAdvice(today: java.time.LocalDate, coverageConfirmed: Boolean) = flow {
+    fun financeAdvice(today: LocalDate, coverageConfirmed: Boolean) = flow {
         val dao = database.get().cashDao()
-        val month = java.time.YearMonth.from(today)
+        val month = YearMonth.from(today)
         val movements = dao.monthlyMovements(month.minusMonths(1).atDay(1).toString(), today.toString())
         val basics = kotlinx.coroutines.flow.combine(movements, dao.monthlyPlan(month.toString()),
             dao.subscriptions(), dao.netWorthHistory()) { rows, plan, subscriptions, worth ->
@@ -263,31 +300,31 @@ class AppViewModel @Inject constructor(
         val payday = kotlinx.coroutines.flow.combine(dao.paydayPlan(), dao.plannedPayments()) { plan, rows -> plan to rows }
         emitAll(kotlinx.coroutines.flow.combine(basics, payday) { input, (payPlan, payments) ->
             val entries = input.rows.map { r ->
-                io.eksoda.engine.finance.LedgerEntry(
-                    io.eksoda.engine.finance.FinanceSource.valueOf(r.source),
-                    io.eksoda.engine.finance.BankMovement(r.account, java.time.LocalDate.parse(r.day),
-                        r.description, r.amountMinor, io.eksoda.engine.finance.MovementKind.valueOf(r.kind),
-                        category = io.eksoda.engine.finance.SpendingCategory.valueOf(r.category)),
+                LedgerEntry(
+                    FinanceSource.valueOf(r.source),
+                    BankMovement(r.account, LocalDate.parse(r.day),
+                        r.description, r.amountMinor, MovementKind.valueOf(r.kind),
+                        category = SpendingCategory.valueOf(r.category)),
                 )
             }
             val monthly = input.plan?.let {
-                io.eksoda.engine.finance.MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
+                MonthlyPlan(it.spendingLimitMinor, it.expectedIncomeMinor, it.savingsGoalMinor)
             }
             val worth = input.worth.map {
-                io.eksoda.engine.finance.NetWorthSnapshot(java.time.LocalDate.parse(it.day), it.bankMinor,
+                NetWorthSnapshot(LocalDate.parse(it.day), it.bankMinor,
                     it.cashMinor, it.lightyearMinor, it.otherAssetsMinor, it.loanMinor, it.otherDebtsMinor, it.fromLightyear)
             }
             val forecast = if (payPlan == null || payPlan.needsReview || payPlan.balanceDay != today.toString()) null
-            else io.eksoda.engine.finance.PaydayCalendar.forecast(
-                io.eksoda.engine.finance.PaydayPlan(java.time.LocalDate.parse(payPlan.balanceDay),
-                    payPlan.balanceMinor, java.time.LocalDate.parse(payPlan.payday)),
+            else PaydayCalendar.forecast(
+                PaydayPlan(LocalDate.parse(payPlan.balanceDay),
+                    payPlan.balanceMinor, LocalDate.parse(payPlan.payday)),
                 today, payments.map {
-                    io.eksoda.engine.finance.PlannedPayment(it.id, it.name, java.time.LocalDate.parse(it.due),
-                        it.amountMinor, io.eksoda.engine.finance.PaymentType.valueOf(it.type),
-                        io.eksoda.engine.finance.PaymentState.valueOf(it.state))
+                    PlannedPayment(it.id, it.name, LocalDate.parse(it.due),
+                        it.amountMinor, PaymentType.valueOf(it.type),
+                        PaymentState.valueOf(it.state))
                 },
             )
-            Result.success(io.eksoda.engine.finance.FinanceAdvisor.evaluate(
+            Result.success(FinanceAdvisor.evaluate(
                 today, entries, monthly, input.subscriptions.map { it.expectedMonthlyMinor }, worth,
                 forecast, payPlan != null && forecast == null, coverageConfirmed,
             ))
@@ -296,9 +333,9 @@ class AppViewModel @Inject constructor(
 
     val bankAccounts = flow { emitAll(database.get().cashDao().accounts()) }.flowOn(ioDispatcher)
 
-    suspend fun classify(row: io.eksoda.core.database.entity.BankRow, kind: io.eksoda.engine.finance.MovementKind,
-        category: io.eksoda.engine.finance.SpendingCategory) {
-        val movement = io.eksoda.engine.finance.BankMovement(row.account, java.time.LocalDate.parse(row.day),
+    suspend fun classify(row: BankRow, kind: MovementKind,
+        category: SpendingCategory) {
+        val movement = BankMovement(row.account, LocalDate.parse(row.day),
             row.description, row.amount, kind, row.reference, category)
         kotlinx.coroutines.withContext(ioDispatcher) {
             database.get().cashDao().classifyAndResetTax(row.account, row.reference, row.kind, row.category,
@@ -310,33 +347,33 @@ class AppViewModel @Inject constructor(
         emitAll(database.get().cashDao().bankHistory(account))
     }.flowOn(ioDispatcher)
 
-    suspend fun saveBank(rows: List<io.eksoda.core.database.entity.BankRow>): Int =
+    suspend fun saveBank(rows: List<BankRow>): Int =
         kotlinx.coroutines.withContext(ioDispatcher) { database.get().cashDao().importBank(rows) }
 
     val subscriptionRows = flow { emitAll(database.get().cashDao().subscriptions()) }.flowOn(ioDispatcher)
 
-    fun subscriptionSuggestions(today: java.time.LocalDate) = flow {
-        val start = java.time.YearMonth.from(today).minusMonths(2).atDay(1)
+    fun subscriptionSuggestions(today: LocalDate) = flow {
+        val start = YearMonth.from(today).minusMonths(2).atDay(1)
         emitAll(database.get().cashDao().subscriptionCandidates(start.toString(), today.toString()))
     }.map { rows ->
         val movements = rows.mapNotNull { row ->
             runCatching {
-                io.eksoda.engine.finance.BankMovement(
-                    row.account, java.time.LocalDate.parse(row.day), row.description, row.amount,
-                    io.eksoda.engine.finance.MovementKind.valueOf(row.kind), row.reference,
-                    io.eksoda.engine.finance.SpendingCategory.valueOf(row.category),
+                BankMovement(
+                    row.account, LocalDate.parse(row.day), row.description, row.amount,
+                    MovementKind.valueOf(row.kind), row.reference,
+                    SpendingCategory.valueOf(row.category),
                 )
             }.getOrNull()
         }
-        io.eksoda.engine.finance.Subscriptions.suggest(movements, today)
+        Subscriptions.suggest(movements, today)
     }.flowOn(ioDispatcher)
 
     suspend fun saveSubscription(name: String, monthlyMinor: Long) {
-        val record = io.eksoda.engine.finance.SubscriptionRecord(name.trim(), monthlyMinor, true)
+        val record = SubscriptionRecord(name.trim(), monthlyMinor, true)
         kotlinx.coroutines.withContext(ioDispatcher) {
             database.get().cashDao().saveSubscription(
-                io.eksoda.core.database.entity.SubscriptionRow(
-                    io.eksoda.engine.finance.Subscriptions.key(record.name),
+                SubscriptionRow(
+                    Subscriptions.key(record.name),
                     record.name,
                     record.expectedMonthlyMinor,
                 ),
@@ -352,10 +389,10 @@ class AppViewModel @Inject constructor(
 
     val cashRows = flow { emitAll(database.get().cashDao().observe()) }.flowOn(ioDispatcher)
 
-    suspend fun saveCash(entry: io.eksoda.engine.finance.ManualCashEntry) {
+    suspend fun saveCash(entry: ManualCashEntry) {
         val movement = entry.toMovement("cash")
         kotlinx.coroutines.withContext(ioDispatcher) {
-            database.get().cashDao().insert(io.eksoda.core.database.entity.CashRow(
+            database.get().cashDao().insert(CashRow(
                 java.util.UUID.randomUUID().toString(), movement.date.toString(), movement.description,
                 movement.amountMinor, movement.category.name,
             ))

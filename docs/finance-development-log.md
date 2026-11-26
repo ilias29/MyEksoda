@@ -159,3 +159,5 @@ CI run 45724641620 passed Gradle configuration and stopped at :core:database:spo
 ## Stabilization: explicit Kotlin API and diagnostics
 
 CI run 45851638060 revealed explicit API visibility errors across fifteen finance engine files. Declare exported types, methods and non-data-class properties explicitly, preserving their existing visibility and keeping strict API checks enabled. Rename ManualCash.kt to match its class. Fix diagnostic shell to emit formatter patch even when spotlessApply exits nonzero. This is not an APK or verified build; next CI must confirm compilation and style.
+
+Follow-up: replaced reported wildcard imports with explicit Compose and finance imports in twelve UI files; shortened qualified database/engine references using imports and wrapped several reported long statements. Full formatter output and compilation remain CI gates; no suppression or APK claim.

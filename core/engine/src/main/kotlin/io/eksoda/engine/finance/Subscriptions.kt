@@ -33,7 +33,8 @@ public object Subscriptions {
         .filter {
             it.kind == MovementKind.EXPENSE && it.description.isNotBlank() &&
                 it.amountMinor != Long.MIN_VALUE &&
-                it.category != SpendingCategory.RENT && it.category != SpendingCategory.LOAN_PAYMENT &&
+                it.category != SpendingCategory.RENT &&
+                it.category != SpendingCategory.LOAN_PAYMENT &&
                 (asOf == null || (!it.date.isAfter(asOf) &&
                     !YearMonth.from(it.date).isBefore(YearMonth.from(asOf).minusMonths(2))))
         }

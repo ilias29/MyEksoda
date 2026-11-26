@@ -39,7 +39,9 @@ internal fun ReceiptTextReview(text: String) {
             stringResource(if (parsed.reconciles) R.string.scan_ocr_reconciles else R.string.scan_ocr_mismatch),
             color = if (parsed.reconciles) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
         )
-        if (parsed.warnings.isNotEmpty()) Text(stringResource(R.string.scan_ocr_warnings, parsed.warnings.size))
+        if (parsed.warnings.isNotEmpty()) {
+            Text(stringResource(R.string.scan_ocr_warnings, parsed.warnings.size))
+        }
     }
 }
 

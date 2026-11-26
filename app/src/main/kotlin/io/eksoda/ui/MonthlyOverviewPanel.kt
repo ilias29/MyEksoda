@@ -37,7 +37,8 @@ internal fun MonthlyOverviewPanel(model: AppViewModel) {
                 Text("Μηνιαία οικονομική εικόνα", style = MaterialTheme.typography.titleLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { month = month.minusMonths(1) }) { Text("‹") }
-                    Text(month.format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("el-GR"))),
+                    Text(
+                        month.format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("el-GR"))),
                         modifier = Modifier.weight(1f))
                     TextButton(enabled = month < current, onClick = { month = month.plusMonths(1) }) { Text("›") }
                 }
