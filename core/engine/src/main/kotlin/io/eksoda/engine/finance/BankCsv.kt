@@ -130,6 +130,7 @@ public object BankCsv {
                 field.clear()
                 state.closed = false
             }
+
             c == '\n' || c == '\r' -> {
                 if (c == '\r' && next < text.length && text[next] == '\n') next++
                 row.add(field.toString())
@@ -138,10 +139,12 @@ public object BankCsv {
                 field.clear()
                 state.closed = false
             }
+
             c == '"' -> {
                 require(field.isEmpty() && !state.closed)
                 state.quoted = true
             }
+
             else -> {
                 require(!state.closed)
                 field.append(c)
