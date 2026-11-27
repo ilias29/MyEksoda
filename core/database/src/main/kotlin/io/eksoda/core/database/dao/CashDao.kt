@@ -310,7 +310,10 @@ interface CashDao {
     }
 
     @Query(
-        "DELETE FROM finance_receipt_bank WHERE receiptId = :receiptId AND account = :account AND reference = :reference",
+        """DELETE FROM finance_receipt_bank
+           WHERE receiptId = :receiptId
+             AND account = :account
+             AND reference = :reference""",
     )
     suspend fun unlinkReceipt(receiptId: String, account: String, reference: String): Int
 

@@ -42,6 +42,13 @@ public data class FinanceAdviceInput(
     val coverageConfirmed: Boolean,
 )
 
+private data class TrendPeriod(
+    val month: YearMonth,
+    val prior: YearMonth,
+    val current: List<LedgerEntry>,
+    val days: Int,
+)
+
 /** Observations about recorded data, not a prediction of unrecorded transactions. */
 public object FinanceAdvisor {
     public fun evaluate(input: FinanceAdviceInput): FinanceAdvice {
@@ -57,7 +64,7 @@ public object FinanceAdvisor {
         }
         addBasic(actual, categories, ::add)
         addPlan(input, month, actual, ::add)
-        addTrend(input, month, prior, current, days, ::add)
+        addTrend(input, TrendPeriod(month, prior, current, days), ::add)
         addSubscriptions(input.subscriptionsMinor, ::add)
         addWorth(input.worth, input.today, ::add)
         addPayday(input.payday, input.paydayNeedsReview, ::add)
@@ -149,23 +156,21 @@ public object FinanceAdvisor {
 
     private fun addTrend(
         input: FinanceAdviceInput,
-        month: YearMonth,
-        prior: YearMonth,
-        current: List<LedgerEntry>,
-        days: Int,
+        period: TrendPeriod,
         add: (AdviceKind, BigDecimal?) -> Unit,
     ) {
         if (!input.coverageConfirmed) return
         val a = MonthlyLedger.summarize(
-            month,
-            current.filter {
-                it.movement.date.dayOfMonth <= days
+            period.month,
+            period.current.filter {
+                it.movement.date.dayOfMonth <= period.days
             },
         )
         val b = MonthlyLedger.summarize(
-            prior,
+            period.prior,
             input.entries.filter {
-                YearMonth.from(it.movement.date) == prior && it.movement.date.dayOfMonth <= days
+                YearMonth.from(it.movement.date) == period.prior &&
+                    it.movement.date.dayOfMonth <= period.days
             },
         )
         if (a.movementCount == 0 || b.movementCount == 0) return

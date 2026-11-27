@@ -97,51 +97,76 @@ public object BankCsv {
         val result = mutableListOf<List<String>>()
         val row = mutableListOf<String>()
         val field = StringBuilder()
-        var quoted = false
-        var closed = false
+        val state = CsvState()
         var i = 0
         while (i < text.length) {
-            val c = text[i++]
-            if (quoted) {
-                if (c == '"' && i < text.length && text[i] == '"') {
-                    field.append('"')
-                    i++
-                } else if (c == '"') {
-                    quoted = false
-                    closed = true
-                } else {
-                    field.append(c)
-                }
-                continue
-            }
-            if (c == delimiter) {
-                row.add(field.toString())
-                field.clear()
-                closed = false
-                continue
-            }
-            if (c == '\n' || c == '\r') {
-                if (c == '\r' && i < text.length && text[i] == '\n') i++
-                row.add(field.toString())
-                result.add(row.toList())
-                row.clear()
-                field.clear()
-                closed = false
-                continue
-            }
-            if (c == '"') {
-                require(field.isEmpty() && !closed)
-                quoted = true
-            } else {
-                require(!closed)
-                field.append(c)
-            }
+            i = consume(text, i, delimiter, state, row, field, result)
         }
-        require(!quoted)
-        if (row.isNotEmpty() || field.isNotEmpty() || closed) {
+        require(!state.quoted)
+        if (row.isNotEmpty() || field.isNotEmpty() || state.closed) {
             row.add(field.toString())
             result.add(row.toList())
         }
         return result
+    }
+
+    private data class CsvState(var quoted: Boolean = false, var closed: Boolean = false)
+
+    private fun consume(
+        text: String,
+        index: Int,
+        delimiter: Char,
+        state: CsvState,
+        row: MutableList<String>,
+        field: StringBuilder,
+        result: MutableList<List<String>>,
+    ): Int {
+        var next = index + 1
+        val c = text[index]
+        if (state.quoted) return consumeQuoted(text, next, c, state, field)
+        when {
+            c == delimiter -> {
+                row.add(field.toString())
+                field.clear()
+                state.closed = false
+            }
+            c == '\n' || c == '\r' -> {
+                if (c == '\r' && next < text.length && text[next] == '\n') next++
+                row.add(field.toString())
+                result.add(row.toList())
+                row.clear()
+                field.clear()
+                state.closed = false
+            }
+            c == '"' -> {
+                require(field.isEmpty() && !state.closed)
+                state.quoted = true
+            }
+            else -> {
+                require(!state.closed)
+                field.append(c)
+            }
+        }
+        return next
+    }
+
+    private fun consumeQuoted(
+        text: String,
+        nextIndex: Int,
+        character: Char,
+        state: CsvState,
+        field: StringBuilder,
+    ): Int {
+        var next = nextIndex
+        if (character == '"' && next < text.length && text[next] == '"') {
+            field.append('"')
+            next++
+        } else if (character == '"') {
+            state.quoted = false
+            state.closed = true
+        } else {
+            field.append(character)
+        }
+        return next
     }
 }
