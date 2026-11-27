@@ -21,8 +21,8 @@ import io.eksoda.core.database.entity.PortfolioSnapshotRow
 import io.eksoda.core.database.entity.SubscriptionRow
 import io.eksoda.engine.finance.AnnualTaxPlan
 import io.eksoda.engine.finance.BankMovement
-import io.eksoda.engine.finance.FinanceAdviceInput
 import io.eksoda.engine.finance.FinanceAdvisor
+import io.eksoda.engine.finance.FinanceAdviceInput
 import io.eksoda.engine.finance.FinanceSource
 import io.eksoda.engine.finance.LedgerEntry
 import io.eksoda.engine.finance.LightyearSnapshotImport

@@ -121,6 +121,7 @@ public object FinanceAdvisor {
                 AdviceKind.BUDGET_NEAR,
                 progress.budgetRemainingMinor,
             )
+
             BudgetStatus.WITHIN -> Unit
         }
         if (!progress.goalCompatibleWithPlan) add(AdviceKind.PLAN_CONFLICT, null)
