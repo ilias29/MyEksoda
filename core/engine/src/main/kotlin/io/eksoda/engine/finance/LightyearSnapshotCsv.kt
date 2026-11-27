@@ -57,8 +57,19 @@ public object LightyearSnapshotCsv {
     private enum class Format { PORTFOLIO, HOLDINGS, VALUATIONS, DIVIDENDS }
     private val portfolioFields = setOf("date", "currency", "value", "deposits", "withdrawals")
     private val holdingFields = setOf("date", "currency", "instrument", "quantity", "value", "cost")
-    private val valuationFields = setOf("date", "currency", "instrument", "quantity", "unit_price", "eur_rate", "deposits_eur", "withdrawals_eur")
-    private val dividendFields = setOf("date", "reference", "instrument", "currency", "gross", "withheld", "fee", "eur_rate")
+    private val valuationFields =
+        setOf(
+            "date",
+            "currency",
+            "instrument",
+            "quantity",
+            "unit_price",
+            "eur_rate",
+            "deposits_eur",
+            "withdrawals_eur",
+        )
+    private val dividendFields =
+        setOf("date", "reference", "instrument", "currency", "gross", "withheld", "fee", "eur_rate")
 
     private fun formatOf(columns: Set<String>): Format = when (columns) {
         portfolioFields -> Format.PORTFOLIO
@@ -69,23 +80,65 @@ public object LightyearSnapshotCsv {
     }
 
     private class Helpers(private val today: LocalDate, private val delimiter: Char) {
-        fun date(row: Map<String, String>): LocalDate = LocalDate.parse(row.getValue("date")).also { require(!it.isAfter(today)) }
-        fun money(row: Map<String, String>, key: String): Long = BankLedger.amountMinor(row.getValue(key), if (delimiter == ';' && ',' in row.getValue(key)) ',' else '.').also { require(it >= 0) }
+        fun date(row: Map<String, String>): LocalDate =
+            LocalDate.parse(row.getValue("date")).also { require(!it.isAfter(today)) }
+        fun money(row: Map<String, String>, key: String): Long = BankLedger.amountMinor(
+            row.getValue(key),
+            if (delimiter ==
+                ';' &&
+                ',' in row.getValue(key)
+            ) {
+                ','
+            } else {
+                '.'
+            },
+        ).also { require(it >= 0) }
         fun decimal(row: Map<String, String>, key: String): BigDecimal {
-            val valueText = row.getValue(key).let { if (delimiter == ';') it.replace(',', '.') else it }
+            val valueText = row.getValue(key).let {
+                if (delimiter ==
+                    ';'
+                ) {
+                    it.replace(',', '.')
+                } else {
+                    it
+                }
+            }
             require(valueText.matches(Regex("[0-9]+(\\.[0-9]{1,12})?")))
             return BigDecimal(valueText).also { require(it.precision() <= MAX_DECIMAL_PRECISION) }
         }
-        fun id(row: Map<String, String>): String = row.getValue("instrument").uppercase(Locale.ROOT).also { require(it.isNotBlank() && it.length <= MAX_INSTRUMENT_LENGTH && it.none { c -> c.isISOControl() }) }
+        fun id(row: Map<String, String>): String =
+            row.getValue("instrument").uppercase(Locale.ROOT).also {
+                require(
+                    it.isNotBlank() && it.length <= MAX_INSTRUMENT_LENGTH &&
+                        it.none { c -> c.isISOControl() },
+                )
+            }
     }
 
-    private fun parseDividends(entries: List<Map<String, String>>, h: Helpers): LightyearSnapshotImport {
-        val result = entries.map { row -> ImportedDividend(row.getValue("reference"), h.date(row), h.id(row), row.getValue("currency"), h.decimal(row, "gross"), h.decimal(row, "withheld"), h.decimal(row, "fee"), h.decimal(row, "eur_rate")) }
+    private fun parseDividends(
+        entries: List<Map<String, String>>,
+        h: Helpers,
+    ): LightyearSnapshotImport {
+        val result = entries.map { row ->
+            ImportedDividend(
+                row.getValue("reference"),
+                h.date(row),
+                h.id(row),
+                row.getValue("currency"),
+                h.decimal(row, "gross"),
+                h.decimal(row, "withheld"),
+                h.decimal(row, "fee"),
+                h.decimal(row, "eur_rate"),
+            )
+        }
         require(result.map { it.reference }.distinct().size == result.size)
         return LightyearSnapshotImport.Dividends(result)
     }
 
-    private fun parseValuations(entries: List<Map<String, String>>, h: Helpers): LightyearSnapshotImport {
+    private fun parseValuations(
+        entries: List<Map<String, String>>,
+        h: Helpers,
+    ): LightyearSnapshotImport {
         val snapshots = mutableListOf<PortfolioSnapshot>()
         val holdings = mutableListOf<ImportedHolding>()
         for ((day, group) in entries.groupBy { h.date(it) }.toSortedMap()) {
@@ -93,7 +146,15 @@ public object LightyearSnapshotCsv {
             require(group.any { h.id(it).startsWith("CASH:") }) { "Explicit cash balance required" }
             val deposits = group.map { h.money(it, "deposits_eur") }.distinct().single()
             val withdrawals = group.map { h.money(it, "withdrawals_eur") }.distinct().single()
-            group.groupBy { it.getValue("currency") }.values.forEach { rates -> require(rates.map { h.decimal(it, "eur_rate").stripTrailingZeros() }.distinct().size == 1) }
+            group.groupBy {
+                it.getValue("currency")
+            }.values.forEach { rates ->
+                require(
+                    rates.map {
+                        h.decimal(it, "eur_rate").stripTrailingZeros()
+                    }.distinct().size == 1,
+                )
+            }
             val amounts = group.map { row -> valuationAmount(row, day, h, holdings) }
             snapshots += LightyearValuation.total(day, amounts, deposits, withdrawals)
         }
@@ -101,31 +162,62 @@ public object LightyearSnapshotCsv {
         return LightyearSnapshotImport.Valuations(snapshots, holdings)
     }
 
-    private fun valuationAmount(row: Map<String, String>, day: LocalDate, h: Helpers, holdings: MutableList<ImportedHolding>): Long {
+    private fun valuationAmount(
+        row: Map<String, String>,
+        day: LocalDate,
+        h: Helpers,
+        holdings: MutableList<ImportedHolding>,
+    ): Long {
         val instrument = h.id(row)
         val currency = row.getValue("currency")
         val quantity = h.decimal(row, "quantity")
         val price = h.decimal(row, "unit_price")
-        if (instrument.startsWith("CASH:")) require(instrument == "CASH:$currency" && price.compareTo(BigDecimal.ONE) == 0) else require(price.signum() > 0)
-        val amount = LightyearValuation.euroMinor(quantity.multiply(price), currency, h.decimal(row, "eur_rate"))
-        if (!instrument.startsWith("CASH:")) holdings += ImportedHolding(day, instrument, quantity, amount, null)
+        if (instrument.startsWith("CASH:")) {
+            require(instrument == "CASH:$currency" && price.compareTo(BigDecimal.ONE) == 0)
+        } else {
+            require(price.signum() > 0)
+        }
+        val amount = LightyearValuation.euroMinor(
+            quantity.multiply(price),
+            currency,
+            h.decimal(row, "eur_rate"),
+        )
+        if (!instrument.startsWith("CASH:")) {
+            holdings += ImportedHolding(day, instrument, quantity, amount, null)
+        }
         return amount
     }
 
-    private fun parsePortfolio(entries: List<Map<String, String>>, h: Helpers): LightyearSnapshotImport {
+    private fun parsePortfolio(
+        entries: List<Map<String, String>>,
+        h: Helpers,
+    ): LightyearSnapshotImport {
         require(entries.all { it.getValue("currency") == "EUR" })
-        val result = entries.map { row -> PortfolioSnapshot(h.date(row), h.money(row, "value"), h.money(row, "deposits"), h.money(row, "withdrawals")) }.sortedBy { it.date }
+        val result = entries.map { row ->
+            PortfolioSnapshot(
+                h.date(row),
+                h.money(row, "value"),
+                h.money(row, "deposits"),
+                h.money(row, "withdrawals"),
+            )
+        }.sortedBy { it.date }
         require(result.map { it.date }.distinct().size == result.size)
         result.zipWithNext().forEach { (a, b) -> InvestmentTracking.change(a, b) }
         return LightyearSnapshotImport.Portfolio(result)
     }
 
-    private fun parseHoldings(entries: List<Map<String, String>>, h: Helpers): LightyearSnapshotImport {
+    private fun parseHoldings(
+        entries: List<Map<String, String>>,
+        h: Helpers,
+    ): LightyearSnapshotImport {
         require(entries.all { it.getValue("currency") == "EUR" })
         val result = entries.map { row ->
             val id = h.id(row)
             val quantity = h.decimal(row, "quantity")
-            require(quantity.signum() >= 0 && quantity.scale() <= MAX_QUANTITY_SCALE && quantity.precision() <= MAX_QUANTITY_PRECISION)
+            require(
+                quantity.signum() >= 0 && quantity.scale() <= MAX_QUANTITY_SCALE &&
+                    quantity.precision() <= MAX_QUANTITY_PRECISION,
+            )
             val value = h.money(row, "value")
             val cost = row.getValue("cost").takeIf(String::isNotEmpty)?.let { h.money(row, "cost") }
             require(quantity.signum() != 0 || (value == 0L && (cost == null || cost == 0L)))
