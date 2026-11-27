@@ -83,11 +83,7 @@ public object FinanceAdvisor {
                 },
             )
         }
-        .sortedWith(
-            compareByDescending<CategoryExpense> {
-                it.amountMinor
-            }.thenBy { it.category.name },
-        )
+        .sortedWith(compareByDescending<CategoryExpense> { it.amountMinor }.thenBy { it.category.name })
 
     private fun addBasic(
         actual: MonthlyOverview,
@@ -112,16 +108,8 @@ public object FinanceAdvisor {
         val plan = input.plan ?: return
         val progress = MonthlyPlanning.evaluate(month, input.today, plan, actual)
         when (progress.status) {
-            BudgetStatus.OVER -> add(
-                AdviceKind.BUDGET_EXCEEDED,
-                progress.budgetRemainingMinor.abs(),
-            )
-
-            BudgetStatus.AT_LIMIT, BudgetStatus.NEAR -> add(
-                AdviceKind.BUDGET_NEAR,
-                progress.budgetRemainingMinor,
-            )
-
+            BudgetStatus.OVER -> add(AdviceKind.BUDGET_EXCEEDED, progress.budgetRemainingMinor.abs())
+            BudgetStatus.AT_LIMIT, BudgetStatus.NEAR -> add(AdviceKind.BUDGET_NEAR, progress.budgetRemainingMinor)
             BudgetStatus.WITHIN -> Unit
         }
         if (!progress.goalCompatibleWithPlan) add(AdviceKind.PLAN_CONFLICT, null)
@@ -139,11 +127,8 @@ public object FinanceAdvisor {
         }
         progress.projectedSavingsMinor?.let { saved ->
             val gap = BigDecimal.valueOf(plan.savingsGoalMinor) - saved
-            if (gap.signum() > 0) {
-                add(AdviceKind.SAVINGS_GAP, gap)
-            } else {
-                add(AdviceKind.SAVINGS_ON_TRACK, null)
-            }
+            if (gap.signum() > 0) add(AdviceKind.SAVINGS_GAP, gap)
+            else add(AdviceKind.SAVINGS_ON_TRACK, null)
         }
     }
 
@@ -156,12 +141,7 @@ public object FinanceAdvisor {
         add: (AdviceKind, BigDecimal?) -> Unit,
     ) {
         if (!input.coverageConfirmed) return
-        val a = MonthlyLedger.summarize(
-            month,
-            current.filter {
-                it.movement.date.dayOfMonth <= days
-            },
-        )
+        val a = MonthlyLedger.summarize(month, current.filter { it.movement.date.dayOfMonth <= days })
         val b = MonthlyLedger.summarize(
             prior,
             input.entries.filter {
