@@ -66,7 +66,9 @@ public object ReceiptTextParser {
                 sum +
                     BigDecimal.valueOf(item.lineMinor)
             }
-            if (state.subtotals.any { BigDecimal.valueOf(it) != gross }) state.warnings += "SUBTOTAL_MISMATCH"
+            if (state.subtotals.any { BigDecimal.valueOf(it) != gross }) {
+                state.warnings += "SUBTOTAL_MISMATCH"
+            }
         }
         return ReceiptTextPreview(
             state.items,
@@ -98,7 +100,13 @@ public object ReceiptTextParser {
         BigDecimal(value.replace(',', '.')).movePointRight(2).longValueExact()
     }.getOrNull()
 
-    private fun classifyLine(line: String, label: String, normalized: String, amount: Long, state: State) {
+    private fun classifyLine(
+        line: String,
+        label: String,
+        normalized: String,
+        amount: Long,
+        state: State,
+    ) {
         when {
             total.matches(normalized) -> addNonNegative(amount, state.totals, line, state)
             subtotal.matches(normalized) -> addNonNegative(amount, state.subtotals, line, state)
@@ -110,7 +118,12 @@ public object ReceiptTextParser {
         }
     }
 
-    private fun addNonNegative(amount: Long, target: MutableList<Long>, line: String, state: State) {
+    private fun addNonNegative(
+        amount: Long,
+        target: MutableList<Long>,
+        line: String,
+        state: State,
+    ) {
         if (amount >= 0) target += amount else state.warnings += line
     }
 
@@ -122,16 +135,33 @@ public object ReceiptTextParser {
 
     private fun addItem(line: String, label: String, amount: Long, state: State) {
         val parts = quantity.matchEntire(label)
-        val item = if (parts == null) ReceiptTextItem(label, amount) else quantityItem(parts, amount, line, state)
+        val item = if (parts ==
+            null
+        ) {
+            ReceiptTextItem(label, amount)
+        } else {
+            quantityItem(parts, amount, line, state)
+        }
         state.calculated = Math.addExact(state.calculated, amount)
         state.items += item
     }
 
-    private fun quantityItem(parts: MatchResult, amount: Long, line: String, state: State): ReceiptTextItem {
+    private fun quantityItem(
+        parts: MatchResult,
+        amount: Long,
+        line: String,
+        state: State,
+    ): ReceiptTextItem {
         val count = BigDecimal(parts.groupValues[2].replace(',', '.'))
-        val unit = BigDecimal(parts.groupValues[3].replace(',', '.')).movePointRight(2).longValueExact()
+        val unit = BigDecimal(
+            parts.groupValues[3].replace(',', '.'),
+        ).movePointRight(2).longValueExact()
         val expected = count.multiply(BigDecimal.valueOf(unit)).setScale(0, RoundingMode.HALF_UP)
-        if (count.signum() <= 0 || unit <= 0 || expected != BigDecimal.valueOf(amount)) state.warnings += line
+        if (count.signum() <= 0 || unit <= 0 ||
+            expected != BigDecimal.valueOf(amount)
+        ) {
+            state.warnings += line
+        }
         return ReceiptTextItem(parts.groupValues[1], amount, count, unit)
     }
 
