@@ -244,13 +244,12 @@ interface CashDao {
     suspend fun classifyAndResetTax(
         account: String,
         reference: String,
-        previousKind: String,
-        previousCategory: String,
+        previousClassification: String,
         kind: String,
         category: String,
     ) {
-        check(classify(account, reference, previousKind, previousCategory, kind, category) == 1)
-        if (previousKind != kind || previousCategory != category) clearTaxReview(account, reference)
+        check(classify(account, reference, previousClassification, kind, category) == 1)
+        if (previousClassification != "$kind:$category") clearTaxReview(account, reference)
     }
 
     // Candidate is not proof: only same amount and a bank posting up to three days later.
@@ -361,7 +360,7 @@ interface CashDao {
     @Query(
         """UPDATE finance_bank SET kind = :kind, category = :category
            WHERE account = :account AND reference = :reference
-             AND kind = :previousKind AND category = :previousCategory
+             AND kind || ':' || category = :previousClassification
              AND ((:kind = 'EXPENSE' AND :category NOT IN ('RENT', 'LOAN_PAYMENT'))
                OR NOT EXISTS (SELECT 1 FROM finance_receipt_bank l
                    WHERE l.account = finance_bank.account AND l.reference = finance_bank.reference))""",
@@ -369,8 +368,7 @@ interface CashDao {
     suspend fun classify(
         account: String,
         reference: String,
-        previousKind: String,
-        previousCategory: String,
+        previousClassification: String,
         kind: String,
         category: String,
     ): Int

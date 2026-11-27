@@ -22,6 +22,7 @@ import io.eksoda.core.database.entity.SubscriptionRow
 import io.eksoda.engine.finance.AnnualTaxPlan
 import io.eksoda.engine.finance.BankMovement
 import io.eksoda.engine.finance.FinanceAdvisor
+import io.eksoda.engine.finance.FinanceAdviceInput
 import io.eksoda.engine.finance.FinanceSource
 import io.eksoda.engine.finance.LedgerEntry
 import io.eksoda.engine.finance.LightyearSnapshotImport
@@ -476,14 +477,16 @@ class AppViewModel @Inject constructor(
                 }
                 Result.success(
                     FinanceAdvisor.evaluate(
-                        today,
-                        entries,
-                        monthly,
-                        input.subscriptions.map { it.expectedMonthlyMinor },
-                        worth,
-                        forecast,
-                        payPlan != null && forecast == null,
-                        coverageConfirmed,
+                        FinanceAdviceInput(
+                            today,
+                            entries,
+                            monthly,
+                            input.subscriptions.map { it.expectedMonthlyMinor },
+                            worth,
+                            forecast,
+                            payPlan != null && forecast == null,
+                            coverageConfirmed,
+                        ),
                     ),
                 )
             },
@@ -506,8 +509,7 @@ class AppViewModel @Inject constructor(
             database.get().cashDao().classifyAndResetTax(
                 row.account,
                 row.reference,
-                row.kind,
-                row.category,
+                "${row.kind}:${row.category}",
                 movement.kind.name,
                 movement.category.name,
             )

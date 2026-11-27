@@ -23,9 +23,9 @@ import io.eksoda.engine.finance.BudgetStatus
 import io.eksoda.engine.finance.MonthlyOverview
 import io.eksoda.engine.finance.MonthlyPlan
 import io.eksoda.engine.finance.MonthlyPlanning
+import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -68,7 +68,12 @@ internal fun MonthlyPlanPanel(
                             planEuro(BigDecimal.valueOf(plan.savingsGoalMinor)),
                     )
                     LinearProgressIndicator(
-                        progress = { progress.spendingFraction.coerceIn(0.0, 1.0).toFloat() },
+                        progress = {
+                            progress.spendingFraction
+                                .coerceIn(BigDecimal.ZERO, BigDecimal.ONE)
+                                .toPlainString()
+                                .toFloat()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     val status = when (progress.status) {

@@ -21,7 +21,7 @@ public enum class BudgetStatus { WITHIN, NEAR, AT_LIMIT, OVER }
 public data class PlanProgress(
     val budgetRemainingMinor: BigDecimal,
     val status: BudgetStatus,
-    val spendingFraction: Double,
+    val spendingFraction: BigDecimal,
     val savingsGapMinor: BigDecimal,
     val projectedExpensesMinor: BigDecimal?,
     val projectedSavingsMinor: BigDecimal?,
@@ -40,7 +40,7 @@ public object MonthlyPlanning {
         val income = BigDecimal.valueOf(plan.expectedIncomeMinor)
         val goal = BigDecimal.valueOf(plan.savingsGoalMinor)
         val spent = BigDecimal.valueOf(actual.netExpensesMinor)
-        val fraction = spent.max(BigDecimal.ZERO).divide(limit, 8, RoundingMode.HALF_UP).toDouble()
+        val fraction = spent.max(BigDecimal.ZERO).divide(limit, 8, RoundingMode.HALF_UP)
         val status = when {
             spent > limit -> BudgetStatus.OVER
             spent == limit -> BudgetStatus.AT_LIMIT

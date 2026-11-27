@@ -39,14 +39,16 @@ class FinanceAdvisorTest {
 
     private fun advice(confirmed: Boolean, entries: List<LedgerEntry> = rows) =
         FinanceAdvisor.evaluate(
-            today,
-            entries,
-            MonthlyPlan(35000, 50000, 20000),
-            listOf(1000, 2000),
-            emptyList(),
-            null,
-            false,
-            confirmed,
+            FinanceAdviceInput(
+                today,
+                entries,
+                MonthlyPlan(35000, 50000, 20000),
+                listOf(1000, 2000),
+                emptyList(),
+                null,
+                false,
+                confirmed,
+            ),
         )
 
     @Test

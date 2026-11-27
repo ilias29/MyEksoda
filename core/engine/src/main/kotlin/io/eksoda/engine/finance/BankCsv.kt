@@ -1,6 +1,7 @@
 package io.eksoda.engine.finance
 
 import java.time.LocalDate
+import java.time.DateTimeException
 import java.time.format.DateTimeFormatter
 
 public data class CsvMapping(
@@ -61,21 +62,34 @@ public object BankCsv {
                 return@forEachIndexed
             }
             try {
-                val amount = BankLedger.amountMinor(row[mapping.amount], mapping.decimalSeparator)
-                val movement = BankMovement(
-                    accountId = accountId,
-                    date = LocalDate.parse(row[mapping.date].trim(), formatter),
-                    description = row[mapping.description].trim(),
-                    amountMinor = amount,
-                    kind = if (amount > 0) MovementKind.INCOME else MovementKind.EXPENSE,
-                    sourceId = mapping.sourceId?.let { row[it].trim().ifEmpty { null } },
-                )
-                movements.add(movement.copy(category = SpendingClassifier.suggest(movement)))
-            } catch (e: RuntimeException) {
-                problems.add(ImportProblem(line, "invalid date, amount or movement"))
+                movements.add(parseRow(row, accountId, mapping, formatter))
+            } catch (e: DateTimeException) {
+                problems.add(ImportProblem(line, "invalid date: ${e.message.orEmpty()}"))
+            } catch (e: ArithmeticException) {
+                problems.add(ImportProblem(line, "invalid amount: ${e.message.orEmpty()}"))
+            } catch (e: IllegalArgumentException) {
+                problems.add(ImportProblem(line, "invalid movement: ${e.message.orEmpty()}"))
             }
         }
         return BankImportPreview(movements, problems)
+    }
+
+    private fun parseRow(
+        row: List<String>,
+        accountId: String,
+        mapping: CsvMapping,
+        formatter: DateTimeFormatter,
+    ): BankMovement {
+        val amount = BankLedger.amountMinor(row[mapping.amount], mapping.decimalSeparator)
+        val movement = BankMovement(
+            accountId = accountId,
+            date = LocalDate.parse(row[mapping.date].trim(), formatter),
+            description = row[mapping.description].trim(),
+            amountMinor = amount,
+            kind = if (amount > 0) MovementKind.INCOME else MovementKind.EXPENSE,
+            sourceId = mapping.sourceId?.let { row[it].trim().ifEmpty { null } },
+        )
+        return movement.copy(category = SpendingClassifier.suggest(movement))
     }
 
     internal fun rows(text: String, delimiter: Char): List<List<String>> {
@@ -88,43 +102,39 @@ public object BankCsv {
         var i = 0
         while (i < text.length) {
             val c = text[i++]
-            when {
-                quoted && c == '"' -> {
-                    if (i < text.length && text[i] == '"') {
-                        field.append('"')
-                        i++
-                    } else {
-                        quoted = false
-                        closed = true
-                    }
-                }
-
-                quoted -> field.append(c)
-
-                c == delimiter -> {
-                    row.add(field.toString())
-                    field.clear()
-                    closed = false
-                }
-
-                c == '\n' || c == '\r' -> {
-                    if (c == '\r' && i < text.length && text[i] == '\n') i++
-                    row.add(field.toString())
-                    result.add(row.toList())
-                    row.clear()
-                    field.clear()
-                    closed = false
-                }
-
-                c == '"' -> {
-                    require(field.isEmpty() && !closed)
-                    quoted = true
-                }
-
-                else -> {
-                    require(!closed)
+            if (quoted) {
+                if (c == '"' && i < text.length && text[i] == '"') {
+                    field.append('"')
+                    i++
+                } else if (c == '"') {
+                    quoted = false
+                    closed = true
+                } else {
                     field.append(c)
                 }
+                continue
+            }
+            if (c == delimiter) {
+                row.add(field.toString())
+                field.clear()
+                closed = false
+                continue
+            }
+            if (c == '\n' || c == '\r') {
+                if (c == '\r' && i < text.length && text[i] == '\n') i++
+                row.add(field.toString())
+                result.add(row.toList())
+                row.clear()
+                field.clear()
+                closed = false
+                continue
+            }
+            if (c == '"') {
+                require(field.isEmpty() && !closed)
+                quoted = true
+            } else {
+                require(!closed)
+                field.append(c)
             }
         }
         require(!quoted)
