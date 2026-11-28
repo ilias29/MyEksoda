@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Eksoda</string>
+    <string name="app_name" translatable="false">MyEksoda</string>
     <string name="data_unavailable">Το Eksoda δεν μπορεί να ανοίξει τα δεδομένα του σε αυτό το κινητό. Η επαναφορά από αντίγραφο ασφαλείας θα είναι δυνατή σε επόμενη έκδοση.</string>
     <string name="tab_home">Αρχική</string>
     <string name="tab_receipts">Αποδείξεις</string>

@@ -92,6 +92,7 @@ fun SettingsRoute(
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
     onBudgetsClick: () -> Unit,
+    onCashClick: () -> Unit = {},
     onSyncClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -140,6 +141,7 @@ fun SettingsRoute(
         onCategoriesClick = onCategoriesClick,
         onMerchantsClick = onMerchantsClick,
         onBudgetsClick = onBudgetsClick,
+        onCashClick = onCashClick,
         onSyncClick = onSyncClick,
         onEvent = viewModel::onEvent,
         snackbarHostState = snackbarHostState,
@@ -170,6 +172,7 @@ fun SettingsScreen(
     onCategoriesClick: () -> Unit,
     onMerchantsClick: () -> Unit,
     onBudgetsClick: () -> Unit,
+    onCashClick: () -> Unit = {},
     onSyncClick: () -> Unit,
     onEvent: (SettingsEvent) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -232,6 +235,7 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Savings,
                     onClick = onBudgetsClick,
                 )
+                LinkRow(label = "Μετρητά", icon = Icons.Outlined.Savings, onClick = onCashClick)
             }
             PreferencesCard(
                 language = language,

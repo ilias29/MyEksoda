@@ -299,7 +299,7 @@ class Persister @Inject constructor(
             paymentMethod = paymentMethod(canonical.payments),
             status = if (isCancelled(identity)) "cancelled" else "active",
             validationWarnings = JsonArray(issues.map(::issueJson)).toString(),
-            sourceUrl = canonical.sourceUrl,
+            sourceUrl = canonical.sourceUrl.ifEmpty { null },
             sourceUrlFingerprint = fingerprint(canonical.sourceUrl),
             sourceData = sourceData(canonical).toString(),
             createdAt = now,

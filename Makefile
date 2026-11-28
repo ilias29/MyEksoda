@@ -1,18 +1,23 @@
 # Builds run on the host with the Gradle wrapper and Android Studio's JBR, not in Docker
 # (aapt2 and the emulator are unreliable in Linux arm64 containers).
+ifeq ($(shell uname -s),Darwin)
 JAVA_HOME ?= /Applications/Android Studio.app/Contents/jbr/Contents/Home
+endif
 export JAVA_HOME
 GRADLE := ./gradlew
 # detekt with type resolution: the debug variant of Android modules, main and test of JVM modules.
 DETEKT := detektDebug detektDebugUnitTest :core:engine:detektMain :core:engine:detektTest :core:model:detektMain :core:model:detektTest
 
-.PHONY: build test lint coverage no-telemetry check install install_rc format clean codemap \
+.PHONY: preflight build test lint coverage no-telemetry check install install_rc format clean codemap \
 	release_key bump release_check publish
 
 # Version part bump raises: patch (0.1.0 -> 0.1.1), minor (-> 0.2.0) or major (-> 1.0.0).
 BUMP ?= patch
 # The branch a pull request merges into, for release_check.
 BASE ?= origin/master
+
+preflight:  ## Verify host Java and Gradle wrapper before running the build
+	$(GRADLE) --version
 
 build:  ## Debug APK
 	$(GRADLE) assembleDebug
@@ -29,7 +34,7 @@ coverage:  ## Kover thresholds: core:engine >= 95%, core:data >= 92%
 no-telemetry:  ## Fails if a telemetry, analytics or crash SDK is on the app's classpath
 	$(GRADLE) :app:checkNoTelemetry
 
-check:  ## Everything above in one Gradle run. Must pass before a task counts as done.
+check: preflight  ## Everything above in one Gradle run. Must pass before a task counts as done.
 	$(GRADLE) spotlessCheck $(DETEKT) lintDebug \
 		:core:engine:test :core:model:test testDebugUnitTest \
 		:core:engine:koverVerify :core:data:koverVerifyDebug \

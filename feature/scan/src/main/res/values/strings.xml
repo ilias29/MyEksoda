@@ -48,4 +48,16 @@
     <string name="imports_retry_failed">Δεν ήταν δυνατή η επανεκκίνηση της εισαγωγής.</string>
     <string name="imports_empty_hint">Οι αποδείξεις που σαρώνετε, επικολλάτε ή κοινοποιείτε εμφανίζονται εδώ όσο εισάγονται.</string>
     <string name="scan_camera_settings">Άνοιγμα ρυθμίσεων</string>
+    <string name="scan_capture">Φωτογράφιση απόδειξης (QR)</string>
+    <string name="scan_capture_failed">Η κάμερα δεν άνοιξε. Δοκίμασε φωτογραφία από τη συλλογή.</string>
+    <string name="scan_ocr_title">Αναγνωρισμένο κείμενο απόδειξης</string>
+    <string name="scan_ocr_review">Έλεγξε το κείμενο. Η προεπισκόπηση δεν αποθηκεύεται και δεν δημιουργεί έξοδο.</string>
+    <string name="scan_ocr_items">Προτεινόμενα είδη απόδειξης</string>
+    <string name="scan_ocr_discount">Έκπτωση: %1$s</string>
+    <string name="scan_ocr_vat">ΦΠΑ (περιλαμβάνεται): %1$s</string>
+    <string name="scan_ocr_calculated">Υπολογισμένο σύνολο: %1$s</string>
+    <string name="scan_ocr_total">Αναγραφόμενο σύνολο: %1$s</string>
+    <string name="scan_ocr_reconciles">Τα ποσά συμφωνούν. Έλεγξε όλα τα είδη.</string>
+    <string name="scan_ocr_mismatch">Ελλιπή ή ασύμφωνα ποσά. Διόρθωσε το κείμενο.</string>
+    <string name="scan_ocr_warnings">Γραμμές ή ποσά για έλεγχο: %1$d</string>
 </resources>

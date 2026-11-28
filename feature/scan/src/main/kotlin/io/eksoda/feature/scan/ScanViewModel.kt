@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.eksoda.core.data.repository.ReceiptRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ data class ScanUiState(
     val torchOn: Boolean = false,
     val pasteOpen: Boolean = false,
     val readingPhoto: Boolean = false,
+    val recognizedText: String? = null,
 )
 
 sealed interface ScanEvent {
@@ -36,9 +38,11 @@ sealed interface ScanEvent {
 
     data class LinkPasted(val text: String) : ScanEvent
 
-    data class PhotoPicked(val uri: Uri) : ScanEvent
+    data class PhotoPicked(val uri: Uri, val temporaryCapture: Boolean = false) : ScanEvent
 
     data object FeedbackShown : ScanEvent
+
+    data object OcrDismissed : ScanEvent
 }
 
 sealed interface ScanEffect {
@@ -71,7 +75,8 @@ class ScanViewModel @Inject constructor(
             ScanEvent.PasteOpened -> _state.update { it.copy(pasteOpen = true) }
             ScanEvent.PasteDismissed -> _state.update { it.copy(pasteOpen = false) }
             is ScanEvent.LinkPasted -> onPasted(event.text)
-            is ScanEvent.PhotoPicked -> onPhoto(event.uri)
+            is ScanEvent.PhotoPicked -> onPhoto(event.uri, event.temporaryCapture)
+            ScanEvent.OcrDismissed -> _state.update { it.copy(recognizedText = null) }
             ScanEvent.FeedbackShown -> _state.update { it.copy(feedback = null) }
         }
     }
@@ -96,12 +101,40 @@ class ScanViewModel @Inject constructor(
         }
     }
 
-    private fun onPhoto(uri: Uri) {
-        _state.update { it.copy(readingPhoto = true) }
+    private fun onPhoto(uri: Uri, temporaryCapture: Boolean) {
+        if (_state.value.readingPhoto) {
+            if (temporaryCapture) photoDecoder.discardCapture(uri)
+            return
+        }
+        _state.update { it.copy(readingPhoto = true, recognizedText = null) }
         viewModelScope.launch {
-            val text = runCatching { photoDecoder.decode(uri) }.getOrNull()
-            _state.update { it.copy(readingPhoto = false) }
+            var recognized: String? = null
+            val text = try {
+                val qr = photoDecoder.decode(uri)
+                if (qr == null) {
+                    recognized = try {
+                        photoDecoder.readText(uri)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    } catch (e: LinkageError) {
+                        null
+                    }
+                }
+                qr
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            } finally {
+                if (temporaryCapture) photoDecoder.discardCapture(uri)
+                _state.update { it.copy(readingPhoto = false) }
+            }
             when {
+                text == null && !recognized.isNullOrBlank() ->
+                    _state.update { it.copy(recognizedText = recognized, feedback = null) }
+
                 text == null -> show(ImportFeedback.NoCodeInPhoto)
 
                 ReceiptLinks.isHttpsLink(text) -> {

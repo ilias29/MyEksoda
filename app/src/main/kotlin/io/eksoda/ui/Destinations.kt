@@ -38,6 +38,9 @@ data class MerchantDetailDestination(val merchantId: String)
 data object SettingsDestination
 
 @Serializable
+data object CashDestination
+
+@Serializable
 data object BudgetsDestination
 
 /** Household sync, opened from Settings. */

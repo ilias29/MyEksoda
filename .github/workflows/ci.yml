@@ -11,7 +11,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feature/personal-finance]
   pull_request:
   workflow_dispatch:
 
@@ -54,6 +54,45 @@ jobs:
 
       - name: make check
         run: make check
+
+      - name: Upload verified debug APK
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: personal-finance-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # Diagnostic only: do not let formatter output bypass the original required check.
+      # The patch is produced on the actual PR checkout, not pushed by the workflow.
+      - name: Generate formatter patch after failed check
+        if: failure()
+        run: |
+          mkdir -p "${{ runner.temp }}/finance-diagnostics"
+          format_status=0
+          ./gradlew spotlessApply --continue || format_status=$?
+          git diff --no-ext-diff --binary > "${{ runner.temp }}/finance-diagnostics/spotless.patch"
+          git diff --stat
+          git diff --no-ext-diff
+          exit "$format_status"
+        continue-on-error: true
+
+      - name: Upload formatter patch
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: finance-format-patch
+          path: ${{ runner.temp }}/finance-diagnostics/spotless.patch
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Surface compile errors even when formatting was the first failed gate.
+      # No APK from this diagnostic step is published as verified.
+      - name: Diagnose Android compilation after failed check
+        if: failure()
+        run: ./gradlew assembleDebug --continue
+        continue-on-error: true
 
       # `make check` only verifies coverage; this writes the reports, reusing its test results.
       # core:engine and core:data apply Kover so far.

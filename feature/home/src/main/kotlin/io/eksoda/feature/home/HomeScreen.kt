@@ -90,6 +90,7 @@ fun HomeRoute(
     onReceiptClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
+    onFinanceClick: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // The screen has no Scaffold, so it sets the text color itself.
@@ -104,6 +105,7 @@ fun HomeRoute(
             onReceiptClick = onReceiptClick,
             onSettingsClick = onSettingsClick,
             onRetry = viewModel::retry,
+            onFinanceClick = onFinanceClick,
         )
     }
 }
@@ -120,6 +122,7 @@ fun HomeScreen(
     onReceiptClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onRetry: () -> Unit,
+    onFinanceClick: (() -> Unit)? = null,
 ) {
     val today = state.today
     Column(
@@ -135,6 +138,20 @@ fun HomeScreen(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (onFinanceClick != null) {
+                SectionCard(modifier = Modifier.clickable(onClick = onFinanceClick)) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Τα οικονομικά μου", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Κινήσεις, προϋπολογισμός, αφορολόγητο, Lightyear και καθαρή περιουσία",
+                        )
+                        TextButton(onClick = onFinanceClick) { Text("Άνοιγμα οικονομικών") }
+                    }
+                }
+            }
             if (state.loading || today == null) return@Column
             val pace = state.pace
             if (pace != null) HeroCard(pace, today, onInsightsClick)

@@ -99,6 +99,7 @@ fun MainTabs(
     onSettingsClick: () -> Unit,
     onBudgetsClick: () -> Unit,
     onCategoryClick: (categoryId: String?, period: Period) -> Unit,
+    onFinanceClick: (() -> Unit)? = null,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // The tabs visited before this one, most recent last: Back returns to them in turn, then to
@@ -134,6 +135,7 @@ fun MainTabs(
                         onImportsClick = onImportsClick,
                         onReceiptClick = onReceiptClick,
                         onSettingsClick = onSettingsClick,
+                        onFinanceClick = onFinanceClick,
                     )
 
                     Tab.RECEIPTS -> ReceiptListRoute(

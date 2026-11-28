@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FlashlightOff
@@ -67,6 +68,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -74,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.eksoda.core.designsystem.theme.EksodaTheme
 import kotlinx.coroutines.delay
 import zxingcpp.BarcodeReader
+import java.io.File
 import java.util.concurrent.Executors
 
 @Composable
@@ -82,6 +85,7 @@ fun ScanRoute(
     onShowImports: () -> Unit,
     onViewReceipt: (String) -> Unit,
     viewModel: ScanViewModel = hiltViewModel(),
+    reviewed: ReviewedReceiptViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -100,6 +104,21 @@ fun ScanRoute(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let { viewModel.onEvent(ScanEvent.PhotoPicked(it)) } }
 
+    val context = LocalContext.current
+    var pendingCapture by rememberSaveable { mutableStateOf<String?>(null) }
+    var captureFailed by rememberSaveable { mutableStateOf(false) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val uri = pendingCapture?.let(Uri::parse)
+        pendingCapture = null
+        if (uri != null) {
+            if (saved) {
+                viewModel.onEvent(ScanEvent.PhotoPicked(uri, temporaryCapture = true))
+            } else {
+                runCatching { context.contentResolver.delete(uri, null, null) }
+            }
+        }
+    }
+
     ScanScreen(
         state = state,
         onEvent = viewModel::onEvent,
@@ -107,12 +126,45 @@ fun ScanRoute(
         onDone = if (state.sentCount > 0) onShowImports else onClose,
         onShowImports = onShowImports,
         onViewReceipt = onViewReceipt,
+        onSaveReviewed = reviewed::save,
+        onCapturePhoto = {
+            if (pendingCapture == null) {
+                var file: File? = null
+                try {
+                    val dir = File(context.cacheDir, "receipt_capture")
+                    check(dir.isDirectory || dir.mkdirs())
+                    file = File.createTempFile("receipt_", ".jpg", dir)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        context.packageName + ".receipt.capture",
+                        file,
+                    )
+                    pendingCapture = uri.toString()
+                    camera.launch(uri)
+                } catch (e: Exception) {
+                    file?.delete()
+                    pendingCapture = null
+                    captureFailed = true
+                }
+            }
+        },
         onPickPhoto = {
             photoPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
             )
         },
     )
+    if (captureFailed) {
+        AlertDialog(
+            onDismissRequest = { captureFailed = false },
+            title = { Text(stringResource(R.string.scan_capture_failed)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    captureFailed = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
+        )
+    }
 }
 
 /** The camera screen. */
@@ -125,6 +177,12 @@ fun ScanScreen(
     onShowImports: () -> Unit,
     onViewReceipt: (String) -> Unit,
     onPickPhoto: () -> Unit,
+    onCapturePhoto: (() -> Unit)? = null,
+    onSaveReviewed: (
+        suspend (
+            io.eksoda.core.data.repository.ReviewedReceiptInput,
+        ) -> io.eksoda.core.data.repository.ReviewedReceiptResult
+    )? = null,
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -194,10 +252,23 @@ fun ScanScreen(
                     torchAvailable = hasPermission && torchAvailable,
                     onEvent = onEvent,
                     onPickPhoto = onPickPhoto,
+                    onCapturePhoto = onCapturePhoto,
                     onDone = onDone,
                 )
             }
         }
+    }
+
+    state.recognizedText?.let { recognized ->
+        ReviewedReceiptDialog(
+            recognized = recognized,
+            save = onSaveReviewed,
+            onClose = { onEvent(ScanEvent.OcrDismissed) },
+            onSaved = { id ->
+                onEvent(ScanEvent.OcrDismissed)
+                onViewReceipt(id)
+            },
+        )
     }
 
     if (state.pasteOpen) {
@@ -286,6 +357,7 @@ private fun BottomBar(
     torchAvailable: Boolean,
     onEvent: (ScanEvent) -> Unit,
     onPickPhoto: () -> Unit,
+    onCapturePhoto: (() -> Unit)?,
     onDone: () -> Unit,
 ) {
     Row(
@@ -318,6 +390,15 @@ private fun BottomBar(
                     contentDescription = stringResource(R.string.scan_paste),
                     tint = Color.White,
                 )
+            }
+            if (onCapturePhoto != null) {
+                IconButton(onClick = onCapturePhoto, enabled = !state.readingPhoto) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        stringResource(R.string.scan_capture),
+                        tint = Color.White,
+                    )
+                }
             }
             IconButton(onClick = onPickPhoto, enabled = !state.readingPhoto) {
                 Icon(

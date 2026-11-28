@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import io.eksoda.core.database.dao.AnalyticsDao
 import io.eksoda.core.database.dao.BudgetDao
+import io.eksoda.core.database.dao.CashDao
 import io.eksoda.core.database.dao.CategoryDao
 import io.eksoda.core.database.dao.HouseholdDao
 import io.eksoda.core.database.dao.ImportJobDao
@@ -14,6 +15,7 @@ import io.eksoda.core.database.dao.ReceiptDao
 import io.eksoda.core.database.dao.SyncDao
 import io.eksoda.core.database.dao.TombstoneDao
 import io.eksoda.core.database.entity.BudgetEntity
+import io.eksoda.core.database.entity.CashRow
 import io.eksoda.core.database.entity.CategoryEntity
 import io.eksoda.core.database.entity.HouseholdEntity
 import io.eksoda.core.database.entity.ImportJobEntity
@@ -49,10 +51,23 @@ import io.eksoda.core.database.entity.TombstoneEntity
         ImportJobEntity::class,
         TombstoneEntity::class,
         BudgetEntity::class,
+        CashRow::class,
+        io.eksoda.core.database.entity.PaydayPlanRow::class,
+        io.eksoda.core.database.entity.PlannedPaymentRow::class,
+        io.eksoda.core.database.entity.NetWorthRow::class,
+        io.eksoda.core.database.entity.DividendRow::class,
+        io.eksoda.core.database.entity.PortfolioSnapshotRow::class,
+        io.eksoda.core.database.entity.HoldingSnapshotRow::class,
+        io.eksoda.core.database.entity.AnnualTaxPlanRow::class,
+        io.eksoda.core.database.entity.BankTaxReviewRow::class,
+        io.eksoda.core.database.entity.ReceiptBankLink::class,
+        io.eksoda.core.database.entity.MonthlyPlanRow::class,
+        io.eksoda.core.database.entity.SubscriptionRow::class,
+        io.eksoda.core.database.entity.BankRow::class,
         SyncPeerEntity::class,
         SyncEventEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         // 5: the budget table and household.annual_income_minor.
@@ -62,6 +77,7 @@ import io.eksoda.core.database.entity.TombstoneEntity
         // 7: receipt.source_url nullable (synced receipts have no link), tombstone.natural_key
         // and tombstone.replaced_by.
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ],
 )
 abstract class EksodaDatabase : RoomDatabase() {
@@ -80,6 +96,8 @@ abstract class EksodaDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
 
     abstract fun analyticsDao(): AnalyticsDao
+
+    abstract fun cashDao(): CashDao
 
     abstract fun budgetDao(): BudgetDao
 
