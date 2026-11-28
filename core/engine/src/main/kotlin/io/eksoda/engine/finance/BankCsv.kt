@@ -94,13 +94,13 @@ public object BankCsv {
 
     internal fun rows(text: String, delimiter: Char): List<List<String>> {
         require(delimiter != '"' && delimiter != '\n' && delimiter != '\r')
-        val result = mutableListOf<List<String>>()
-        val row = mutableListOf<String>()
-        val field = StringBuilder()
         val state = CsvState()
+        val result = state.result
+        val row = state.row
+        val field = state.field
         var i = 0
         while (i < text.length) {
-            i = consume(text, i, delimiter, state, row, field, result)
+            i = consume(text, i, delimiter, state)
         }
         require(!state.quoted)
         if (row.isNotEmpty() || field.isNotEmpty() || state.closed) {
@@ -110,17 +110,23 @@ public object BankCsv {
         return result
     }
 
-    private data class CsvState(var quoted: Boolean = false, var closed: Boolean = false)
+    private class CsvState {
+        var quoted = false
+        var closed = false
+        val row = mutableListOf<String>()
+        val field = StringBuilder()
+        val result = mutableListOf<List<String>>()
+    }
 
     private fun consume(
         text: String,
         index: Int,
         delimiter: Char,
         state: CsvState,
-        row: MutableList<String>,
-        field: StringBuilder,
-        result: MutableList<List<String>>,
     ): Int {
+        val row = state.row
+        val field = state.field
+        val result = state.result
         var next = index + 1
         val c = text[index]
         if (state.quoted) return consumeQuoted(text, next, c, state, field)
